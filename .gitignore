@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Editor & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Scraped / Intermediate JSON & Scripts
+scraped_data/
+scraped_data_tabs/
+scraped_clicked_tabs/
+ui_verification_screenshots/
+api_mock_data.json
+all_modules_full.json
+master_service_home.html
+*.log
+*.png
+detailed_cards.json
+expanded_cards.json
+master_service_modules.json
+master_service_text.txt
+parsed_cards.json
+raw_card_bodies.json
+sidebar_items.json
+dump_master_home.cjs
+extract_mock_data.js
+get_all_card_details.cjs
+get_expanded_view_more.cjs
+get_raw_cards.cjs
+inspect_html.cjs
+scrape_all_popovers.cjs
+scrape_all_tabs.js
+scrape_bookone.js
+scrape_by_clicking_tabs.js
+scrape_glossary_config.js
+scrape_master_home.cjs
+summarize_apis.js
+verify_suite_ui.cjs
+verify_ui.cjs
+build_mock_data.cjs
