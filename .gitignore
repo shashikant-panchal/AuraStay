@@ -43,3 +43,5 @@ summarize_apis.js
 verify_suite_ui.cjs
 verify_ui.cjs
 build_mock_data.cjs
+
+.vercel
