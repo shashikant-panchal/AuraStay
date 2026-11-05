@@ -38,7 +38,8 @@ export default function ReservationManagementView({ isSubTab = false }) {
   const { 
     setIsTourOpen,
     showNotification,
-    navigateTo 
+    navigateTo,
+    reservations: contextReservations = []
   } = useDashboard();
 
   // Mode: 'list' or 'book-a-room'

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import StayViewCalendar from './StayViewCalendar';
 import DayViewOperations from './DayViewOperations';
