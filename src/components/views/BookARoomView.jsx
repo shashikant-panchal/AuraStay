@@ -25,7 +25,7 @@ import {
 import { useDashboard } from '../../context/DashboardContext';
 
 export default function BookARoomView({ onBack, onSaveReservation }) {
-  const { showNotification } = useDashboard();
+  const { showNotification, rooms = [], addReservation } = useDashboard();
 
   // Mode and switchers
   const [activeTab, setActiveTab] = useState('room'); // 'room' | 'daytrip' | 'wholeproperty'
@@ -45,8 +45,12 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
   });
 
   // Stay Details
-  const [checkIn, setCheckIn] = useState('05/11/2026');
-  const [checkOut, setCheckOut] = useState('06/11/2026');
+  const [checkIn, setCheckIn] = useState(() => new Date().toISOString().split('T')[0]);
+  const [checkOut, setCheckOut] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  });
   const [roomType, setRoomType] = useState('');
   const [plan, setPlan] = useState('');
   const [roomsCount, setRoomsCount] = useState(0);
@@ -122,34 +126,36 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
 
   const handleConfirmAndSave = () => {
     const guestName = guest.name.trim() || 'Walk-in Guest';
+    const dynamicId = `AST-B-${Math.floor(100 + Math.random() * 900)}`;
+    const assignedRoom = rooms.length > 0 ? `${rooms[0].roomNumber} (${rooms[0].type})` : (roomType || 'Unassigned Room');
     const newReservation = {
-      id: 'AST-B-001',
-      hash: 'AST-B-CI-001/2026',
+      id: dynamicId,
       guest: guestName,
-      guestType: 'WALKIN',
-      phone: guest.phone || '',
-      createdAt: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      createdTime: '12:30 PM',
-      stayPeriod: `${checkIn} — ${checkOut}`,
-      checkInOut: `${checkIn} 12:00 PM — ${checkOut} 11:00 AM`,
-      roomType: roomType || (rooms?.[0]?.type || 'Room'),
-      ratePlan: plan || 'EP PLAN',
-      rooms: ['105'],
+      guest_email: guest.email || null,
+      guest_phone: guest.phone || null,
+      room: assignedRoom,
+      checkIn: checkIn || new Date().toISOString().split('T')[0],
+      checkOut: checkOut || new Date(Date.now() + 86400000).toISOString().split('T')[0],
+      source: bookingMode === 'RESERVATION' ? 'Direct Walk-in' : 'Direct Booking',
+      amount: calculations.totalAmount > 0 ? calculations.totalAmount : (Number(advanceAmount) || 2000.00),
       status: 'CONFIRMED',
-      total: calculations.totalAmount > 0 ? calculations.totalAmount : 2000.00,
-      paid: calculations.paidAmount,
-      due: calculations.dueAmount > 0 ? calculations.dueAmount : 2000.00 - calculations.paidAmount,
-      note: bookingNotes || null,
-      highlight: false,
-      invoiceNumber: null
+      payment: Number(advanceAmount) >= (calculations.totalAmount > 0 ? calculations.totalAmount : 2000) ? 'PAID' : 'PENDING'
     };
 
+    if (addReservation) {
+      addReservation(newReservation);
+    }
     if (onSaveReservation) {
       onSaveReservation(newReservation);
     }
-    showNotification('Reservation #AST-B-001 created successfully! Room R-105 allocated.');
+    showNotification(`Reservation #${dynamicId} created successfully! Room ${assignedRoom} allocated.`);
     if (onBack) onBack();
   };
+
+  const activeRoom = useMemo(() => {
+    if (!roomType || !rooms || rooms.length === 0) return null;
+    return rooms.find(r => r.type === roomType) || rooms[0] || null;
+  }, [roomType, rooms]);
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">

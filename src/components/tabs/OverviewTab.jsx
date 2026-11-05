@@ -21,7 +21,8 @@ export default function OverviewTab() {
     data, 
     setIsEvidenceModalOpen, 
     refreshData, 
-    isRefreshing 
+    isRefreshing,
+    rooms = []
   } = useDashboard();
 
   const { kpis, todayActions, revenueTrend30Days, adrOccupancy14Days } = data;

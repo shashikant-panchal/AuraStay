@@ -7,11 +7,11 @@ export default function CreateReservationModal() {
     isCreateReservationModalOpen, 
     setIsCreateReservationModalOpen, 
     addReservation,
-    rooms 
+    rooms = []
   } = useDashboard();
 
   const [guest, setGuest] = useState('');
-  const [room, setRoom] = useState('101 (Standard Room)');
+  const [room, setRoom] = useState('');
   const [checkIn, setCheckIn] = useState(() => new Date().toISOString().split('T')[0]);
   const [checkOut, setCheckOut] = useState(() => {
     const d = new Date();
@@ -19,21 +19,28 @@ export default function CreateReservationModal() {
     return d.toISOString().split('T')[0];
   });
   const [source, setSource] = useState('Direct Walk-in');
-  const [amount, setAmount] = useState('4000');
+  const [amount, setAmount] = useState('2000');
 
   if (!isCreateReservationModalOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    addReservation({
-      guest,
-      room,
-      checkIn,
-      checkOut,
-      source,
-      amount: Number(amount)
-    });
+    if (!guest.trim()) return;
+    const finalRoom = room || (rooms.length > 0 ? `${rooms[0].roomNumber} (${rooms[0].type})` : 'Unassigned Room');
+    if (addReservation) {
+      addReservation({
+        guest: guest.trim(),
+        room: finalRoom,
+        checkIn,
+        checkOut,
+        source,
+        amount: Number(amount) || 0
+      });
+    }
+    setIsCreateReservationModalOpen(false);
   };
+
+  const defaultRoomVal = room || (rooms.length > 0 ? `${rooms[0].roomNumber} (${rooms[0].type})` : 'Unassigned Room');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
@@ -101,7 +108,7 @@ export default function CreateReservationModal() {
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Assigned Room</label>
               <select
-                value={room}
+                value={defaultRoomVal}
                 onChange={(e) => setRoom(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
@@ -164,4 +171,3 @@ export default function CreateReservationModal() {
     </div>
   );
 }
-

@@ -39,7 +39,10 @@ export default function ReservationManagementView({ isSubTab = false }) {
     setIsTourOpen,
     showNotification,
     navigateTo,
-    reservations: contextReservations = []
+    reservations: contextReservations = [],
+    setReservations,
+    addReservation,
+    rooms = []
   } = useDashboard();
 
   // Mode: 'list' or 'book-a-room'
@@ -86,17 +89,20 @@ export default function ReservationManagementView({ isSubTab = false }) {
   };
 
   const handleUpdatePayment = (resId, newPaid, newDue) => {
-    setReservations(prev => prev.map(r => {
-      if (r.id === resId) {
-        return {
-          ...r,
-          paid: newPaid,
-          due: newDue,
-          status: newDue === 0 && r.status === 'CONFIRMED' ? 'CONFIRMED' : r.status
-        };
-      }
-      return r;
-    }));
+    if (setReservations) {
+      setReservations(prev => prev.map(r => {
+        if (r.id === resId) {
+          return {
+            ...r,
+            paid: newPaid,
+            due: newDue,
+            status: newDue === 0 && r.status === 'CONFIRMED' ? 'CONFIRMED' : r.status
+          };
+        }
+        return r;
+      }));
+    }
+    showNotification(`Payment updated for booking ${resId}.`);
   };
 
   const handleResetFilters = () => {
@@ -107,7 +113,11 @@ export default function ReservationManagementView({ isSubTab = false }) {
   };
 
   const handleSaveNewReservation = (newRsvn) => {
-    setReservations(prev => [newRsvn, ...prev]);
+    if (addReservation) {
+      addReservation(newRsvn);
+    } else if (setReservations) {
+      setReservations(prev => [newRsvn, ...prev]);
+    }
   };
 
   const filteredReservations = useMemo(() => {

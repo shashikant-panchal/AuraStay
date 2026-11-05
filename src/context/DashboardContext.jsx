@@ -328,14 +328,14 @@ export function DashboardProvider({ children }) {
 
   // Add reservation
   const addReservation = async (newRes) => {
-    const resId = `AST-B-${860 + reservations.length + 1}`;
+    const resId = newRes.id || `AST-B-${(reservations?.length || 0) + 101}`;
     const reservation = {
-      id: resId,
       ...newRes,
-      status: 'CONFIRMED',
-      payment: 'PENDING'
+      id: resId,
+      status: newRes.status || 'CONFIRMED',
+      payment: newRes.payment || 'PENDING'
     };
-    setReservations([reservation, ...reservations]);
+    setReservations(prev => [reservation, ...(prev || [])]);
     showNotification(`Reservation ${resId} created for ${newRes.guest}`);
     setIsCreateReservationModalOpen(false);
 
@@ -495,7 +495,9 @@ export function DashboardProvider({ children }) {
       activeTab,
       frontOfficeSubTab,
       rooms,
+      setRooms,
       reservations,
+      setReservations,
       fnbOrders,
       staffUsers,
       otaChannels,

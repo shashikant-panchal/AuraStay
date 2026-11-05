@@ -39,6 +39,7 @@ import QuickSearchModal from './components/modals/QuickSearchModal';
 import CreateReservationModal from './components/modals/CreateReservationModal';
 import CreateRoomModal from './components/modals/CreateRoomModal';
 import NotificationToast from './components/NotificationToast';
+import ErrorBoundary from './components/ErrorBoundary';
 import { LogOut } from 'lucide-react';
 
 export default function App() {
@@ -105,52 +106,58 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f3f6f9] flex text-slate-800 selection:bg-indigo-500 selection:text-white font-sans antialiased">
-      {/* Left Dark Sidebar with Hover Expand & Pinned Mode */}
-      <Sidebar />
+    <ErrorBoundary>
+      <div className="min-h-screen bg-[#f3f6f9] flex text-slate-800 selection:bg-indigo-500 selection:text-white font-sans antialiased">
+        {/* Left Dark Sidebar with Hover Expand & Pinned Mode */}
+        <Sidebar />
 
-      {/* Main Container Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
+        {/* Main Container Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <Header />
 
-        <main className="flex-1 p-4 sm:p-6 max-w-[1600px] w-full mx-auto">
-          {renderContent()}
-        </main>
+          <main className="flex-1 p-4 sm:p-6 max-w-[1600px] w-full mx-auto">
+            <ErrorBoundary>
+              {renderContent()}
+            </ErrorBoundary>
+          </main>
 
-        {/* Bottom Dark Blue Footer Bar (Matching Screenshot) */}
-        <footer className="bg-[#0b1a30] text-white px-6 py-2.5 flex items-center justify-between border-t border-slate-800 shrink-0 select-none">
-          <button
-            onClick={() => showNotification('Connected to AuraStay Local Node & Cloud Sync')}
-            className="flex items-center space-x-2 px-3.5 py-1.5 bg-[#132644] hover:bg-[#1a335c] text-white text-xs font-semibold rounded-lg border border-slate-700/80 transition"
-          >
-            <LogOut className="w-3.5 h-3.5 text-slate-300 rotate-180" />
-            <span>Go AuraStay local</span>
-          </button>
+          {/* Bottom Dark Blue Footer Bar (Matching Screenshot) */}
+          <footer className="bg-[#0b1a30] text-white px-6 py-2.5 flex items-center justify-between border-t border-slate-800 shrink-0 select-none">
+            <button
+              onClick={() => showNotification('Connected to AuraStay Local Node & Cloud Sync')}
+              className="flex items-center space-x-2 px-3.5 py-1.5 bg-[#132644] hover:bg-[#1a335c] text-white text-xs font-semibold rounded-lg border border-slate-700/80 transition"
+            >
+              <LogOut className="w-3.5 h-3.5 text-slate-300 rotate-180" />
+              <span>Go AuraStay local</span>
+            </button>
 
-          <div className="flex items-center space-x-2 text-xs">
-            <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-[#0b1a30] font-black text-xs shadow-xs">
-              a
+            <div className="flex items-center space-x-2 text-xs">
+              <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-[#0b1a30] font-black text-xs shadow-xs">
+                a
+              </div>
+              <div className="text-right leading-none">
+                <span className="text-slate-400 text-xs">Powered by </span>
+                <span className="font-bold text-white text-xs">AuraStay</span>
+              </div>
             </div>
-            <div className="text-right leading-none">
-              <span className="text-slate-400 text-xs">Powered by </span>
-              <span className="font-bold text-white text-xs">AuraStay</span>
-            </div>
-          </div>
-        </footer>
+          </footer>
+        </div>
+
+        {/* Modals & Dialogs */}
+        <ErrorBoundary>
+          <GlossaryModal />
+          <ConfigurationModal />
+          <EvidenceModal />
+          <SetBudgetModal />
+          <EvaluateGroupModal />
+          <MonitoringModal />
+          <TourModal />
+          <QuickSearchModal />
+          <CreateReservationModal />
+          <CreateRoomModal />
+          <NotificationToast />
+        </ErrorBoundary>
       </div>
-
-      {/* Modals & Dialogs */}
-      <GlossaryModal />
-      <ConfigurationModal />
-      <EvidenceModal />
-      <SetBudgetModal />
-      <EvaluateGroupModal />
-      <MonitoringModal />
-      <TourModal />
-      <QuickSearchModal />
-      <CreateReservationModal />
-      <CreateRoomModal />
-      <NotificationToast />
-    </div>
+    </ErrorBoundary>
   );
 }

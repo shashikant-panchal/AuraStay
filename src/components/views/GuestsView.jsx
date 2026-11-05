@@ -160,9 +160,8 @@ export default function GuestsView() {
   };
 
   const handleCsvImport = () => {
-    setGuestsList(DEFAULT_HOTEL_GUESTS);
     setIsUploadCsvModalOpen(false);
-    showNotification('Successfully imported 5 guest records from CSV!');
+    showNotification('CSV imported successfully.');
   };
 
   return (

@@ -73,7 +73,7 @@ export default function AriGridView() {
             <button className="p-1 hover:bg-white rounded transition text-slate-600">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-2 font-bold text-slate-800">{WEEK_DAYS[0]?.label} – {WEEK_DAYS[6]?.label} {new Date().getFullYear()}</span>
+            <span className="px-2 font-bold text-slate-800">{days[0]?.label} – {days[6]?.label} {new Date().getFullYear()}</span>
             <button className="p-1 hover:bg-white rounded transition text-slate-600">
               <ChevronRight className="w-4 h-4" />
             </button>
