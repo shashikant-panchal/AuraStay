@@ -284,3 +284,4 @@ INSERT INTO budget_forecast (id, mtd_revenue, revenue_target, revenue_achievemen
     {"month": "Dec", "budget": 1500000, "actual": 0, "lastYear": 1250000, "variance": 0}
 ]'::jsonb)
 ON CONFLICT (id) DO NOTHING;
+

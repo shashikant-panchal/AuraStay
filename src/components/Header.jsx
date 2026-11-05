@@ -30,7 +30,8 @@ export default function Header() {
     setIsTourOpen, 
     setIsSearchOpen,
     resetToDefaults,
-    subModuleTitle 
+    subModuleTitle,
+    isLiveConnected
   } = useDashboard();
 
   const { property } = data;
@@ -71,6 +72,14 @@ export default function Header() {
 
         {/* Right: Search, Property Dropdown, Icons */}
         <div className="flex items-center space-x-3 sm:space-x-4">
+          {/* Live Cloud Sync Indicator */}
+          {isLiveConnected && (
+            <div className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200/80 rounded-full text-[11px] font-semibold text-emerald-700 shadow-xs" title="Connected to Supabase PostgreSQL Realtime Engine">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Live Cloud Sync</span>
+            </div>
+          )}
+
           {/* Search bar */}
           <button 
             onClick={() => setIsSearchOpen(true)}
