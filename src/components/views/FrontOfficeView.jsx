@@ -496,11 +496,11 @@ export default function FrontOfficeView() {
                   <Building2 className="w-4 h-4 text-[#0e4860]" />
                   <h3 className="text-sm font-bold text-slate-900">Today's Room Availability & BAR</h3>
                   <span className="bg-sky-100 text-sky-800 text-[10.5px] font-bold px-2.5 py-0.5 rounded-full">
-                    4% Occupancy
+                    {rooms.length > 0 ? Math.round((rooms.filter(r => r.status === 'OCCUPIED').length / rooms.length) * 100) : 0}% Occupancy
                   </span>
                 </div>
                 <div className="text-xs text-slate-500 font-medium">
-                  <span className="text-emerald-600 font-bold">27</span>available / <span className="text-sky-600 font-bold">1</span>sold / <span className="text-slate-600 font-bold">28</span>total
+                  <span className="text-emerald-600 font-bold">{rooms.filter(r => r.status !== 'OCCUPIED').length}</span> available / <span className="text-sky-600 font-bold">{rooms.filter(r => r.status === 'OCCUPIED').length}</span> sold / <span className="text-slate-600 font-bold">{rooms.length}</span> total
                 </div>
               </div>
 
@@ -785,19 +785,19 @@ export default function FrontOfficeView() {
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span className="font-bold text-slate-700">Guest Name:</span>
-                <span className="text-slate-900 font-semibold">Sristi Bhattacharya</span>
+                <span className="text-slate-900 font-semibold">{reservations[0]?.guest || 'No in-house guest'}</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span className="font-bold text-slate-700">Booking Reference:</span>
-                <span className="text-slate-900 font-mono font-bold">BSE-B-864</span>
+                <span className="text-slate-900 font-mono font-bold">{reservations[0]?.id ? `AST-B-${reservations[0].id}` : '—'}</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span className="font-bold text-slate-700">Allocated Room:</span>
-                <span className="text-slate-900 font-semibold">Standard Room (101)</span>
+                <span className="text-slate-900 font-semibold">{reservations[0]?.room || '—'}</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span className="font-bold text-slate-700">Tariff Realized:</span>
-                <span className="text-slate-900 font-bold">₹2,600.00 / night</span>
+                <span className="text-slate-900 font-bold">{reservations[0]?.amount ? `₹${Number(reservations[0].amount).toLocaleString('en-IN')}` : '—'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-bold text-slate-700">ID / KYC Verification:</span>
@@ -851,7 +851,8 @@ export default function FrontOfficeView() {
                 <label className="font-bold text-slate-700 block mb-1">Guest / Room</label>
                 <input
                   type="text"
-                  defaultValue="Shashank Verma (Room 102)"
+                  placeholder="Select or enter in-house guest..."
+                  defaultValue=""
                   className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium"
                 />
               </div>

@@ -36,245 +36,54 @@ export default function CalendarViewAccommodation() {
 
   // Calendar Day Data for November 2026 (30 Days)
   // Matching Screenshots 1, 2, 3, 4, 5
-  const calendarDays = [
-    {
-      day: 1, dayOfWeek: 'SUN',
-      // Operations
-      opsOccupancy: 18, opsCount: '5/28', arrivals: 5, departures: 8, barColor: 'bg-emerald-600',
-      // Revenue
-      revenue: '₹13,650', revOccupancy: '18%', adr: '2,730', revpar: '488', fcst: '18%', pickup: '0',
-      // Housekeeping
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 8
-    },
-    {
-      day: 2, dayOfWeek: 'MON',
-      opsOccupancy: 50, opsCount: '14/28', arrivals: 12, departures: 6, barColor: 'bg-[#0e4860]',
-      revenue: '₹35,826', revOccupancy: '50%', adr: '2,559', revpar: '1,280', fcst: '50%', pickup: '+2',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 6
-    },
-    {
-      day: 3, dayOfWeek: 'TUE',
-      opsOccupancy: 25, opsCount: '7/28', arrivals: 5, departures: 11, barColor: 'bg-emerald-600',
-      revenue: '₹18,883', revOccupancy: '25%', adr: '2,698', revpar: '674', fcst: '25%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 11
-    },
-    {
-      day: 4, dayOfWeek: 'WED',
-      opsOccupancy: 21, opsCount: '6/28', arrivals: 5, departures: 4, barColor: 'bg-emerald-600',
-      revenue: '₹15,752', revOccupancy: '21%', adr: '2,625', revpar: '563', fcst: '21%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 4
-    },
-    {
-      day: 5, dayOfWeek: 'THU',
-      // TODAY / SELECTED
-      isToday: true,
-      opsOccupancy: 4, opsCount: '1/28', arrivals: 1, departures: 6, barColor: 'bg-emerald-600',
-      revenue: '₹2,476', revOccupancy: '4%', adr: '2,476', revpar: '88', fcst: '4%', pickup: '+1',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 6
-    },
-    {
-      day: 6, dayOfWeek: 'FRI',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 1, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '2%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 1
-    },
-    {
-      day: 7, dayOfWeek: 'SAT',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '4%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 8, dayOfWeek: 'SUN',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 9, dayOfWeek: 'MON',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 10, dayOfWeek: 'TUE',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 11, dayOfWeek: 'WED',
-      opsOccupancy: 11, opsCount: '3/28', arrivals: 2, departures: 0, barColor: 'bg-emerald-600',
-      revenue: '₹8,000', revOccupancy: '11%', adr: '2,667', revpar: '286', fcst: '11%', pickup: '+3',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 12, dayOfWeek: 'THU',
-      opsOccupancy: 11, opsCount: '3/28', arrivals: 0, departures: 0, barColor: 'bg-emerald-600',
-      revenue: '₹8,000', revOccupancy: '11%', adr: '2,667', revpar: '286', fcst: '11%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 13, dayOfWeek: 'FRI',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 2, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 2
-    },
-    {
-      day: 14, dayOfWeek: 'SAT',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 15, dayOfWeek: 'SUN',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 16, dayOfWeek: 'MON',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 17, dayOfWeek: 'TUE',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 18, dayOfWeek: 'WED',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 19, dayOfWeek: 'THU',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 20, dayOfWeek: 'FRI',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 21, dayOfWeek: 'SAT',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 22, dayOfWeek: 'SUN',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 23, dayOfWeek: 'MON',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 24, dayOfWeek: 'TUE',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 25, dayOfWeek: 'WED',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 26, dayOfWeek: 'THU',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 27, dayOfWeek: 'FRI',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 28, dayOfWeek: 'SAT',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 29, dayOfWeek: 'SUN',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-    {
-      day: 30, dayOfWeek: 'MON',
-      opsOccupancy: 0, opsCount: '0/28', arrivals: 0, departures: 0, barColor: '',
-      revenue: '₹0', revOccupancy: '0%', adr: '0', revpar: '0', fcst: '0%', pickup: '0',
-      hkOpen: 0, hkDone: '0/0', unassigned: 0, hkDepartures: 0
-    },
-  ];
+  const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const calendarDays = Array.from({ length: 30 }, (_, i) => ({
+    day: i + 1,
+    dayOfWeek: daysOfWeek[i % 7],
+    opsOccupancy: 0,
+    opsCount: '0/0',
+    arrivals: 0,
+    departures: 0,
+    barColor: '',
+    revenue: '₹0',
+    revOccupancy: '0%',
+    adr: '0',
+    revpar: '0',
+    fcst: '0%',
+    pickup: '0',
+    hkOpen: 0,
+    hkDone: '0/0',
+    unassigned: 0,
+    hkDepartures: 0
+  }));
 
-  // Arrivals for the selected day (Screenshot 2)
-  const arrivalsList = [
-    {
-      id: 'BSE-B-864',
-      guest: 'Sristi Bhattacharya',
-      status: 'CHECKEDIN',
-      room: 'Standard Room',
-      source: 'Walkin',
-      checkIn: 'Thu, Nov 5 08:31 AM',
-      checkOut: 'Fri, Nov 6 08:31 AM',
+  const arrivalsList = (reservations || [])
+    .filter(r => r.status === 'CHECKEDIN' || r.status === 'CONFIRMED')
+    .map(r => ({
+      id: r.id ? `AST-B-${r.id}` : 'AST-B-001',
+      guest: r.guest || 'Guest',
+      status: r.status || 'CONFIRMED',
+      room: r.room || 'Standard Room',
+      source: r.source || 'Walkin',
+      checkIn: r.checkIn || 'Today',
+      checkOut: r.checkOut || 'Tomorrow',
       duration: '1 NIGHT',
-      tariff: '₹2,600.00'
-    }
-  ];
+      tariff: `₹${(Number(r.amount) || 2500).toLocaleString('en-IN')}`
+    }));
 
-  // Departures for the selected day (Screenshots 2 & 4)
-  const departuresList = [
-    {
-      id: 'BSE-B-852',
-      guest: 'Tejender Thakur',
-      status: 'CONFIRMED',
-      room: 'Deluxe Room',
-      source: 'Walkin',
-      checkIn: 'Tue, Nov 3 07:42 PM',
-      checkOut: 'Thu, Nov 5 07:42 PM',
-      duration: '2 NIGHTS',
-      tariff: '₹6,400.00'
-    },
-    {
-      id: 'BSE-B-853',
-      guest: 'Mr. Manoj Kumar',
-      status: 'CONFIRMED',
-      room: 'Executive Suite',
-      source: 'Direct Web',
-      checkIn: 'Tue, Nov 3 02:15 PM',
-      checkOut: 'Thu, Nov 5 11:00 AM',
-      duration: '2 NIGHTS',
-      tariff: '₹9,000.00'
-    },
-    {
-      id: 'AST-B-857',
-      guest: 'Shashank Verma',
-      status: 'PENDING SETTLEMENT',
-      room: 'Standard Room (102)',
-      source: 'Walkin',
-      checkIn: 'Tue, Nov 3 08:00 PM',
-      checkOut: 'Thu, Nov 5 11:00 AM',
-      duration: '2 NIGHTS',
-      tariff: '₹4,000.00'
-    }
-  ];
+  const departuresList = (reservations || [])
+    .filter(r => r.status === 'CHECKEDOUT')
+    .map(r => ({
+      id: r.id ? `AST-B-${r.id}` : 'AST-B-001',
+      guest: r.guest || 'Guest',
+      status: r.status || 'CHECKEDOUT',
+      room: r.room || 'Standard Room',
+      source: r.source || 'Walkin',
+      checkIn: r.checkIn || 'Yesterday',
+      checkOut: r.checkOut || 'Today',
+      duration: '1 NIGHT',
+      tariff: `₹${(Number(r.amount) || 2500).toLocaleString('en-IN')}`
+    }));
 
   const handleReset = () => {
     setSelectedDay(5);
@@ -528,7 +337,7 @@ export default function CalendarViewAccommodation() {
               </span>
             </div>
 
-            {/* Arrival Item: Sristi Bhattacharya */}
+            
             {arrivalsList.map(item => (
               <div 
                 key={item.id}
@@ -594,7 +403,9 @@ export default function CalendarViewAccommodation() {
 
             {/* Departures List */}
             <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
-              {departuresList.map(item => (
+              {departuresList.length === 0 ? (
+              <div className="text-center py-6 text-slate-400 text-xs">No departures scheduled for this date</div>
+            ) : departuresList.map(item => (
                 <div 
                   key={item.id}
                   className="bg-slate-50/60 hover:bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs space-y-2 transition shadow-2xs"

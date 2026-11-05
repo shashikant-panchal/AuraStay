@@ -32,9 +32,12 @@ import {
 } from 'lucide-react';
 
 export default function DayViewOperations() {
-  const { 
-    showNotification, 
-    setIsCreateReservationModalOpen 
+  const {
+    showNotification,
+    setIsCreateReservationModalOpen,
+    rooms: contextRooms = [],
+    reservations = [],
+    setIsCreateRoomModalOpen
   } = useDashboard();
 
   // Search & Filter states
@@ -54,325 +57,39 @@ export default function DayViewOperations() {
     wifi: false,
   });
 
-  // Master Rooms Data matching Screenshots 2, 3, 4, 5
-  const [dayRooms, setDayRooms] = useState([
-    {
-      id: 'R-101',
-      roomNumber: '101',
-      type: 'Standard Room',
-      floor: '1st Floor',
-      floorVal: '1',
-      status: 'NOT_READY',
-      statusLabel: 'Not Ready',
-      statusColor: 'yellow',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-102',
-      roomNumber: '102',
-      type: 'Standard Room',
-      floor: '1st Floor',
-      floorVal: '1',
-      status: 'OCCUPIED',
-      statusLabel: 'Occupied',
-      statusColor: 'red',
-      occupied: true,
-      bookingId: 'BSE-B-864',
-      bookingPaid: true,
-      guest: 'Sristi',
-      checkInTime: '8:31 AM',
-      stayDuration: '1 night',
-      adults: 2,
-      children: 0,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-103',
-      roomNumber: '103',
-      type: 'Standard Room',
-      floor: '1st Floor',
-      floorVal: '1',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-104',
-      roomNumber: '104',
-      type: 'Standard Room',
-      floor: '1st Floor',
-      floorVal: '1',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-105',
-      roomNumber: '105',
-      type: 'Standard Room',
-      floor: '1st Floor',
-      floorVal: '1',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-201',
-      roomNumber: '201',
-      type: 'Deluxe Room',
-      floor: '2nd Floor',
-      floorVal: '2',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-202',
-      roomNumber: '202',
-      type: 'Deluxe Room',
-      floor: '2nd Floor',
-      floorVal: '2',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-203',
-      roomNumber: '203',
-      type: 'Standard Room',
-      floor: '2nd Floor',
-      floorVal: '2',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-204',
-      roomNumber: '204',
-      type: 'Deluxe Room',
-      floor: '2nd Floor',
-      floorVal: '2',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-205',
-      roomNumber: '205',
-      type: 'Deluxe Room',
-      floor: '2nd Floor',
-      floorVal: '2',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-301',
-      roomNumber: '301',
-      type: 'Super Deluxe Room',
-      floor: '3rd Floor',
-      floorVal: '3',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-302',
-      roomNumber: '302',
-      type: 'Super Deluxe Room',
-      floor: '3rd Floor',
-      floorVal: '3',
-      status: 'CHECKING_OUT',
-      statusLabel: 'Checking Out',
-      statusColor: 'purple',
-      occupied: true,
-      bookingId: 'BSE-B-861',
-      bookingPaid: true,
-      guest: 'Dibyajeeban',
-      departingToday: true,
-      checkOutTime: '11:32 AM',
-      housekeepingNeeded: true,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-303',
-      roomNumber: '303',
-      type: 'Super Deluxe Room',
-      floor: '3rd Floor',
-      floorVal: '3',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-304',
-      roomNumber: '304',
-      type: 'Super Deluxe Room',
-      floor: '3rd Floor',
-      floorVal: '3',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-305',
-      roomNumber: '305',
-      type: 'Super Deluxe Room',
-      floor: '3rd Floor',
-      floorVal: '3',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-401',
-      roomNumber: '401',
-      type: 'Suite Room',
-      floor: '4th Floor',
-      floorVal: '4',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-402',
-      roomNumber: '402',
-      type: 'Suite Room',
-      floor: '4th Floor',
-      floorVal: '4',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-403',
-      roomNumber: '403',
-      type: 'Suite Room',
-      floor: '4th Floor',
-      floorVal: '4',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-404',
-      roomNumber: '404',
-      type: 'Suite Room',
-      floor: '4th Floor',
-      floorVal: '4',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-405',
-      roomNumber: '405',
-      type: 'Suite Room',
-      floor: '4th Floor',
-      floorVal: '4',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-Hall 1',
-      roomNumber: 'Hall 1',
-      type: 'Banquet Hall',
-      floor: 'GF Floor',
-      floorVal: '0',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-    {
-      id: 'R-Hall 2',
-      roomNumber: 'Hall 2',
-      type: 'Banquet Hall',
-      floor: 'GF Floor',
-      floorVal: '0',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'Room Ready',
-      occupied: false,
-      amenities: { electricity: false, wifi: false, ac: false }
-    },
-    {
-      id: 'DayTrip',
-      roomNumber: 'DayTrip',
-      type: 'DayTrip',
-      floor: 'GF Floor',
-      floorVal: '0',
-      status: 'VACANT_READY',
-      statusLabel: 'Vacant Ready',
-      statusColor: 'green',
-      readyTag: 'DayTrip',
-      occupied: false,
-      amenities: { electricity: true, wifi: true, ac: true }
-    },
-  ]);
+  // Live Rooms Data mapped dynamically from context
+  const dayRooms = React.useMemo(() => {
+    if (!contextRooms || contextRooms.length === 0) return [];
+    return contextRooms.map(r => {
+      const isOccupied = r.status === 'OCCUPIED';
+      const booking = reservations.find(b => b.room === r.roomNumber || b.room === `Room ${r.roomNumber}`);
+      return {
+        id: `R-${r.roomNumber}`,
+        roomNumber: String(r.roomNumber),
+        type: r.type || 'Standard Room',
+        floor: r.floor || '1st Floor',
+        floorVal: '1',
+        status: r.status || 'VACANT_READY',
+        statusLabel: (r.status || 'VACANT_READY').replace('_', ' '),
+        statusColor: isOccupied ? 'red' : 'green',
+        readyTag: 'Room Ready',
+        occupied: isOccupied,
+        bookingId: booking?.id ? `AST-B-${booking.id}` : null,
+        guest: booking?.guest || null,
+        checkInTime: booking?.checkIn || null,
+        stayDuration: '1 night',
+        adults: 1,
+        children: 0,
+        amenities: { electricity: true, wifi: true, ac: true }
+      };
+    });
+  }, [contextRooms, reservations]);
 
   // Handle Checkout of R-302
   const handleCheckoutGuest = (roomId) => {
     setDayRooms(prev => prev.map(r => {
       if (r.id === roomId) {
-        showNotification(`Guest Dibyajeeban checked out of ${r.id}. Room marked for Housekeeping!`);
+        showNotification(`Guest ${r.guest || 'in ' + r.id} checked out. Room marked for Housekeeping!`);
         return {
           ...r,
           status: 'CLEANING',
@@ -1020,4 +737,32 @@ export default function DayViewOperations() {
     </div>
   );
 }
+  // Live Rooms Data mapped dynamically from context
+  const dayRooms = React.useMemo(() => {
+    if (!contextRooms || contextRooms.length === 0) return [];
+    return contextRooms.map(r => {
+      const isOccupied = r.status === 'OCCUPIED';
+      const booking = reservations.find(b => b.room === r.roomNumber || b.room === `Room ${r.roomNumber}`);
+      return {
+        id: `R-${r.roomNumber}`,
+        roomNumber: String(r.roomNumber),
+        type: r.type || 'Standard Room',
+        floor: r.floor || '1st Floor',
+        floorVal: '1',
+        status: r.status || 'VACANT_READY',
+        statusLabel: (r.status || 'VACANT_READY').replace('_', ' '),
+        statusColor: isOccupied ? 'red' : 'green',
+        readyTag: 'Room Ready',
+        occupied: isOccupied,
+        bookingId: booking?.id ? `AST-B-${booking.id}` : null,
+        guest: booking?.guest || null,
+        checkInTime: booking?.checkIn || null,
+        stayDuration: '1 night',
+        adults: 1,
+        children: 0,
+        amenities: { electricity: true, wifi: true, ac: true }
+      };
+    });
+  }, [contextRooms, reservations]);
+
 

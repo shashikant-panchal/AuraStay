@@ -35,17 +35,7 @@ export default function StayViewCalendar() {
 
   // Unallocated bookings banner state
   const [isUnallocatedOpen, setIsUnallocatedOpen] = useState(false);
-  const [unallocatedList, setUnallocatedList] = useState([
-    {
-      id: 'BSE-B-865',
-      guest: 'Meera Patel',
-      category: 'Standard Room',
-      checkIn: '05/11/2026',
-      checkOut: '08/11/2026',
-      source: 'Agoda OTA',
-      amount: '₹9,600.00'
-    }
-  ]);
+  const [unallocatedList, setUnallocatedList] = useState([]);
 
   // Selected booking modal state
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -107,64 +97,20 @@ export default function StayViewCalendar() {
         { 
           id: '101', 
           name: '101', 
-          statusColor: 'bg-amber-400',
-          bookings: [
-            { 
-              id: 'BSE-B-870', 
-              guest: 'Ankit', 
-              startIdx: 6, // Nov 11
-              span: 2,     // Nov 11-12
-              color: 'bg-[#00a884]',
-              amount: '₹5,200.00',
-              roomType: 'Standard Room (101)',
-              status: 'CONFIRMED'
-            }
-          ] 
+          statusColor: 'bg-emerald-500',
+          bookings: [] 
         },
         { 
           id: '102', 
           name: '102', 
-          statusColor: 'bg-rose-500',
-          bookings: [
-            { 
-              id: 'BSE-B-864', 
-              guest: 'Sristi Bhattacharya', 
-              shortLabel: 'Sr...',
-              startIdx: 0, // Nov 5
-              span: 1,     // 1 day
-              color: 'bg-[#ef4444]',
-              amount: '₹2,600.00',
-              roomType: 'Standard Room (102)',
-              status: 'CHECKEDIN'
-            },
-            { 
-              id: 'BSE-B-871', 
-              guest: 'Mukeshbhai', 
-              startIdx: 6, // Nov 11
-              span: 2, 
-              color: 'bg-[#00a884]',
-              amount: '₹5,200.00',
-              roomType: 'Standard Room (102)',
-              status: 'CONFIRMED'
-            }
-          ] 
+          statusColor: 'bg-emerald-500',
+          bookings: [] 
         },
         { 
           id: '103', 
           name: '103', 
           statusColor: 'bg-emerald-500',
-          bookings: [
-            { 
-              id: 'BSE-B-872', 
-              guest: 'Mukeshbhai', 
-              startIdx: 6, // Nov 11
-              span: 2, 
-              color: 'bg-[#00a884]',
-              amount: '₹5,200.00',
-              roomType: 'Standard Room (103)',
-              status: 'CONFIRMED'
-            }
-          ] 
+          bookings: [] 
         },
         { 
           id: '104', 

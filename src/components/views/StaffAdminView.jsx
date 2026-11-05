@@ -43,20 +43,28 @@ export default function StaffAdminView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {staffUsers.map(u => (
-                <tr key={u.id} className="hover:bg-slate-50">
-                  <td className="py-3 px-4 font-bold text-slate-900">{u.name}</td>
-                  <td className="py-3 px-4 font-semibold text-indigo-700">{u.role}</td>
-                  <td className="py-3 px-4 text-slate-600">{u.department}</td>
-                  <td className="py-3 px-4 font-mono text-slate-500">{u.email}</td>
-                  <td className="py-3 px-4 font-mono text-slate-500">{u.phone}</td>
-                  <td className="py-3 px-4">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">
-                      {u.status}
-                    </span>
+              {staffUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center text-slate-400 text-xs">
+                    No staff users added yet. Click "Add New Staff User" to register team members and staff credentials.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                staffUsers.map(u => (
+                  <tr key={u.id} className="hover:bg-slate-50">
+                    <td className="py-3 px-4 font-bold text-slate-900">{u.name}</td>
+                    <td className="py-3 px-4 font-semibold text-indigo-700">{u.role}</td>
+                    <td className="py-3 px-4 text-slate-600">{u.department}</td>
+                    <td className="py-3 px-4 font-mono text-slate-500">{u.email}</td>
+                    <td className="py-3 px-4 font-mono text-slate-500">{u.phone}</td>
+                    <td className="py-3 px-4">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">
+                        {u.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

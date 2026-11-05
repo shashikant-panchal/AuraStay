@@ -23,15 +23,15 @@ import {
 } from 'lucide-react';
 
 const TABLES_DATA = [
-  { id: 'T-01', name: 'Table 01', area: 'Main Dining', seats: 2, status: 'OCCUPIED', guest: 'Dr. Alok Verma', room: 'Room 203', items: 3, total: 980, time: '22m ago' },
+  { id: 'T-01', name: 'Table 01', area: 'Main Dining', seats: 2, status: 'VACANT', guest: null, room: null, items: 0, total: 0, time: null },
   { id: 'T-02', name: 'Table 02', area: 'Main Dining', seats: 4, status: 'VACANT', guest: null, room: null, items: 0, total: 0, time: null },
-  { id: 'T-03', name: 'Table 03', area: 'Main Dining', seats: 4, status: 'KOT_PENDING', guest: 'Pooja Agarwal', room: 'Room 101', items: 4, total: 1420, time: '8m ago' },
-  { id: 'T-04', name: 'Table 04', area: 'Main Dining', seats: 6, status: 'BILLING', guest: 'Sunil Rao', room: 'Walk-in', items: 5, total: 2150, time: '45m ago' },
+  { id: 'T-03', name: 'Table 03', area: 'Main Dining', seats: 4, status: 'VACANT', guest: null, room: null, items: 0, total: 0, time: null },
+  { id: 'T-04', name: 'Table 04', area: 'Main Dining', seats: 6, status: 'VACANT', guest: null, room: null, items: 0, total: 0, time: null },
   { id: 'T-05', name: 'Table 05', area: 'Main Dining', seats: 2, status: 'VACANT', guest: null, room: null, items: 0, total: 0, time: null },
-  { id: 'T-06', name: 'Table 06', area: 'Main Dining', seats: 4, status: 'OCCUPIED', guest: 'Rajesh Mehra', room: 'Room 304', items: 2, total: 720, time: '14m ago' },
-  { id: 'P-01', name: 'Pool Deck 01', area: 'Poolside', seats: 4, status: 'OCCUPIED', guest: 'Vikram Joshi', room: 'Room 402', items: 3, total: 1100, time: '30m ago' },
+  { id: 'T-06', name: 'Table 06', area: 'Main Dining', seats: 4, status: 'VACANT', guest: null, room: null, items: 0, total: 0, time: null },
+  { id: 'P-01', name: 'Pool Deck 01', area: 'Poolside', seats: 4, status: 'VACANT', guest: null, room: null, items: 0, total: 0, time: null },
   { id: 'P-02', name: 'Pool Deck 02', area: 'Poolside', seats: 2, status: 'VACANT', guest: null, room: null, items: 0, total: 0, time: null },
-  { id: 'R-01', name: 'Rooftop Lounge 01', area: 'Rooftop', seats: 6, status: 'OCCUPIED', guest: 'Kavita Sen', room: 'Room 308', items: 6, total: 3450, time: '55m ago' },
+  { id: 'R-01', name: 'Rooftop Lounge 01', area: 'Rooftop', seats: 6, status: 'VACANT', guest: null, room: null, items: 0, total: 0, time: null },
   { id: 'R-02', name: 'Rooftop Lounge 02', area: 'Rooftop', seats: 4, status: 'VACANT', guest: null, room: null, items: 0, total: 0, time: null },
 ];
 

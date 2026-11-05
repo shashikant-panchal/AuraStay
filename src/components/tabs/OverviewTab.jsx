@@ -234,7 +234,7 @@ export default function OverviewTab() {
           </button>
         </div>
 
-        {pendingAction && (
+        {pendingAction ? (
           <div className="mt-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/90 p-4 rounded-lg border border-amber-200">
             <div className="flex items-start space-x-3">
               <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm shrink-0 mt-0.5">
@@ -266,6 +266,10 @@ export default function OverviewTab() {
               <span>Open evidence</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
+          </div>
+        ) : (
+          <div className="mt-4 p-4 bg-white/80 rounded-lg border border-amber-200/60 text-xs text-amber-900/80 font-medium">
+            No active revenue exceptions or rate review alerts pending. System pricing is optimal.
           </div>
         )}
       </div>
@@ -318,7 +322,7 @@ export default function OverviewTab() {
               {kpis.occupancy.toFixed(2)}%
             </div>
             <div className="text-[10px] text-slate-500 mt-1">
-              203 of 840 room nights
+              {kpis.roomNightsSold} of {kpis.totalAvailableNights} room nights
             </div>
           </div>
 
@@ -344,7 +348,7 @@ export default function OverviewTab() {
               {kpis.roomNightsSold.toFixed(2)}
             </div>
             <div className="text-[10px] text-slate-500 mt-1">
-              across 140 bookings
+              across {kpis.totalBookings} bookings
             </div>
           </div>
 
@@ -371,11 +375,11 @@ export default function OverviewTab() {
               Revenue Trend — 30 Days
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Returned period: 5 Oct 2026 – 3 Nov 2026
+              Current 30-day operating window
             </p>
           </div>
           <div className="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-md">
-            Gross: ₹9.48L · Net: ₹8.96L
+            Gross: ₹{kpis.totalRevenue.toLocaleString('en-IN')}
           </div>
         </div>
         <div className="h-72 mt-4">

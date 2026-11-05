@@ -560,7 +560,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
                           </span>
                         )}
 
-                        {/* Invoice Link for BSE-B-860 */}
+                        {/* Invoice Link for AST-B-001 */}
                         {res.invoiceNumber && (
                           <div 
                             onClick={() => setInvoiceModalData(res)}
@@ -733,7 +733,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
         </div>
       )}
 
-      {/* INVOICE MODAL (for BSE-B-860) */}
+      {/* INVOICE MODAL (for AST-B-001) */}
       {invoiceModalData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden">

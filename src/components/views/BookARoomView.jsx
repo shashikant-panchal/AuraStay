@@ -122,8 +122,8 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
   const handleConfirmAndSave = () => {
     const guestName = guest.name.trim() || 'Walk-in Guest';
     const newReservation = {
-      id: 'BSE-B-865',
-      hash: 'BSE-B-CI-383/2026',
+      id: 'AST-B-001',
+      hash: 'AST-B-CI-001/2026',
       guest: guestName,
       guestType: 'WALKIN',
       phone: guest.phone || '+91 98765 43210',
@@ -146,7 +146,7 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
     if (onSaveReservation) {
       onSaveReservation(newReservation);
     }
-    showNotification('Reservation #BSE-B-865 created successfully! Room R-105 allocated.');
+    showNotification('Reservation #AST-B-001 created successfully! Room R-105 allocated.');
     if (onBack) onBack();
   };
 
@@ -371,7 +371,7 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
                   className="appearance-none bg-white border border-slate-300 rounded-lg px-3 py-1.5 pr-8 font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs shadow-2xs"
                 >
                   <option value="Twinkle Bagh">Twinkle Bagh</option>
-                  <option value="Ankit Sharma">Ankit Sharma</option>
+                  <option value="Guest">Guest</option>
                   <option value="Pooja Rawat">Pooja Rawat</option>
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />

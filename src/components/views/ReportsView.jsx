@@ -40,11 +40,11 @@ const REPORTS_CATALOG = [
     icon: Clock,
     iconBg: 'bg-sky-50 text-sky-700 border-sky-100',
     data: [
-      { metric: 'Gross Room Revenue', value: '₹90,442.00', status: 'Reconciled' },
-      { metric: 'Occupancy Rate', value: '24% (7/28 Rooms)', status: 'Verified' },
-      { metric: 'ADR (Average Daily Rate)', value: '₹2,476.19', status: 'Calculated' },
-      { metric: 'RevPAR', value: '₹594.28', status: 'Calculated' },
-      { metric: 'Cash in Drawer', value: '₹14,500.00', status: 'Balanced' }
+      { metric: 'Gross Room Revenue', value: '₹0.00', status: 'Reconciled' },
+      { metric: 'Occupancy Rate', value: '0% (0/0 Rooms)', status: 'Verified' },
+      { metric: 'ADR (Average Daily Rate)', value: '₹0.00', status: 'Calculated' },
+      { metric: 'RevPAR', value: '₹0.00', status: 'Calculated' },
+      { metric: 'Cash in Drawer', value: '₹0.00', status: 'Balanced' }
     ]
   },
   {
@@ -56,11 +56,11 @@ const REPORTS_CATALOG = [
     icon: BarChart3,
     iconBg: 'bg-teal-50 text-teal-700 border-teal-100',
     data: [
-      { metric: 'Total Operational Rooms', value: '28 Rooms', status: 'Active' },
-      { metric: 'Occupied Rooms', value: '7 Rooms', status: 'Occupied' },
-      { metric: 'Vacant Ready Rooms', value: '20 Rooms', status: 'Clean' },
-      { metric: 'Out of Order (OOO)', value: '1 Room (304)', status: 'Maintenance' },
-      { metric: 'Average Stay Duration', value: '1.8 Nights', status: 'Normal' }
+      { metric: 'Total Operational Rooms', value: '0 Rooms', status: 'Active' },
+      { metric: 'Occupied Rooms', value: '0 Rooms', status: 'Occupied' },
+      { metric: 'Vacant Ready Rooms', value: '0 Rooms', status: 'Clean' },
+      { metric: 'Out of Order (OOO)', value: '0 Rooms', status: 'Normal' },
+      { metric: 'Average Stay Duration', value: '0 Nights', status: 'Normal' }
     ]
   },
   {
@@ -72,8 +72,8 @@ const REPORTS_CATALOG = [
     icon: Contact,
     iconBg: 'bg-indigo-50 text-indigo-700 border-indigo-100',
     data: [
-      { metric: 'Total Registered In-House', value: '2 Guests', status: 'Verified' },
-      { metric: 'Aadhaar Verified Guests', value: '2 / 2', status: '100% KYC' },
+      { metric: 'Total Registered In-House', value: '0 Guests', status: 'Verified' },
+      { metric: 'Aadhaar Verified Guests', value: '0 / 0', status: 'KYC Ready' },
       { metric: 'Foreign Nationals (Form-C)', value: '0 Required', status: 'N/A' },
       { metric: 'Local Police PS Station Ref', value: 'Infocity PS / 2026-B', status: 'Logged' }
     ]
@@ -87,10 +87,10 @@ const REPORTS_CATALOG = [
     icon: LogIn,
     iconBg: 'bg-sky-50 text-sky-700 border-sky-100',
     data: [
-      { metric: 'Today Expected Arrivals', value: '1 Booking', status: 'Scheduled' },
-      { metric: 'Arrived / Checked In', value: '1 (Sristi B.)', status: 'In-House' },
+      { metric: 'Today Expected Arrivals', value: '0 Bookings', status: 'Scheduled' },
+      { metric: 'Arrived / Checked In', value: '0', status: 'In-House' },
       { metric: 'VIP / Corporate Arrivals', value: '0', status: 'Standard' },
-      { metric: 'Special Requests Logged', value: 'Late Check-out request', status: 'Pending' }
+      { metric: 'Special Requests Logged', value: 'None', status: 'None' }
     ]
   },
   {
@@ -102,10 +102,10 @@ const REPORTS_CATALOG = [
     icon: LogOut,
     iconBg: 'bg-sky-50 text-sky-700 border-sky-100',
     data: [
-      { metric: 'Scheduled Checkouts', value: '6 Bookings', status: 'Pending Checkout' },
-      { metric: 'Settled Folios', value: '5 / 6', status: 'Paid' },
-      { metric: 'Late Checkouts Approved', value: '1 (R-302 Dibyajeeban)', status: 'Extended 1 hr' },
-      { metric: 'Housekeeping Release Triggered', value: '4 Rooms', status: 'Scheduled' }
+      { metric: 'Scheduled Checkouts', value: '0 Bookings', status: 'Pending Checkout' },
+      { metric: 'Settled Folios', value: '0 / 0', status: 'Paid' },
+      { metric: 'Late Checkouts Approved', value: '0', status: 'None' },
+      { metric: 'Housekeeping Release Triggered', value: '0 Rooms', status: 'Scheduled' }
     ]
   },
   {
@@ -117,10 +117,10 @@ const REPORTS_CATALOG = [
     icon: Wallet,
     iconBg: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     data: [
-      { metric: 'Counter UPI / QR Payments', value: '₹5,000.00', status: 'Settled' },
-      { metric: 'Card / POS Machine Collections', value: '₹2,600.00', status: 'Batched' },
-      { metric: 'Cash at Desk', value: '₹3,400.00', status: 'Safe Vault' },
-      { metric: 'Online / Gateway Settlements', value: '₹14,800.00', status: 'Processed' }
+      { metric: 'Counter UPI / QR Payments', value: '₹0.00', status: 'Settled' },
+      { metric: 'Card / POS Machine Collections', value: '₹0.00', status: 'Batched' },
+      { metric: 'Cash at Desk', value: '₹0.00', status: 'Safe Vault' },
+      { metric: 'Online / Gateway Settlements', value: '₹0.00', status: 'Processed' }
     ]
   },
   {
@@ -132,10 +132,10 @@ const REPORTS_CATALOG = [
     icon: Calendar,
     iconBg: 'bg-sky-50 text-sky-700 border-sky-100',
     data: [
-      { metric: 'Total Active Reservations', value: '28 Bookings', status: 'Confirmed' },
-      { metric: 'Direct Walk-in Share', value: '65%', status: 'Leading' },
-      { metric: 'OTA Booking Engine Share', value: '35%', status: 'Booking.com, Agoda' },
-      { metric: 'Average Booking Lead Time', value: '4.2 Days', status: 'Healthy' }
+      { metric: 'Total Active Reservations', value: '0 Bookings', status: 'Confirmed' },
+      { metric: 'Direct Walk-in Share', value: '0%', status: 'None' },
+      { metric: 'OTA Booking Engine Share', value: '0%', status: 'None' },
+      { metric: 'Average Booking Lead Time', value: '0 Days', status: 'Normal' }
     ]
   },
   {
@@ -147,9 +147,9 @@ const REPORTS_CATALOG = [
     icon: Home,
     iconBg: 'bg-teal-50 text-teal-700 border-teal-100',
     data: [
-      { metric: 'Vacant Ready for Check-in', value: '20 Rooms', status: 'Inspected' },
-      { metric: 'Turnaround / In-Service', value: '2 Rooms', status: 'Housekeeping' },
-      { metric: 'Maintenance Hold', value: '1 Room (304)', status: 'AC Maintenance' },
+      { metric: 'Vacant Ready for Check-in', value: '0 Rooms', status: 'Inspected' },
+      { metric: 'Turnaround / In-Service', value: '0 Rooms', status: 'None' },
+      { metric: 'Maintenance Hold', value: '0 Rooms', status: 'Normal' },
       { metric: 'Linen Turnaround Status', value: '100% Stock', status: 'Ready' }
     ]
   },
@@ -162,10 +162,10 @@ const REPORTS_CATALOG = [
     icon: TrendingUp,
     iconBg: 'bg-rose-50 text-rose-700 border-rose-100',
     data: [
-      { metric: 'Projected 7-Day Occupancy', value: '38%', status: 'Rising (+12%)' },
-      { metric: 'Expected ADR Pickup', value: '₹2,680.00', status: '+₹150' },
-      { metric: 'High-Demand Weekend Dates', value: 'Nov 7 – 8 & Nov 14 – 15', status: 'Surge Active' },
-      { metric: 'Recommended BAR Dynamic Price', value: '₹2,800.00', status: 'Varo Optimal' }
+      { metric: 'Projected 7-Day Occupancy', value: '0%', status: 'Neutral' },
+      { metric: 'Expected ADR Pickup', value: '₹0.00', status: 'Neutral' },
+      { metric: 'High-Demand Weekend Dates', value: 'None', status: 'Standard' },
+      { metric: 'Recommended BAR Dynamic Price', value: '₹0.00', status: 'Standard' }
     ]
   },
   {
@@ -177,10 +177,10 @@ const REPORTS_CATALOG = [
     icon: Percent,
     iconBg: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     data: [
-      { metric: 'Total Taxable Room Revenue', value: '₹80,751.78', status: 'Taxable' },
-      { metric: 'CGST Collected (6% / 9%)', value: '₹4,845.11', status: 'Accrued' },
-      { metric: 'SGST Collected (6% / 9%)', value: '₹4,845.11', status: 'Accrued' },
-      { metric: 'Total GST Liability (GSTR-1)', value: '₹9,690.22', status: 'Ready to File' }
+      { metric: 'Total Taxable Room Revenue', value: '₹0.00', status: 'Taxable' },
+      { metric: 'CGST Collected (6% / 9%)', value: '₹0.00', status: 'Accrued' },
+      { metric: 'SGST Collected (6% / 9%)', value: '₹0.00', status: 'Accrued' },
+      { metric: 'Total GST Liability (GSTR-1)', value: '₹0.00', status: 'Ready to File' }
     ]
   },
   {
@@ -192,10 +192,10 @@ const REPORTS_CATALOG = [
     icon: Package,
     iconBg: 'bg-lime-50 text-lime-700 border-lime-100',
     data: [
-      { metric: 'Minibar Beverages Sold', value: '18 Units', status: 'Restocked' },
-      { metric: 'Mineral Water (1L) Bottles', value: '42 Bottles', status: 'Complimentary' },
-      { metric: 'Guest Toiletries Consumed', value: '12 Kits', status: 'Inventory OK' },
-      { metric: 'Laundry Services Sold', value: '6 Batches', status: 'Billed' }
+      { metric: 'Minibar Beverages Sold', value: '0 Units', status: 'Restocked' },
+      { metric: 'Mineral Water (1L) Bottles', value: '0 Bottles', status: 'Complimentary' },
+      { metric: 'Guest Toiletries Consumed', value: '0 Kits', status: 'Inventory OK' },
+      { metric: 'Laundry Services Sold', value: '0 Batches', status: 'Billed' }
     ]
   },
   {
@@ -207,10 +207,10 @@ const REPORTS_CATALOG = [
     icon: PlusCircle,
     iconBg: 'bg-pink-50 text-pink-700 border-pink-100',
     data: [
-      { metric: 'Airport Pickup & Drop', value: '3 Trips', status: 'Fulfilled' },
-      { metric: 'Early Check-in Surcharge', value: '₹600.00', status: 'Billed' },
-      { metric: 'Banquet Hall Hourly Bookings', value: '2 Events', status: 'Corporate' },
-      { metric: 'Spa & Wellness Bookings', value: '4 Sessions', status: 'Partnered' }
+      { metric: 'Airport Pickup & Drop', value: '0 Trips', status: 'None' },
+      { metric: 'Early Check-in Surcharge', value: '₹0.00', status: 'None' },
+      { metric: 'Banquet Hall Hourly Bookings', value: '0 Events', status: 'None' },
+      { metric: 'Spa & Wellness Bookings', value: '0 Sessions', status: 'None' }
     ]
   },
   {
@@ -222,10 +222,10 @@ const REPORTS_CATALOG = [
     icon: Users,
     iconBg: 'bg-amber-50 text-amber-700 border-amber-100',
     data: [
-      { metric: 'Current Active In-House Adults', value: '2 Adults', status: 'Verified' },
+      { metric: 'Current Active In-House Adults', value: '0 Adults', status: 'Verified' },
       { metric: 'Children In-House', value: '0', status: 'None' },
-      { metric: 'Occupied Room Units', value: '2 (R-102, R-202)', status: 'Keycards Active' },
-      { metric: 'Emergency Contact Logs', value: 'All On File', status: 'Safe' }
+      { metric: 'Occupied Room Units', value: '0 Rooms', status: 'None' },
+      { metric: 'Emergency Contact Logs', value: 'None', status: 'Safe' }
     ]
   },
   {
@@ -237,10 +237,10 @@ const REPORTS_CATALOG = [
     icon: CreditCard,
     iconBg: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     data: [
-      { metric: 'Property Utilities & Electricity', value: '₹18,400.00', status: 'Monthly' },
-      { metric: 'Housekeeping Supplies & Linen', value: '₹4,200.00', status: 'Approved' },
-      { metric: 'F&B Raw Materials / Groceries', value: '₹12,850.00', status: 'Vendor Settle' },
-      { metric: 'Total Operating Expenses', value: '₹35,450.00', status: 'Budget OK' }
+      { metric: 'Property Utilities & Electricity', value: '₹0.00', status: 'Monthly' },
+      { metric: 'Housekeeping Supplies & Linen', value: '₹0.00', status: 'Approved' },
+      { metric: 'F&B Raw Materials / Groceries', value: '₹0.00', status: 'Vendor Settle' },
+      { metric: 'Total Operating Expenses', value: '₹0.00', status: 'Budget OK' }
     ]
   },
   {
@@ -252,10 +252,10 @@ const REPORTS_CATALOG = [
     icon: BarChart2,
     iconBg: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     data: [
-      { metric: 'Gross Operating Revenue', value: '₹90,442.00', status: 'Positive' },
-      { metric: 'Total Departmental Expenses', value: '₹35,450.00', status: 'Cost Contained' },
-      { metric: 'Gross Operating Profit (GOP)', value: '₹54,992.00', status: '60.8% Margin' },
-      { metric: 'EBITDA Realization', value: '₹48,200.00', status: 'Strong Yield' }
+      { metric: 'Gross Operating Revenue', value: '₹0.00', status: 'None' },
+      { metric: 'Total Departmental Expenses', value: '₹0.00', status: 'None' },
+      { metric: 'Gross Operating Profit (GOP)', value: '₹0.00', status: '0.0% Margin' },
+      { metric: 'EBITDA Realization', value: '₹0.00', status: 'None' }
     ]
   },
   {
@@ -267,10 +267,10 @@ const REPORTS_CATALOG = [
     icon: ShoppingCart,
     iconBg: 'bg-lime-50 text-lime-700 border-lime-100',
     data: [
-      { metric: 'Room Service KOT Orders', value: '14 Orders', status: 'Delivered' },
-      { metric: 'Restaurant Dine-in Receipts', value: '₹8,450.00', status: 'Billed' },
-      { metric: 'Average Order Preparation Time', value: '18 Minutes', status: 'Fast' },
-      { metric: 'Top Selling F&B Item', value: 'Paneer Butter Masala', status: 'Popular' }
+      { metric: 'Room Service KOT Orders', value: '0 Orders', status: 'None' },
+      { metric: 'Restaurant Dine-in Receipts', value: '₹0.00', status: 'None' },
+      { metric: 'Average Order Preparation Time', value: '0 Minutes', status: 'None' },
+      { metric: 'Top Selling F&B Item', value: 'None', status: 'None' }
     ]
   },
   {
@@ -282,10 +282,10 @@ const REPORTS_CATALOG = [
     icon: Tag,
     iconBg: 'bg-rose-50 text-rose-700 border-rose-100',
     data: [
-      { metric: 'EP Plan (Room Only) Share', value: '55%', status: 'Highest' },
-      { metric: 'CP Plan (Bed & Breakfast) Share', value: '35%', status: 'Growing' },
-      { metric: 'MAP & AP Plan Share', value: '10%', status: 'Weekend' },
-      { metric: 'Corporate Fixed Rate Plan', value: '₹2,200 / Night', status: 'Contracted' }
+      { metric: 'EP Plan (Room Only) Share', value: '0%', status: 'None' },
+      { metric: 'CP Plan (Bed & Breakfast) Share', value: '0%', status: 'None' },
+      { metric: 'MAP & AP Plan Share', value: '0%', status: 'None' },
+      { metric: 'Corporate Fixed Rate Plan', value: '₹0 / Night', status: 'None' }
     ]
   },
   {

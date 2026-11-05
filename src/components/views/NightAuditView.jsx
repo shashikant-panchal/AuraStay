@@ -47,12 +47,7 @@ export default function NightAuditView() {
     }, 700);
   };
 
-  const auditLogs = [
-    { date: '04 Nov 2026', auditor: 'Twinkle Bagh (PROP ADMIN)', roomRev: '₹32,400', fnbRev: '₹8,920', totalRev: '₹41,320', status: 'BALANCED' },
-    { date: '03 Nov 2026', auditor: 'Samir Nayak (Front Desk Lead)', roomRev: '₹28,600', fnbRev: '₹7,450', totalRev: '₹36,050', status: 'BALANCED' },
-    { date: '02 Nov 2026', auditor: 'Twinkle Bagh (PROP ADMIN)', roomRev: '₹35,100', fnbRev: '₹11,200', totalRev: '₹46,300', status: 'BALANCED' },
-    { date: '01 Nov 2026', auditor: 'Samir Nayak (Front Desk Lead)', roomRev: '₹42,000', fnbRev: '₹14,800', totalRev: '₹56,800', status: 'BALANCED' },
-  ];
+  const auditLogs = [];
 
   return (
     <div className="space-y-6">
@@ -181,28 +176,36 @@ export default function NightAuditView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {auditLogs.map(log => (
-                <tr key={log.date} className="hover:bg-slate-50/60">
-                  <td className="p-3 font-bold text-slate-800">{log.date}</td>
-                  <td className="p-3 text-slate-600">{log.auditor}</td>
-                  <td className="p-3 font-mono font-medium text-slate-700">{log.roomRev}</td>
-                  <td className="p-3 font-mono font-medium text-slate-700">{log.fnbRev}</td>
-                  <td className="p-3 font-mono font-bold text-indigo-700">{log.totalRev}</td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                      {log.status}
-                    </span>
-                  </td>
-                  <td className="p-3 text-right space-x-2">
-                    <button 
-                      onClick={() => showNotification(`Exporting Manager Flash for ${log.date}`)}
-                      className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold"
-                    >
-                      Export Flash PDF
-                    </button>
+              {auditLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-slate-400 text-xs">
+                    No night audit runs recorded yet. Click "Initiate Night Audit Run" to execute daily day-end settlement.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                auditLogs.map(log => (
+                  <tr key={log.date} className="hover:bg-slate-50/60">
+                    <td className="p-3 font-bold text-slate-800">{log.date}</td>
+                    <td className="p-3 text-slate-600">{log.auditor}</td>
+                    <td className="p-3 font-mono font-medium text-slate-700">{log.roomRev}</td>
+                    <td className="p-3 font-mono font-medium text-slate-700">{log.fnbRev}</td>
+                    <td className="p-3 font-mono font-bold text-indigo-700">{log.totalRev}</td>
+                    <td className="p-3">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        {log.status}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right space-x-2">
+                      <button 
+                        onClick={() => showNotification(`Exporting Manager Flash for ${log.date}`)}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold"
+                      >
+                        Export Flash PDF
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
