@@ -81,10 +81,11 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
       };
     }
 
-    let baseRate = 2000;
-    if (roomType === 'Deluxe Room') baseRate = 2500;
-    if (roomType === 'Super Deluxe Room') baseRate = 3000;
-    if (roomType === 'Suite Room') baseRate = 3500;
+    let baseRate = 0;
+    const matchedRoom = rooms?.find(r => r.type === roomType);
+    if (matchedRoom) {
+      baseRate = Number(matchedRoom.price) || 0;
+    }
 
     let planCost = 0;
     if (plan === 'CP Plan') planCost = 400;
@@ -126,12 +127,12 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
       hash: 'AST-B-CI-001/2026',
       guest: guestName,
       guestType: 'WALKIN',
-      phone: guest.phone || '+91 98765 43210',
+      phone: guest.phone || '',
       createdAt: '5 Nov 2026',
       createdTime: '12:30 PM',
       stayPeriod: `${checkIn} — ${checkOut}`,
       checkInOut: `${checkIn} 12:00 PM — ${checkOut} 11:00 AM`,
-      roomType: roomType || 'Standard Room',
+      roomType: roomType || (rooms?.[0]?.type || 'Room'),
       ratePlan: plan || 'EP PLAN',
       rooms: ['105'],
       status: 'CONFIRMED',
@@ -497,11 +498,19 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
                   }}
                   className="w-full appearance-none text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-1 focus:ring-sky-500 shadow-2xs"
                 >
-                  <option value="">Room Type</option>
-                  <option value="Standard Room">Standard Room (₹2,000)</option>
-                  <option value="Deluxe Room">Deluxe Room (₹2,500)</option>
-                  <option value="Super Deluxe Room">Super Deluxe Room (₹3,000)</option>
-                  <option value="Suite Room">Suite Room (₹3,500)</option>
+                  <option value="">Select Room Type</option>
+                  {rooms && rooms.length > 0 ? (
+                    Array.from(new Set(rooms.map(r => r.type))).map(t => {
+                      const sample = rooms.find(r => r.type === t);
+                      return (
+                        <option key={t} value={t}>
+                          {t} (₹{sample?.price || 0})
+                        </option>
+                      );
+                    })
+                  ) : (
+                    <option disabled value="">No rooms configured yet</option>
+                  )}
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
               </div>
@@ -922,7 +931,7 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
                   Room R-105 Auto-Allocated
                 </h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Standard Room on 1st Floor ready for guest arrival.
+                  {activeRoom ? `${activeRoom.type} (Room ${activeRoom.roomNumber}) on ${activeRoom.floor} Floor ready for guest arrival.` : 'Room ready for guest arrival.'}
                 </p>
               </div>
             ) : (
@@ -1028,7 +1037,7 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
                   required
                   value={guest.name}
                   onChange={(e) => setGuest({ ...guest, name: e.target.value })}
-                  placeholder="e.g. Ramesh Patel"
+                  placeholder="Guest Full Name"
                   className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-sky-500"
                 />
               </div>

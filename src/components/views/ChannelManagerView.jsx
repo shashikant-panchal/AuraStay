@@ -20,110 +20,7 @@ import {
   Clock
 } from 'lucide-react';
 
-const INITIAL_CHANNELS = [
-  {
-    id: 'booking-com',
-    name: 'Booking.com',
-    code: 'BCOM',
-    logoText: 'B.',
-    color: 'bg-blue-600',
-    status: 'ACTIVE',
-    syncStatus: 'Fully Synced',
-    lastSync: 'Just now (17:18)',
-    mappedRooms: 0,
-    activeBookings: 0,
-    commission: '15.0%',
-    rateRule: 'Direct Parity (0%)',
-    syncRates: true,
-    syncAvailability: true,
-    syncBookings: true
-  },
-  {
-    id: 'agoda',
-    name: 'Agoda',
-    code: 'AGD',
-    logoText: 'Ag',
-    color: 'bg-emerald-600',
-    status: 'ACTIVE',
-    syncStatus: 'Fully Synced',
-    lastSync: '2 mins ago (17:16)',
-    mappedRooms: 0,
-    activeBookings: 0,
-    commission: '14.0%',
-    rateRule: 'Direct Parity (0%)',
-    syncRates: true,
-    syncAvailability: true,
-    syncBookings: true
-  },
-  {
-    id: 'makemytrip',
-    name: 'MakeMyTrip',
-    code: 'MMT',
-    logoText: 'MMT',
-    color: 'bg-rose-600',
-    status: 'ACTIVE',
-    syncStatus: 'Fully Synced',
-    lastSync: '4 mins ago (17:14)',
-    mappedRooms: 0,
-    activeBookings: 0,
-    commission: '18.0%',
-    rateRule: 'Direct Parity (0%)',
-    syncRates: true,
-    syncAvailability: true,
-    syncBookings: true
-  },
-  {
-    id: 'expedia',
-    name: 'Expedia Partner',
-    code: 'EXP',
-    logoText: 'Exp',
-    color: 'bg-amber-600',
-    status: 'ACTIVE',
-    syncStatus: 'Fully Synced',
-    lastSync: '6 mins ago (17:12)',
-    mappedRooms: 0,
-    activeBookings: 0,
-    commission: '16.0%',
-    rateRule: '+5% Dynamic Markup',
-    syncRates: true,
-    syncAvailability: true,
-    syncBookings: true
-  },
-  {
-    id: 'airbnb',
-    name: 'Airbnb Global',
-    code: 'ABNB',
-    logoText: 'Ab',
-    color: 'bg-pink-600',
-    status: 'ACTIVE',
-    syncStatus: 'Fully Synced',
-    lastSync: '10 mins ago (17:08)',
-    mappedRooms: 0,
-    activeBookings: 0,
-    commission: '12.0%',
-    rateRule: '+8% Dynamic Markup',
-    syncRates: true,
-    syncAvailability: true,
-    syncBookings: true
-  },
-  {
-    id: 'goibibo',
-    name: 'Goibibo B2C',
-    code: 'GOI',
-    logoText: 'Goi',
-    color: 'bg-orange-600',
-    status: 'ACTIVE',
-    syncStatus: 'Fully Synced',
-    lastSync: '12 mins ago (17:06)',
-    mappedRooms: 0,
-    activeBookings: 0,
-    commission: '15.0%',
-    rateRule: 'Direct Parity (0%)',
-    syncRates: true,
-    syncAvailability: true,
-    syncBookings: true
-  }
-];
+const INITIAL_CHANNELS = [];;
 
 export default function ChannelManagerView() {
   const { navigateTo, showNotification } = useDashboard();
@@ -142,10 +39,14 @@ export default function ChannelManagerView() {
   });
 
   const handleSyncAll = () => {
+    if (channels.length === 0) {
+      showNotification('No OTA channels connected yet. Click "+ Connect Channel" to link a channel.');
+      return;
+    }
     setIsSyncingAll(true);
     setTimeout(() => {
       setIsSyncingAll(false);
-      showNotification('All 6 OTAs synced successfully with 100% rate parity.');
+      showNotification(`All ${channels.length} OTAs synced successfully with 100% rate parity.`);
     }, 800);
   };
 
@@ -166,12 +67,22 @@ export default function ChannelManagerView() {
 
   const handleAddChannel = (e) => {
     e.preventDefault();
+    const nameMap = {
+      'Booking.com': { code: 'BCOM', logoText: 'B.', color: 'bg-blue-600' },
+      'Agoda': { code: 'AGD', logoText: 'Ag', color: 'bg-emerald-600' },
+      'MakeMyTrip': { code: 'MMT', logoText: 'MMT', color: 'bg-rose-600' },
+      'Expedia Partner': { code: 'EXP', logoText: 'Exp', color: 'bg-amber-600' },
+      'Airbnb Global': { code: 'ABNB', logoText: 'Ab', color: 'bg-pink-600' },
+      'Google Hotel Ads': { code: 'GHA', logoText: 'G.', color: 'bg-red-600' },
+      'Tripadvisor Instant Booking': { code: 'TA', logoText: 'TA', color: 'bg-teal-600' }
+    };
+    const meta = nameMap[newChannelData.name] || { code: 'OTA', logoText: 'OTA', color: 'bg-indigo-600' };
     const created = {
-      id: `custom-${Date.now()}`,
+      id: `ch-${Date.now()}`,
       name: newChannelData.name,
-      code: 'GHA',
-      logoText: 'G.',
-      color: 'bg-red-600',
+      code: meta.code,
+      logoText: meta.logoText,
+      color: meta.color,
       status: 'ACTIVE',
       syncStatus: 'Fully Synced',
       lastSync: 'Just now',
@@ -276,7 +187,7 @@ export default function ChannelManagerView() {
             {channels.length} OTAs
           </div>
           <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1 mt-1">
-            <CheckCircle2 className="w-3.5 h-3.5" /> 100% Online & Live
+            <CheckCircle2 className="w-3.5 h-3.5" /> {channels.length > 0 ? '100% Online & Live' : '0 Connected'}
           </span>
         </div>
 
@@ -315,7 +226,24 @@ export default function ChannelManagerView() {
 
       {/* 4. Channel Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {channels.map((ch) => (
+        {channels.length === 0 ? (
+          <div className="col-span-full py-16 text-center bg-white rounded-xl border border-dashed border-slate-200 shadow-2xs">
+            <div className="w-12 h-12 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center mx-auto mb-3">
+              <Share2 className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-800">No OTA Channels Connected</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              Connect your property to Booking.com, Agoda, MakeMyTrip, Expedia, or custom channels for 2-way live rate and inventory synchronization.
+            </p>
+            <button
+              onClick={() => setIsConnectModalOpen(true)}
+              className="mt-4 px-4 py-2 bg-[#00a8cc] hover:bg-[#0092b6] text-white rounded-lg text-xs font-bold shadow-2xs transition"
+            >
+              + Connect Your First Channel
+            </button>
+          </div>
+        ) : (
+          channels.map((ch) => (
           <div
             key={ch.id}
             className="bg-white rounded-xl border border-slate-200/90 shadow-2xs p-4 flex flex-col justify-between space-y-4 hover:border-slate-300 transition"
@@ -415,7 +343,7 @@ export default function ChannelManagerView() {
               </button>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       {/* MODAL 1: CONNECT NEW CHANNEL */}
@@ -442,11 +370,15 @@ export default function ChannelManagerView() {
                   onChange={(e) => setNewChannelData({ ...newChannelData, name: e.target.value })}
                   className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
                 >
+                  <option value="Booking.com">Booking.com</option>
+                  <option value="Agoda">Agoda</option>
+                  <option value="MakeMyTrip">MakeMyTrip</option>
+                  <option value="Expedia Partner">Expedia Partner</option>
+                  <option value="Airbnb Global">Airbnb Global</option>
                   <option value="Google Hotel Ads">Google Hotel Ads</option>
                   <option value="Tripadvisor Instant Booking">Tripadvisor Instant Booking</option>
                   <option value="Traveloka">Traveloka</option>
                   <option value="Despegar / Decolar">Despegar / Decolar</option>
-                  <option value="Trivago Direct Connect">Trivago Direct Connect</option>
                 </select>
               </div>
 

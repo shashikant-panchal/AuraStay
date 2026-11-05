@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 export default function CalendarViewAccommodation() {
-  const { showNotification, setIsCreateReservationModalOpen } = useDashboard();
+  const { showNotification, setIsCreateReservationModalOpen, reservations = [] } = useDashboard();
 
   // Mode Switcher: 'operations' | 'revenue' | 'housekeeping'
   const [activeMode, setActiveMode] = useState('operations');

@@ -172,7 +172,7 @@ export default function StockManagementView() {
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
             ACTIVE VENDORS
           </span>
-          <div className="text-2xl font-black text-sky-800 mt-1">6 Suppliers</div>
+          <div className="text-2xl font-black text-sky-800 mt-1">{new Set(stockList.map(s => s.supplier)).size} Suppliers</div>
           <span className="text-[11px] text-slate-500 font-medium block mt-1">
             Automated PO delivery
           </span>
@@ -229,7 +229,16 @@ export default function StockManagementView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredStock.map((it) => (
+              {filteredStock.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="py-12 text-center text-slate-400">
+                    <Package className="w-8 h-8 mx-auto mb-2 opacity-40 text-slate-400" />
+                    <p className="font-semibold text-slate-600">No Inventory Stock Items Found</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Click "Receive Stock & Create PO" to register warehouse SKUs.</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredStock.map((it) => (
                 <tr key={it.id} className="hover:bg-slate-50/80 transition">
                   <td className="p-3">
                     <span className="font-extrabold text-slate-900 block">{it.name}</span>
@@ -283,7 +292,7 @@ export default function StockManagementView() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

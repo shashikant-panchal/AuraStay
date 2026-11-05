@@ -75,7 +75,7 @@ const REPORTS_CATALOG = [
       { metric: 'Total Registered In-House', value: '0 Guests', status: 'Verified' },
       { metric: 'Aadhaar Verified Guests', value: '0 / 0', status: 'KYC Ready' },
       { metric: 'Foreign Nationals (Form-C)', value: '0 Required', status: 'N/A' },
-      { metric: 'Local Police PS Station Ref', value: 'Infocity PS / 2026-B', status: 'Logged' }
+      { metric: 'Local Police PS Station Ref', value: 'Station Log Active', status: 'Logged' }
     ]
   },
   {
@@ -297,10 +297,10 @@ const REPORTS_CATALOG = [
     icon: Shield,
     iconBg: 'bg-slate-100 text-slate-700 border-slate-200',
     data: [
-      { metric: 'Authorized Staff Logins', value: '18 Sessions Today', status: 'Secure' },
-      { metric: 'Rate Plan Overrides Logged', value: '2 Overrides', status: 'By Prop Admin' },
-      { metric: 'System Security Health Score', value: '99.8%', status: 'Optimal' },
-      { metric: 'Last Database Backup', value: '5 Nov 2026, 04:00 AM', status: 'Encrypted Cloud' }
+      { metric: 'Authorized Staff Logins', value: '0 Sessions Today', status: 'Secure' },
+      { metric: 'Rate Plan Overrides Logged', value: '0 Overrides', status: 'Normal' },
+      { metric: 'System Security Health Score', value: '100%', status: 'Optimal' },
+      { metric: 'Last Database Backup', value: 'Realtime Cloud', status: 'Encrypted Cloud' }
     ]
   }
 ];

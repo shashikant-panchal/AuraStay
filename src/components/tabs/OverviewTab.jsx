@@ -296,7 +296,7 @@ export default function OverviewTab() {
             </div>
             <div className="flex items-center text-[10px] text-emerald-600 font-medium mt-1">
               <TrendingUp className="w-3 h-3 mr-0.5" />
-              <span>Yield on 28 rooms</span>
+              <span>Yield on {rooms?.length || 0} rooms</span>
             </div>
           </div>
 
@@ -398,7 +398,7 @@ export default function OverviewTab() {
                   ADR vs Occupancy — 14 Days
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  21 Oct 2026 – 3 Nov 2026 (inclusive)
+                  Current billing cycle (inclusive)
                 </p>
               </div>
             </div>
@@ -420,7 +420,7 @@ export default function OverviewTab() {
                   Your RevPAR Trend — 14 Days
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  21 Oct 2026 – 3 Nov 2026
+                  Current billing cycle
                 </p>
               </div>
             </div>
@@ -431,7 +431,7 @@ export default function OverviewTab() {
           <div className="mt-3 text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-start space-x-1.5">
             <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
             <span>
-              Calculated from the actual ADR × occupancy response for 21 Oct 2026 – 3 Nov 2026. Market comparison is unavailable until a sourced market series is integrated.
+              Calculated from the property's real-time ADR × occupancy response. Market comparison is unavailable until a sourced market series is integrated.
             </span>
           </div>
         </div>

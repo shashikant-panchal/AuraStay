@@ -120,7 +120,7 @@ export default function PickupPaceTab() {
               Active Booking Additions — Next 14 Days
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              3 Nov – 16 Nov 2026
+              Next 14 Days Rolling Window
             </p>
           </div>
 

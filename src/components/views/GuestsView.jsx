@@ -32,7 +32,7 @@ import {
 const DEFAULT_HOTEL_GUESTS = [];
 
 export default function GuestsView() {
-  const { navigateTo, showNotification } = useDashboard();
+  const { navigateTo, showNotification, reservations = [] } = useDashboard();
 
   // Search Criteria
   const [searchBy, setSearchBy] = useState('Email'); // 'Email' | 'Phone' | 'Name' | 'Company'
@@ -42,7 +42,23 @@ export default function GuestsView() {
   // Guest dataset (starts empty if user wants initial zero state, or toggleable)
   // Initially we provide state that matches the screenshot (0 guests / No Data Found),
   // but allow searching or clicking "Show Sample Guests" / "Add Guest" / "Upload CSV".
-  const [guestsList, setGuestsList] = useState([]);
+  const [customGuests, setCustomGuests] = useState([]);
+
+  const guestsList = useMemo(() => {
+    const resGuests = (reservations || []).map((r, i) => ({
+      id: r.id || `GST-${i + 1}`,
+      name: r.guest || 'Guest',
+      email: r.guestEmail || '',
+      phone: r.guestPhone || '',
+      company: r.source || 'Direct',
+      room: r.room || '—',
+      loyalty: 'Silver',
+      kyc: 'Verified',
+      status: r.status === 'CHECKED_IN' ? 'IN-HOUSE' : r.status,
+      lifetimeSpend: Number(r.amount) || 0
+    }));
+    return [...customGuests, ...resGuests];
+  }, [reservations, customGuests]);
 
   // Modals state
   const [isAddGuestModalOpen, setIsAddGuestModalOpen] = useState(false);
@@ -105,9 +121,7 @@ export default function GuestsView() {
   };
 
   const handleLoadSampleData = () => {
-    setGuestsList(DEFAULT_HOTEL_GUESTS);
-    setHasSearched(false);
-    showNotification('Loaded 5 active guest profiles from property ledger');
+    showNotification('Live guest profiles sync active');
   };
 
   const handleSaveGuest = (e) => {
@@ -131,7 +145,7 @@ export default function GuestsView() {
       kyc: newGuest.kyc
     };
 
-    setGuestsList(prev => [created, ...prev]);
+    setCustomGuests(prev => [created, ...prev]);
     setIsAddGuestModalOpen(false);
     setNewGuest({
       name: '',
@@ -334,18 +348,7 @@ export default function GuestsView() {
           </button>
         </form>
 
-        {/* Quick action to load active hotel guests if list is empty */}
-        {guestsList.length === 0 && (
-          <div className="pt-1 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100">
-            <span>Tip: You can add new guest profiles or preload current hotel stay records.</span>
-            <button
-              onClick={handleLoadSampleData}
-              className="text-[#0e4860] hover:underline font-bold"
-            >
-              Preload Hotel Guest Folios
-            </button>
-          </div>
-        )}
+
       </div>
 
       {/* 5. Main Guest Data Table (Exact Screenshot) */}

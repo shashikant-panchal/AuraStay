@@ -454,10 +454,14 @@ export default function RevenueInsightsView() {
             </span>
           </div>
           <h3 className="text-sm font-bold">
-            High Commission Leakage Detected on MakeMyTrip (18%) and Expedia (16%)
+            {totalGrossRevenue > 0
+              ? 'Real-Time Commission Optimization Active'
+              : 'Channel Distribution Engine Ready'}
           </h3>
           <p className="text-xs text-sky-200 leading-relaxed">
-            Shift 15% of weekend high-demand inventory from 18% commission OTAs to Direct Booking Engine with a 5% Promo code. Projected net margin improvement: <strong>+₹18,400/month</strong>.
+            {totalGrossRevenue > 0
+              ? 'Shift 15% of high-demand inventory from higher-commission OTAs to Direct Booking Engine with a promo code.'
+              : 'Connect OTAs and start recording reservations to receive automated real-time margin optimization recommendations.'}
           </p>
         </div>
 

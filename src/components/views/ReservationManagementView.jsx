@@ -758,20 +758,20 @@ export default function ReservationManagementView({ isSubTab = false }) {
                 <div className="text-slate-500">Date: {invoiceModalData.createdAt}</div>
               </div>
               <div className="flex justify-between py-1 font-medium">
-                <span>Room Charges (Standard Room)</span>
-                <span>₹3,467.80</span>
+                <span>Room Tariff ({invoiceModalData.roomType || 'Stay'})</span>
+                <span>₹{(Number(invoiceModalData.total || invoiceModalData.amount || 0) / 1.18).toFixed(2)}</span>
               </div>
               <div className="flex justify-between py-1 text-slate-500">
                 <span>CGST (9%)</span>
-                <span>₹312.10</span>
+                <span>₹{(((Number(invoiceModalData.total || invoiceModalData.amount || 0) / 1.18) * 0.09)).toFixed(2)}</span>
               </div>
               <div className="flex justify-between py-1 text-slate-500 border-b pb-2">
                 <span>SGST (9%)</span>
-                <span>₹312.10</span>
+                <span>₹{(((Number(invoiceModalData.total || invoiceModalData.amount || 0) / 1.18) * 0.09)).toFixed(2)}</span>
               </div>
               <div className="flex justify-between pt-1 font-bold text-slate-900 text-sm">
                 <span>Total Amount Paid</span>
-                <span>₹4,092.00</span>
+                <span>₹{Number(invoiceModalData.total || invoiceModalData.amount || 0).toFixed(2)}</span>
               </div>
             </div>
 

@@ -38,7 +38,7 @@ export default function DemandForecastTab() {
   // Manual Override Form State
   const [fromDate, setFromDate] = useState('2026-11-10');
   const [toDate, setToDate] = useState('2026-11-15');
-  const [adjustedOccupancy, setAdjustedOccupancy] = useState('35');
+  const [adjustedOccupancy, setAdjustedOccupancy] = useState('0');
   const [reason, setReason] = useState('Local Event');
   const [customReason, setCustomReason] = useState('');
 
@@ -338,7 +338,7 @@ export default function DemandForecastTab() {
               On-books stay revenue
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Next 12 weeks · Nov 3, 2026 – Jan 25, 2027
+              Next 12 weeks · Forward Projection
             </p>
             <p className="text-[11px] text-slate-400 mt-0.5">
               Confirmed room revenue spread across occupied stay nights. This is not a statistical forecast.
@@ -449,7 +449,7 @@ export default function DemandForecastTab() {
               max="100"
               value={adjustedOccupancy}
               onChange={(e) => setAdjustedOccupancy(e.target.value)}
-              placeholder="e.g. 35"
+              placeholder="e.g. 0"
               className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               required
             />

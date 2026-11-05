@@ -270,7 +270,16 @@ export default function ProductSetupView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredProducts.map((p) => (
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="py-12 text-center text-slate-400">
+                    <Utensils className="w-8 h-8 mx-auto mb-2 opacity-40 text-slate-400" />
+                    <p className="font-semibold text-slate-600">No F&B Products Configured</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Click "Add New Product" to create restaurant menu items and pricing.</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredProducts.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-50/80 transition">
                   <td className="p-3">
                     <div className="flex items-center space-x-2">
@@ -327,7 +336,7 @@ export default function ProductSetupView() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
@@ -354,7 +363,7 @@ export default function ProductSetupView() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Malai Kofta"
+                  placeholder="e.g. Dish name"
                   value={newItem.name}
                   onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
                   className="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-900"

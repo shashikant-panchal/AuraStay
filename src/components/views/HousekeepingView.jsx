@@ -27,15 +27,19 @@ import {
 } from 'lucide-react';
 
 // Exact 7-day strip from Screenshots 1 & 2
-const WEEK_DAYS = [
-  { date: '05-11-2026', day: 'THU', isToday: true },
-  { date: '06-11-2026', day: 'FRI', isToday: false },
-  { date: '07-11-2026', day: 'SAT', isToday: false },
-  { date: '08-11-2026', day: 'SUN', isToday: false },
-  { date: '09-11-2026', day: 'MON', isToday: false },
-  { date: '10-11-2026', day: 'TUE', isToday: false },
-  { date: '11-11-2026', day: 'WED', isToday: false },
-];
+const WEEK_DAYS = Array.from({ length: 7 }, (_, i) => {
+  const d = new Date();
+  d.setDate(d.getDate() + i);
+  const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return {
+    date: `${dd}-${mm}-${yyyy}`,
+    day: dayNames[d.getDay()],
+    isToday: i === 0
+  };
+});
 
 export default function HousekeepingView() {
   const { 
@@ -47,7 +51,7 @@ export default function HousekeepingView() {
   } = useDashboard();
 
   const [deviceOverrides, setDeviceOverrides] = useState({});
-  const [selectedDate, setSelectedDate] = useState('05-11-2026');
+  const [selectedDate, setSelectedDate] = useState(WEEK_DAYS[0].date);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Floor accordion open/collapse state
@@ -263,8 +267,8 @@ export default function HousekeepingView() {
 
             <button
               onClick={() => {
-                setSelectedDate('05-11-2026');
-                showNotification('Switched to Today\'s View (05-11-2026)');
+                setSelectedDate(WEEK_DAYS[0].date);
+                showNotification(`Switched to Today's View (${WEEK_DAYS[0].date})`);
               }}
               className="flex items-center space-x-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold shadow-2xs transition"
             >

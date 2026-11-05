@@ -157,7 +157,7 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">AVAILABLE</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">27</div>
+            <div className="text-2xl font-black text-slate-900">{contextRooms.filter(r => r.status === 'VACANT_READY').length}</div>
             <div className="text-[11px] font-medium text-slate-500 mt-0.5">Ready to Assign</div>
           </div>
         </div>
@@ -171,8 +171,8 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ON-HOLD</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">0</div>
-            <div className="text-[11px] font-medium text-slate-500 mt-0.5">No Blocked Rooms</div>
+            <div className="text-2xl font-black text-slate-900">{contextRooms.filter(r => r.status === 'MAINTENANCE').length}</div>
+            <div className="text-[11px] font-medium text-slate-500 mt-0.5">Blocked Rooms</div>
           </div>
         </div>
 
@@ -185,7 +185,7 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">CHECK-IN</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">1</div>
+            <div className="text-2xl font-black text-slate-900">{reservations.filter(r => r.status === 'CONFIRMED' || r.status === 'CHECKED_IN').length}</div>
             <div className="text-[11px] font-medium text-slate-500 mt-0.5">0 Pending</div>
           </div>
         </div>
@@ -199,8 +199,8 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">CHECK-OUT</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">1</div>
-            <div className="text-[11px] font-medium text-slate-500 mt-0.5">1 Pending</div>
+            <div className="text-2xl font-black text-slate-900">{reservations.filter(r => r.status === 'CHECKED_OUT').length}</div>
+            <div className="text-[11px] font-medium text-slate-500 mt-0.5">0 Pending</div>
           </div>
         </div>
 
@@ -213,8 +213,8 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">GUEST IN-HOUSE</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">2</div>
-            <div className="text-[11px] font-medium text-slate-500 mt-0.5">Stays</div>
+            <div className="text-2xl font-black text-slate-900">{contextRooms.filter(r => r.status === 'OCCUPIED').length}</div>
+            <div className="text-[11px] font-medium text-slate-500 mt-0.5">Active Stays</div>
           </div>
         </div>
 
@@ -227,8 +227,8 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">BOOKINGS</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">1</div>
-            <div className="text-[11px] font-medium text-slate-500 mt-0.5">New Reservations</div>
+            <div className="text-2xl font-black text-slate-900">{reservations.length}</div>
+            <div className="text-[11px] font-medium text-slate-500 mt-0.5">Total Bookings</div>
           </div>
         </div>
       </div>
@@ -242,7 +242,7 @@ export default function DayViewOperations() {
           </div>
           <div>
             <div className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">SALES</div>
-            <div className="text-2xl font-black text-slate-900">₹2,600.00</div>
+            <div className="text-2xl font-black text-slate-900">₹{reservations.reduce((acc, r) => acc + (Number(r.amount) || 0), 0).toFixed(2)}</div>
             <div className="text-xs text-slate-500 mt-0.5">Today Gross Revenue</div>
           </div>
         </div>
@@ -266,7 +266,7 @@ export default function DayViewOperations() {
           </div>
           <div>
             <div className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">PAYMENTS</div>
-            <div className="text-2xl font-black text-slate-900">₹2,600.00</div>
+            <div className="text-2xl font-black text-slate-900">₹{reservations.filter(r => r.payment === 'PAID').reduce((acc, r) => acc + (Number(r.amount) || 0), 0).toFixed(2)}</div>
             <div className="text-xs text-slate-500 mt-0.5">Total Collections</div>
           </div>
         </div>
@@ -709,7 +709,7 @@ export default function DayViewOperations() {
                   </div>
                   <div className="flex justify-between">
                     <span>Standard Tariff:</span>
-                    <strong className="text-slate-800">₹2,000.00 / night</strong>
+                    <strong className="text-slate-800">₹{(activeProfileRoom?.price || 0).toLocaleString('en-IN')}.00 / night</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Cleanliness State:</span>

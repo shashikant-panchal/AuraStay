@@ -324,18 +324,18 @@ export default function FrontOfficeView() {
                 <div>
                   <div className="text-[11px] text-slate-500 font-medium">Rooms Sold (Next 7 Days)</div>
                   <div className="flex items-baseline space-x-2 mt-0.5">
-                    <span className="text-2xl font-black text-slate-900">142</span>
-                    <span className="text-xs font-bold text-emerald-600 flex items-center">
-                      <ArrowUpRight className="w-3.5 h-3.5" /> +12
+                    <span className="text-2xl font-black text-slate-900">0</span>
+                    <span className="text-xs font-bold text-slate-400 flex items-center">
+                      <ArrowUpRight className="w-3.5 h-3.5" /> +0
                     </span>
                   </div>
                 </div>
                 <div>
                   <div className="text-[11px] text-slate-500 font-medium">ADR Pickup</div>
                   <div className="flex items-baseline space-x-2 mt-0.5">
-                    <span className="text-2xl font-black text-slate-900">₹4,250</span>
-                    <span className="text-xs font-bold text-emerald-600 flex items-center">
-                      <ArrowUpRight className="w-3.5 h-3.5" /> +₹150
+                    <span className="text-2xl font-black text-slate-900">₹0.00</span>
+                    <span className="text-xs font-bold text-slate-400 flex items-center">
+                      <ArrowUpRight className="w-3.5 h-3.5" /> +₹0
                     </span>
                   </div>
                 </div>
@@ -345,28 +345,28 @@ export default function FrontOfficeView() {
             {/* Card 3: EXCEPTIONS */}
             <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs p-5">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-1.5 text-rose-600">
-                  <AlertTriangle className="w-4 h-4" />
+                <div className="flex items-center space-x-1.5 text-emerald-600">
+                  <CheckCircle2 className="w-4 h-4" />
                   <h3 className="font-extrabold text-xs uppercase tracking-wider">
                     EXCEPTIONS
                   </h3>
                 </div>
-                <span className="bg-[#f06565] text-white text-[9.5px] font-bold px-2 py-0.5 rounded shadow-2xs">
-                  Coming Soon
+                <span className="bg-emerald-600 text-white text-[9.5px] font-bold px-2 py-0.5 rounded shadow-2xs">
+                  Optimal
                 </span>
               </div>
               <div className="space-y-3">
                 <div>
                   <div className="text-xs font-bold text-slate-800">Overbook Risk</div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">Jan 02 - Deluxe</div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">No overbook risks detected</div>
                 </div>
                 <div>
                   <div className="text-xs font-bold text-slate-800">Parity Breach</div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">Booking.com &lt; Direct</div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">All channels in rate parity</div>
                 </div>
                 <div>
                   <div className="text-xs font-bold text-slate-800">OOO Rooms</div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">Room 304 (AC)</div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">{rooms.filter(r => r.status === 'MAINTENANCE').length} rooms out of order</div>
                 </div>
               </div>
             </div>
@@ -381,9 +381,9 @@ export default function FrontOfficeView() {
                 <span className="text-sm font-bold text-slate-400">₹</span>
               </div>
               <div className="mt-2">
-                <div className="text-2xl font-black text-slate-900 tracking-tight">₹90,442.00</div>
-                <div className="text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5 mt-1">
-                  <ArrowUpRight className="w-3.5 h-3.5" /> +0% from last month
+                <div className="text-2xl font-black text-slate-900 tracking-tight">₹{reservations.reduce((acc, r) => acc + (Number(r.amount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                <div className="text-[11px] font-semibold text-slate-400 flex items-center gap-0.5 mt-1">
+                  <ArrowUpRight className="w-3.5 h-3.5" /> 0% from last month
                 </div>
               </div>
             </div>
@@ -395,9 +395,9 @@ export default function FrontOfficeView() {
                 <Building2 className="w-4 h-4 text-slate-400" />
               </div>
               <div className="mt-2">
-                <div className="text-2xl font-black text-slate-900 tracking-tight">24%</div>
-                <div className="text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5 mt-1">
-                  <ArrowUpRight className="w-3.5 h-3.5" /> +0% from last month
+                <div className="text-2xl font-black text-slate-900 tracking-tight">{rooms.length > 0 ? Math.round((rooms.filter(r => r.status === 'OCCUPIED').length / rooms.length) * 100) : 0}%</div>
+                <div className="text-[11px] font-semibold text-slate-400 flex items-center gap-0.5 mt-1">
+                  <ArrowUpRight className="w-3.5 h-3.5" /> 0% from last month
                 </div>
               </div>
             </div>
@@ -409,9 +409,9 @@ export default function FrontOfficeView() {
                 <Calendar className="w-4 h-4 text-slate-400" />
               </div>
               <div className="mt-2">
-                <div className="text-2xl font-black text-slate-900 tracking-tight">+28</div>
-                <div className="text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5 mt-1">
-                  <ArrowUpRight className="w-3.5 h-3.5" /> +0% from last month
+                <div className="text-2xl font-black text-slate-900 tracking-tight">+{reservations.length}</div>
+                <div className="text-[11px] font-semibold text-slate-400 flex items-center gap-0.5 mt-1">
+                  <ArrowUpRight className="w-3.5 h-3.5" /> 0% from last month
                 </div>
               </div>
             </div>
@@ -423,9 +423,9 @@ export default function FrontOfficeView() {
                 <Users className="w-4 h-4 text-slate-400" />
               </div>
               <div className="mt-2">
-                <div className="text-2xl font-black text-slate-900 tracking-tight">678</div>
-                <div className="text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5 mt-1">
-                  <ArrowUpRight className="w-3.5 h-3.5" /> +0% from last month
+                <div className="text-2xl font-black text-slate-900 tracking-tight">{rooms.filter(r => r.status === 'OCCUPIED').length}</div>
+                <div className="text-[11px] font-semibold text-slate-400 flex items-center gap-0.5 mt-1">
+                  <ArrowUpRight className="w-3.5 h-3.5" /> 0% from last month
                 </div>
               </div>
             </div>
@@ -441,8 +441,8 @@ export default function FrontOfficeView() {
               <div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ARRIVALS</div>
                 <div className="flex items-baseline space-x-2">
-                  <span className="text-xl font-black text-slate-900">1</span>
-                  <span className="text-xs font-semibold text-amber-500">0 pending</span>
+                  <span className="text-xl font-black text-slate-900">{reservations.filter(r => r.status === 'CONFIRMED').length}</span>
+                  <span className="text-xs font-semibold text-slate-400">0 pending</span>
                 </div>
               </div>
             </div>
@@ -455,8 +455,8 @@ export default function FrontOfficeView() {
               <div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">DEPARTURES</div>
                 <div className="flex items-baseline space-x-2">
-                  <span className="text-xl font-black text-slate-900">6</span>
-                  <span className="text-xs font-semibold text-amber-500">1 pending</span>
+                  <span className="text-xl font-black text-slate-900">{reservations.filter(r => r.status === 'CHECKED_OUT').length}</span>
+                  <span className="text-xs font-semibold text-slate-400">0 pending</span>
                 </div>
               </div>
             </div>
@@ -468,7 +468,7 @@ export default function FrontOfficeView() {
               </div>
               <div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">IN-HOUSE</div>
-                <div className="text-xl font-black text-slate-900">2</div>
+                <div className="text-xl font-black text-slate-900">{rooms.filter(r => r.status === 'OCCUPIED').length}</div>
               </div>
             </div>
 
@@ -480,8 +480,8 @@ export default function FrontOfficeView() {
               <div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">DUE PAYMENTS</div>
                 <div className="flex items-baseline space-x-2">
-                  <span className="text-xl font-black text-slate-900">₹0.00</span>
-                  <span className="text-xs font-semibold text-amber-500">0 pending</span>
+                  <span className="text-xl font-black text-slate-900">₹{reservations.filter(r => r.payment === 'PENDING').reduce((acc, r) => acc + (Number(r.amount) || 0), 0).toFixed(2)}</span>
+                  <span className="text-xs font-semibold text-slate-400">{reservations.filter(r => r.payment === 'PENDING').length} pending</span>
                 </div>
               </div>
             </div>
@@ -652,25 +652,31 @@ export default function FrontOfficeView() {
               </div>
 
               <div className="space-y-3.5 mt-4">
-                {[
-                  { name: 'Standard Room', percent: 20 },
-                  { name: 'Deluxe Room', percent: 0 },
-                  { name: 'Super Deluxe Room', percent: 0 },
-                  { name: 'Suite Room', percent: 0 },
-                  { name: 'Banquet Hall', percent: 0 },
-                ].map(r => (
-                  <div key={r.name} className="flex items-center text-xs">
-                    <div className="w-36 font-semibold text-slate-700 text-right pr-3 truncate">{r.name}</div>
-                    <div className="flex-1 bg-slate-100 rounded h-3 overflow-hidden">
-                      {r.percent > 0 && (
-                        <div
-                          className="bg-[#0e4860] h-full rounded transition-all duration-500"
-                          style={{ width: `${r.percent}%` }}
-                        />
-                      )}
-                    </div>
+                {rooms.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-slate-400">
+                    No room categories created yet.
                   </div>
-                ))}
+                ) : (
+                  Array.from(new Set(rooms.map(r => r.type || 'Standard Room'))).map(typeName => {
+                    const categoryRooms = rooms.filter(r => (r.type || 'Standard Room') === typeName);
+                    const occupiedCount = categoryRooms.filter(r => r.status === 'OCCUPIED').length;
+                    const percent = categoryRooms.length > 0 ? Math.round((occupiedCount / categoryRooms.length) * 100) : 0;
+                    return (
+                      <div key={typeName} className="flex items-center text-xs">
+                        <div className="w-36 font-semibold text-slate-700 text-right pr-3 truncate">{typeName}</div>
+                        <div className="flex-1 bg-slate-100 rounded h-3 overflow-hidden">
+                          {percent > 0 && (
+                            <div
+                              className="bg-[#0e4860] h-full rounded transition-all duration-500"
+                              style={{ width: `${percent}%` }}
+                            />
+                          )}
+                        </div>
+                        <span className="w-10 text-right font-bold text-slate-600 text-[11px] pl-2">{percent}%</span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -912,24 +918,24 @@ export default function FrontOfficeView() {
 
             <div className="space-y-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono">
               <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span>Room Tariff (2 nights):</span>
-                <span>₹5,200.00</span>
+                <span>Room Tariff ({activeActionModal?.room ? `Room ${activeActionModal.room}` : 'Stay'}):</span>
+                <span>₹0.00</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span>F&B The Spice Pavilion (KOT 363):</span>
-                <span>₹780.00</span>
+                <span>F&B Services / Outlets:</span>
+                <span>₹0.00</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span>CGST (6%):</span>
-                <span>₹358.80</span>
+                <span>₹0.00</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span>SGST (6%):</span>
-                <span>₹358.80</span>
+                <span>₹0.00</span>
               </div>
               <div className="flex justify-between text-sm font-bold text-slate-900 pt-1">
                 <span>Total Amount Due / Paid:</span>
-                <span>₹6,697.60</span>
+                <span>₹0.00</span>
               </div>
             </div>
 

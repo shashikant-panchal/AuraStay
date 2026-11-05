@@ -27,7 +27,8 @@ import {
 export default function StayViewCalendar() {
   const { 
     showNotification, 
-    setIsCreateReservationModalOpen 
+    setIsCreateReservationModalOpen,
+    rooms = []
   } = useDashboard();
 
   // Quick Actions toggle
@@ -41,134 +42,55 @@ export default function StayViewCalendar() {
   const [selectedBooking, setSelectedBooking] = useState(null);
 
   // Category collapse states
-  const [collapsedCategories, setCollapsedCategories] = useState({
-    'DayTrip': false,
-    'Standard Room': false,
-    'Deluxe Room': false,
-    'Super Deluxe Room': true,
-    'Suite Room': true,
-    'Banquet Hall': true,
-  });
+  const [collapsedCategories, setCollapsedCategories] = useState({});
 
   // Tooltip for Room 203 category override
   const [hoveredRoom203, setHoveredRoom203] = useState(false);
 
   // 15-day timeline: 05/11/2026 to 19/11/2026
-  const timelineDays = [
-    { date: '2026-11-05', month: 'NOV', dayNum: '5', dayName: 'THU', weekend: false, availableRooms: 27, occupancy: 4, revenue: '₹ 2.6K', adr: '₹ 2.6K' },
-    { date: '2026-11-06', month: 'NOV', dayNum: '6', dayName: 'FRI', weekend: false, availableRooms: 28, occupancy: 0, revenue: '₹ 0', adr: '₹ 0' },
-    { date: '2026-11-07', month: 'NOV', dayNum: '7', dayName: 'SAT', weekend: true, availableRooms: 28, occupancy: 0, revenue: '₹ 0', adr: '₹ 0' },
-    { date: '2026-11-08', month: 'NOV', dayNum: '8', dayName: 'SUN', weekend: true, availableRooms: 28, occupancy: 0, revenue: '₹ 0', adr: '₹ 0' },
-    { date: '2026-11-09', month: 'NOV', dayNum: '9', dayName: 'MON', weekend: false, availableRooms: 28, occupancy: 0, revenue: '₹ 0', adr: '₹ 0' },
-    { date: '2026-11-10', month: 'NOV', dayNum: '10', dayName: 'TUE', weekend: false, availableRooms: 28, occupancy: 0, revenue: '₹ 0', adr: '₹ 0' },
-    { date: '2026-11-11', month: 'NOV', dayNum: '11', dayName: 'WED', weekend: false, availableRooms: 25, occupancy: 11, revenue: '₹ 8.4K', adr: '₹ 2.8K' },
-    { date: '2026-11-12', month: 'NOV', dayNum: '12', dayName: 'THU', weekend: false, availableRooms: 25, occupancy: 11, revenue: '₹ 8.4K', adr: '₹ 2.8K' },
-    { date: '2026-11-13', month: 'NOV', dayNum: '13', dayName: 'FRI', weekend: false, availableRooms: 28, occupancy: 0, revenue: '₹ 0', adr: '₹ 0' },
-    { date: '2026-11-14', month: 'NOV', dayNum: '14', dayName: 'SAT', weekend: true, availableRooms: 28, occupancy: 0, revenue: '₹ 0', adr: '₹ 0' },
-    { date: '2026-11-15', month: 'NOV', dayNum: '15', dayName: 'SUN', weekend: true, availableRooms: 28, occupancy: 0, revenue: '₹ 0', adr: '₹ 0' },
-    { date: '2026-11-16', month: 'NOV', dayNum: '16', dayName: 'MON', weekend: false, availableRooms: 28, occupancy: 0, revenue: '₹ 0', adr: '₹ 0' },
-    { date: '2026-11-17', month: 'NOV', dayNum: '17', dayName: 'TUE', weekend: false, availableRooms: 28, occupancy: 0, revenue: '₹ 0', adr: '₹ 0' },
-    { date: '2026-11-18', month: 'NOV', dayNum: '18', dayName: 'WED', weekend: false, availableRooms: 28, occupancy: 0, revenue: '₹ 0', adr: '₹ 0' },
-    { date: '2026-11-19', month: 'NOV', dayNum: '19', dayName: 'THU', weekend: false, availableRooms: 28, occupancy: 0, revenue: '₹ 0', adr: '₹ 0' },
-  ];
+  const timelineDays = Array.from({ length: 15 }, (_, i) => {
+    const d = new Date(2026, 10, 5 + i);
+    const dayNum = String(d.getDate());
+    const dayName = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][d.getDay()];
+    const weekend = d.getDay() === 0 || d.getDay() === 6;
+    return {
+      date: `2026-11-${dayNum.padStart(2, '0')}`,
+      month: 'NOV',
+      dayNum,
+      dayName,
+      weekend,
+      availableRooms: rooms.length,
+      occupancy: 0,
+      revenue: '₹ 0',
+      adr: '₹ 0'
+    };
+  });
 
-  // Room Categories & sub-rooms setup
-  const categoryConfig = [
-    {
-      id: 'DayTrip',
-      name: 'DayTrip',
-      inventory: 5,
-      // For each day: { booked: 0, available: 5 }
-      dailyStats: timelineDays.map(() => ({ booked: 0, available: 5 })),
-      rooms: [
-        { id: 'Day Outing', name: 'Day Outing', statusColor: 'bg-emerald-500', bookings: [] }
-      ]
-    },
-    {
-      id: 'Standard Room',
-      name: 'Standard Room',
-      inventory: 5,
-      dailyStats: timelineDays.map((d, idx) => {
-        if (idx === 0) return { booked: 1, available: 4 }; // Nov 5
-        if (idx === 6 || idx === 7) return { booked: 3, available: 2 }; // Nov 11, 12
-        return { booked: 0, available: 5 };
-      }),
-      rooms: [
-        { 
-          id: '101', 
-          name: '101', 
-          statusColor: 'bg-emerald-500',
-          bookings: [] 
-        },
-        { 
-          id: '102', 
-          name: '102', 
-          statusColor: 'bg-emerald-500',
-          bookings: [] 
-        },
-        { 
-          id: '103', 
-          name: '103', 
-          statusColor: 'bg-emerald-500',
-          bookings: [] 
-        },
-        { 
-          id: '104', 
-          name: '104', 
-          statusColor: 'bg-emerald-500',
-          bookings: [] 
-        },
-        { 
-          id: '203', 
-          name: '203', 
-          isOverridden: true, 
-          statusColor: 'bg-amber-400',
-          bookings: [] 
-        },
-      ]
-    },
-    {
-      id: 'Deluxe Room',
-      name: 'Deluxe Room',
-      inventory: 5,
-      dailyStats: timelineDays.map(() => ({ booked: 0, available: 5 })),
-      rooms: [
-        { id: '201', name: '201', statusColor: 'bg-emerald-500', bookings: [] },
-        { id: '202', name: '202', statusColor: 'bg-emerald-500', bookings: [] },
-        { id: '203-deluxe', name: '203', isDeluxeNA: true, statusColor: 'bg-slate-400', bookings: [] },
-      ]
-    },
-    {
-      id: 'Super Deluxe Room',
-      name: 'Super Deluxe Room',
-      inventory: 5,
-      dailyStats: timelineDays.map(() => ({ booked: 0, available: 5 })),
-      rooms: [
-        { id: '301', name: '301', statusColor: 'bg-emerald-500', bookings: [] },
-        { id: '302', name: '302', statusColor: 'bg-rose-500', bookings: [] },
-      ]
-    },
-    {
-      id: 'Suite Room',
-      name: 'Suite Room',
-      inventory: 5,
-      dailyStats: timelineDays.map(() => ({ booked: 0, available: 5 })),
-      rooms: [
-        { id: '401', name: '401', statusColor: 'bg-emerald-500', bookings: [] },
-        { id: '402', name: '402', statusColor: 'bg-emerald-500', bookings: [] },
-      ]
-    },
-    {
-      id: 'Banquet Hall',
-      name: 'Banquet Hall',
-      inventory: 2,
-      dailyStats: timelineDays.map(() => ({ booked: 0, available: 2 })),
-      rooms: [
-        { id: 'Hall 1', name: 'Banquet Hall 1', statusColor: 'bg-emerald-500', bookings: [] },
-        { id: 'Hall 2', name: 'Banquet Hall 2', statusColor: 'bg-emerald-500', bookings: [] },
-      ]
-    },
-  ];
+  // Room Categories & sub-rooms setup dynamically from rooms
+  const categoryConfig = React.useMemo(() => {
+    if (!rooms || rooms.length === 0) return [];
+    const grouped = {};
+    rooms.forEach(r => {
+      const type = r.type || 'Standard Room';
+      if (!grouped[type]) {
+        grouped[type] = {
+          id: type,
+          name: type,
+          inventory: 0,
+          dailyStats: timelineDays.map(() => ({ booked: 0, available: 0 })),
+          rooms: []
+        };
+      }
+      grouped[type].inventory += 1;
+      grouped[type].rooms.push({
+        id: String(r.roomNumber),
+        name: String(r.roomNumber),
+        statusColor: r.status === 'OCCUPIED' ? 'bg-amber-500' : 'bg-emerald-500',
+        bookings: []
+      });
+    });
+    return Object.values(grouped);
+  }, [rooms, timelineDays]);
 
   const toggleCategory = (catId) => {
     setCollapsedCategories(prev => ({
@@ -438,7 +360,14 @@ export default function StayViewCalendar() {
               </tr>
 
               {/* ROOM CATEGORIES & ROOM ROWS (Accordion Matrix) */}
-              {categoryConfig.map(cat => {
+              {categoryConfig.length === 0 ? (
+                <tr>
+                  <td colSpan={timelineDays.length + 1} className="py-12 text-center text-slate-400 font-sans text-xs">
+                    No rooms configured yet. Click "+ Add Room" in Room Management to view your visual stay calendar matrix.
+                  </td>
+                </tr>
+              ) : (
+                categoryConfig.map(cat => {
                 const isCollapsed = collapsedCategories[cat.id];
 
                 return (
@@ -594,7 +523,7 @@ export default function StayViewCalendar() {
                     })}
                   </React.Fragment>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

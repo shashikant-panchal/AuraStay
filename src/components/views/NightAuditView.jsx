@@ -22,11 +22,11 @@ export default function NightAuditView() {
   const [auditComplete, setAuditComplete] = useState(false);
 
   const auditSteps = [
-    { title: 'Resolve Pending Check-ins & No-Shows', desc: 'Verify all expected arrivals for 05 Nov 2026', status: 'READY' },
+    { title: 'Resolve Pending Check-ins & No-Shows', desc: 'Verify all expected arrivals for today', status: 'READY' },
     { title: 'Post Room Charges & Statutory Taxes', desc: 'Automatically calculate CGST + SGST (12%/18%) and post to guest ledgers', status: 'READY' },
-    { title: 'Audit Food & Beverages Outlets', desc: 'Close open KOTs and reconcile POS billing from The Spice Pavilion', status: 'READY' },
+    { title: 'Audit Food & Beverages Outlets', desc: 'Close open KOTs and reconcile POS billing from F&B outlets', status: 'READY' },
     { title: 'Reconcile Cash & Payment Gateways', desc: 'Match Razorpay, Stripe, and Cash drawer shift balancing', status: 'READY' },
-    { title: 'Roll Business Date Forward', desc: 'Advance PMS operational date from 05 Nov to 06 Nov 2026', status: 'PENDING' },
+    { title: 'Roll Business Date Forward', desc: 'Advance PMS operational date forward to next business cycle', status: 'PENDING' },
   ];
 
   const handleRunAudit = () => {
@@ -39,7 +39,7 @@ export default function NightAuditView() {
           clearInterval(stepInterval);
           setIsRunningAudit(false);
           setAuditComplete(true);
-          showNotification('Night Audit successfully completed! PMS Rolled to 06 Nov 2026.');
+          showNotification('Night Audit successfully completed! PMS Rolled forward.');
           return 5;
         }
         return prev + 1;
@@ -68,7 +68,7 @@ export default function NightAuditView() {
         <div className="flex items-center space-x-3">
           <div className="text-right">
             <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Current Business Date</div>
-            <div className="text-sm font-black text-indigo-700 font-mono">05 Nov 2026 (Evening Shift)</div>
+            <div className="text-sm font-black text-indigo-700 font-mono">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} (Evening Shift)</div>
           </div>
 
           <button
@@ -85,7 +85,7 @@ export default function NightAuditView() {
             {auditComplete ? (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Audit Finished (06 Nov)</span>
+                <span>Audit Finished (Completed)</span>
               </>
             ) : isRunningAudit ? (
               <>

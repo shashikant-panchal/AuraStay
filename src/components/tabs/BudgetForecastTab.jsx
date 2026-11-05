@@ -229,12 +229,12 @@ export default function BudgetForecastTab() {
           <div className="mt-4">
             <div className="flex justify-between text-xs font-bold mb-1">
               <span className="text-indigo-600 font-extrabold">{adrAchievement.toFixed(2)}% of target</span>
-              <span className="text-emerald-600 text-[11px] font-semibold">+13.93% outperforming</span>
+              <span className="text-slate-500 text-[11px] font-semibold">{adrAchievement > 0 ? `${adrAchievement.toFixed(1)}% achieved` : '0% variance'}</span>
             </div>
             <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
               <div 
                 className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
-                style={{ width: '100%' }}
+                style={{ width: `${Math.min(adrAchievement, 100)}%` }}
               ></div>
             </div>
           </div>
@@ -303,7 +303,14 @@ export default function BudgetForecastTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {varianceLast3Months.map(v => (
+                  {varianceLast3Months.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="py-8 text-center text-slate-400 text-xs">
+                        No budget variance records available for this cycle.
+                      </td>
+                    </tr>
+                  ) : (
+                    varianceLast3Months.map(v => (
                     <tr key={v.month} className="hover:bg-slate-50 transition">
                       <td className="py-3 px-3 font-sans font-bold text-slate-900">
                         {v.month}
@@ -321,7 +328,8 @@ export default function BudgetForecastTab() {
                         </span>
                       </td>
                     </tr>
-                  ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

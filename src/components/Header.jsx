@@ -132,9 +132,11 @@ export default function Header() {
           {/* Notification Bell */}
           <div className="relative cursor-pointer p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition">
             <Bell className="w-4 h-4" />
-            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">
-              3
-            </span>
+            {property.notificationCount > 0 && (
+              <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">
+                {property.notificationCount}
+              </span>
+            )}
           </div>
 
           {/* User Profile Avatar */}

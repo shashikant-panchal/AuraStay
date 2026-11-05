@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import { 
   UtensilsCrossed, 
@@ -14,6 +14,10 @@ import {
 export default function FoodBeveragesView() {
   const { fnbOrders, showNotification, rooms = [] } = useDashboard();
   const [orders, setOrders] = useState(fnbOrders);
+
+  useEffect(() => {
+    setOrders(fnbOrders);
+  }, [fnbOrders]);
   const [newRoom, setNewRoom] = useState(rooms.length > 0 ? `Room ${rooms[0].roomNumber}` : 'Table 1 (Dine-in)');
   const [newItems, setNewItems] = useState('');
   const [newAmount, setNewAmount] = useState('');
