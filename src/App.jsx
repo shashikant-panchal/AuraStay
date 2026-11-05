@@ -24,6 +24,8 @@ import NightAuditView from './components/views/NightAuditView';
 import GuestsView from './components/views/GuestsView';
 import StockManagementView from './components/views/StockManagementView';
 import ServicesView from './components/views/ServicesView';
+import RevenueInsightsView from './components/views/RevenueInsightsView';
+import AuditLogsView from './components/views/AuditLogsView';
 import GlossaryModal from './components/modals/GlossaryModal';
 import ConfigurationModal from './components/modals/ConfigurationModal';
 import EvidenceModal from './components/modals/EvidenceModal';
@@ -64,6 +66,10 @@ export default function App() {
         return <HousekeepingView />;
       case 'channel-manager':
         return <ChannelManagerView />;
+      case 'revenue-insights':
+        return <RevenueInsightsView />;
+      case 'audit-logs':
+        return <AuditLogsView />;
       case 'reports':
         return <ReportsView />;
       case 'rate-plans':

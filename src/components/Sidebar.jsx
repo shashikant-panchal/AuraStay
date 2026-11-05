@@ -25,7 +25,9 @@ import {
   Compass, 
   Wallet, 
   ShieldCheck, 
-  SlidersHorizontal
+  SlidersHorizontal,
+  Globe,
+  FileText
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -44,12 +46,12 @@ export default function Sidebar() {
   const [isHovered, setIsHovered] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
 
-  // Sections open/collapsed state (PMS is open by default as in screenshot)
+  // Sections open/collapsed state (PMS and Channel Manager are open by default)
   const [openSections, setOpenSections] = useState({
     pms: true,
+    channelManager: true,
     revenue: false,
     operations: false,
-    distribution: false,
     admin: false,
   });
 
@@ -88,6 +90,15 @@ export default function Sidebar() {
     { id: 'guests', label: 'Guests', icon: Users },
   ];
 
+  // CHANNEL MANAGER section items exactly as shown in screenshot
+  const channelManagerItems = [
+    { id: 'channel-manager', label: 'Channel Manager', icon: Globe },
+    { id: 'rate-plans', label: 'Rate Plans', icon: Tag },
+    { id: 'ari-grid', label: 'ARI Grid', icon: LayoutGrid },
+    { id: 'revenue-insights', label: 'Revenue Insights', icon: TrendingUp },
+    { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
+  ];
+
   // Revenue & Analytics (VARO AI)
   const revenueItems = [
     { id: 'revenue-dashboard', tab: 'overview', label: 'VARO Overview', icon: TrendingUp },
@@ -103,12 +114,6 @@ export default function Sidebar() {
     { id: 'food-beverages', label: 'Food & Beverages', icon: UtensilsCrossed },
     { id: 'stock-management', label: 'Stock & Inventory', icon: Package },
     { id: 'services', label: 'Hotel Services', icon: ConciergeBell },
-  ];
-
-  // Distribution
-  const distributionItems = [
-    { id: 'channel-manager', label: 'Channel Manager', icon: Share2 },
-    { id: 'booking-engine', label: 'Direct Booking Engine', icon: Compass, action: () => showNotification('Opening Direct Booking Engine simulator...') },
   ];
 
   // Admin & Finance
@@ -304,7 +309,94 @@ export default function Sidebar() {
             )}
           </div>
 
-          {/* SECTION 2: REVENUE & YIELD (VARO AI) */}
+          {/* SECTION 2: CHANNEL MANAGER - EXACT MATCH WITH SCREENSHOT */}
+          <div className="space-y-1 pt-2 border-t border-slate-800/50">
+            {isExpanded ? (
+              <button
+                onClick={(e) => toggleSection('channelManager', e)}
+                className="w-full flex items-center justify-between px-3 py-2 text-left rounded-lg hover:bg-slate-800/40 transition group"
+              >
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0 shadow-xs shadow-cyan-400/50" />
+                  <span className="font-bold text-white text-xs tracking-wider uppercase truncate">
+                    CHANNEL MANAGER
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2 shrink-0">
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNav('channel-manager');
+                      showNotification('Opening Channel Manager...');
+                    }}
+                    className="bg-[#00a8cc] hover:bg-[#00bcd4] text-white text-[10.5px] font-bold px-2.5 py-0.5 rounded-md shadow-xs transition cursor-pointer"
+                  >
+                    Connect
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openSections.channelManager ? 'rotate-180' : ''}`} />
+                </div>
+              </button>
+            ) : (
+              <div 
+                className="w-full py-1 flex flex-col items-center cursor-pointer"
+                title="CHANNEL MANAGER (Connect)"
+                onClick={() => setIsHovered(true)}
+              >
+                <span className="w-2 h-2 rounded-full bg-cyan-400 mb-0.5 shadow-xs shadow-cyan-400/50" />
+                <span className="text-[8px] font-black text-cyan-400 tracking-wider">CM</span>
+              </div>
+            )}
+
+            {/* Channel Manager Sub-Items */}
+            {(!isExpanded || openSections.channelManager) && (
+              <div className="space-y-0.5 pl-1">
+                {channelManagerItems.map(item => {
+                  const Icon = item.icon;
+                  const isActive = currentView === item.id;
+
+                  if (isExpanded) {
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleNav(item.id)}
+                        className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl transition text-left group ${
+                          isActive
+                            ? 'bg-sky-500/15 text-sky-400 font-semibold border-l-2 border-sky-400'
+                            : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <Icon className={`w-4 h-4 shrink-0 transition group-hover:scale-110 ${
+                          isActive ? 'text-sky-400' : 'text-slate-400 group-hover:text-slate-200'
+                        }`} />
+                        <span className="text-xs font-medium truncate">{item.label}</span>
+                      </button>
+                    );
+                  }
+
+                  // Collapsed Icon View
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNav(item.id)}
+                      className={`w-full aspect-square rounded-xl flex items-center justify-center transition group relative ${
+                        isActive
+                          ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                      }`}
+                      title={item.label}
+                    >
+                      <Icon className="w-4 h-4 transition group-hover:scale-105" />
+                      <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* SECTION 3: REVENUE & YIELD (VARO AI) */}
           <div className="space-y-1 pt-2 border-t border-slate-800/50">
             {isExpanded ? (
               <button
@@ -396,51 +488,7 @@ export default function Sidebar() {
             )}
           </div>
 
-          {/* SECTION 4: DISTRIBUTION */}
-          <div className="space-y-1 pt-2 border-t border-slate-800/50">
-            {isExpanded ? (
-              <button
-                onClick={(e) => toggleSection('distribution', e)}
-                className="w-full flex items-center justify-between px-3 py-2 text-left rounded-lg hover:bg-slate-800/40 transition group"
-              >
-                <div className="flex items-center space-x-2.5 min-w-0">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                  <span className="font-bold text-white text-sm tracking-wide">Distribution</span>
-                </div>
-                <div className="flex items-center space-x-2 shrink-0">
-                  <span className="bg-amber-600 text-white text-[10.5px] font-bold px-2 py-0.5 rounded shadow-xs">
-                    Sync
-                  </span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openSections.distribution ? 'rotate-180' : ''}`} />
-                </div>
-              </button>
-            ) : null}
 
-            {isExpanded && openSections.distribution && (
-              <div className="space-y-0.5 pl-1">
-                {distributionItems.map(item => {
-                  const Icon = item.icon;
-                  const isActive = currentView === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => item.action ? item.action() : handleNav(item.id)}
-                      className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl transition text-left group ${
-                        isActive
-                          ? 'bg-amber-500/15 text-amber-400 font-semibold border-l-2 border-amber-400'
-                          : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 shrink-0 transition group-hover:scale-110 ${
-                        isActive ? 'text-amber-400' : 'text-slate-400 group-hover:text-slate-200'
-                      }`} />
-                      <span className="text-xs font-medium truncate">{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
           {/* SECTION 5: ADMIN & FINANCE */}
           <div className="space-y-1 pt-2 border-t border-slate-800/50">
