@@ -220,13 +220,13 @@ export default function RatePlansView() {
 
   // Property Profile State (Matching Screenshot 1)
   const [propertyProfile, setPropertyProfile] = useState({
-    name: 'BookOne Suite',
+    name: 'AuraStay Suite',
     location: 'DIF Cyber City , Patia, Bhubaneswar, India, 751024',
-    email: 'bookonedemo123@gmail.com',
+    email: 'aurastaydemo123@gmail.com',
     phone: '',
     mobile: '7978578046',
     managerName: 'Twinkle Bagh',
-    managerEmail: 'bookonedemo123@gmail.com',
+    managerEmail: 'aurastaydemo123@gmail.com',
     managerPhone: '7608928399'
   });
 
@@ -347,7 +347,7 @@ export default function RatePlansView() {
         <div>
           <div className="flex items-center space-x-2 mb-1.5">
             <span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 px-2 py-0.5 rounded tracking-wider">
-              BOOKONE PMS
+              AURASTAY PMS
             </span>
             <span className="text-[10.5px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-wider">
               <Trophy className="w-3.5 h-3.5 text-amber-500" /> MASTERY: 0%
@@ -390,7 +390,7 @@ export default function RatePlansView() {
         </div>
       </div>
 
-      {/* 3. Property Card (Dark Teal Box with BookOne Suite Info) */}
+      {/* 3. Property Card (Dark Teal Box with AuraStay Suite Info) */}
       <div className="bg-[#0e4860] text-white rounded-xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-3.5">
           <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center p-1.5 shrink-0 shadow-xs">

@@ -37,117 +37,26 @@ const WEEK_DAYS = [
   { date: '11-11-2026', day: 'WED', isToday: false },
 ];
 
-// Floors & Rooms matching Screenshots 1, 2, 3
-const INITIAL_FLOORS = [
-  {
-    floorId: 'GF',
-    floorName: 'Ground Floor',
-    roomsCount: 3,
-    rooms: [
-      {
-        id: 'gf-700',
-        name: 'Hall 1',
-        category: 'BANQUET HALL',
-        seq: '700',
-        bedCount: 1,
-        status: 'VACANT READY',
-        electricity: false,
-        ac: false,
-        wifi: false
-      },
-      {
-        id: 'gf-800',
-        name: 'Hall 2',
-        category: 'BANQUET HALL',
-        seq: '800',
-        bedCount: 1,
-        status: 'VACANT READY',
-        electricity: false,
-        ac: false,
-        wifi: false
-      },
-      {
-        id: 'gf-1000',
-        name: 'Day Outing',
-        category: 'DAYTRIP',
-        seq: '1000',
-        bedCount: 1,
-        status: 'VACANT READY',
-        electricity: false,
-        ac: false,
-        wifi: false
-      }
-    ]
-  },
-  {
-    floorId: '1st',
-    floorName: 'First',
-    roomsCount: 6,
-    rooms: [
-      { id: '101', name: '101', category: 'STANDARD ROOM', seq: '101', bedCount: 1, status: 'VACANT READY', electricity: true, ac: true, wifi: true },
-      { id: '102', name: '102', category: 'STANDARD ROOM', seq: '102', bedCount: 1, status: 'OCCUPIED', guest: 'Sristi Bhattacharya', electricity: true, ac: true, wifi: true },
-      { id: '103', name: '103', category: 'STANDARD ROOM', seq: '103', bedCount: 1, status: 'DIRTY', electricity: false, ac: false, wifi: true },
-      { id: '104', name: '104', category: 'STANDARD ROOM', seq: '104', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '105', name: '105', category: 'STANDARD ROOM', seq: '105', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '106', name: '106', category: 'STANDARD ROOM', seq: '106', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true }
-    ]
-  },
-  {
-    floorId: '2nd',
-    floorName: 'Second',
-    roomsCount: 6,
-    rooms: [
-      { id: '201', name: '201', category: 'DELUXE ROOM', seq: '201', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '202', name: '202', category: 'DELUXE ROOM', seq: '202', bedCount: 1, status: 'OCCUPIED', guest: 'Tejender Thakur', electricity: true, ac: true, wifi: true },
-      { id: '203', name: '203', category: 'DELUXE ROOM', seq: '203', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '204', name: '204', category: 'DELUXE ROOM', seq: '204', bedCount: 1, status: 'DIRTY', electricity: false, ac: false, wifi: true },
-      { id: '205', name: '205', category: 'DELUXE ROOM', seq: '205', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '206', name: '206', category: 'DELUXE ROOM', seq: '206', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true }
-    ]
-  },
-  {
-    floorId: '3rd',
-    floorName: 'Third',
-    roomsCount: 6,
-    rooms: [
-      { id: '301', name: '301', category: 'SUPER DELUXE ROOM', seq: '301', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '302', name: '302', category: 'SUPER DELUXE ROOM', seq: '302', bedCount: 1, status: 'CHECKOUT DUE', guest: 'Dibyajeeban Nayak', electricity: true, ac: true, wifi: true },
-      { id: '303', name: '303', category: 'SUPER DELUXE ROOM', seq: '303', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '304', name: '304', category: 'SUPER DELUXE ROOM', seq: '304', bedCount: 1, status: 'MAINTENANCE', electricity: false, ac: false, wifi: false },
-      { id: '305', name: '305', category: 'SUPER DELUXE ROOM', seq: '305', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '306', name: '306', category: 'SUPER DELUXE ROOM', seq: '306', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true }
-    ]
-  },
-  {
-    floorId: '4th',
-    floorName: 'Fourth',
-    roomsCount: 7,
-    rooms: [
-      { id: '401', name: '401', category: 'SUITE ROOM', seq: '401', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '402', name: '402', category: 'SUITE ROOM', seq: '402', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '403', name: '403', category: 'SUITE ROOM', seq: '403', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '404', name: '404', category: 'SUITE ROOM', seq: '404', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '405', name: '405', category: 'SUITE ROOM', seq: '405', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '406', name: '406', category: 'SUITE ROOM', seq: '406', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
-      { id: '407', name: '407', category: 'SUITE ROOM', seq: '407', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true }
-    ]
-  }
-];
-
 export default function HousekeepingView() {
-  const { navigateTo, showNotification } = useDashboard();
+  const { 
+    navigateTo, 
+    showNotification, 
+    rooms: contextRooms = [], 
+    updateRoomStatus, 
+    setIsCreateRoomModalOpen 
+  } = useDashboard();
 
-  const [floors, setFloors] = useState(INITIAL_FLOORS);
+  const [deviceOverrides, setDeviceOverrides] = useState({});
   const [selectedDate, setSelectedDate] = useState('05-11-2026');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Floor accordion open/collapse state (GF open by default as in screenshot)
+  // Floor accordion open/collapse state
   const [openFloors, setOpenFloors] = useState({
     GF: true,
-    '1st': false,
-    '2nd': false,
-    '3rd': false,
-    '4th': false
+    '1st': true,
+    '2nd': true,
+    '3rd': true,
+    '4th': true
   });
 
   // Slide-over drawer state
@@ -167,6 +76,38 @@ export default function HousekeepingView() {
   const [categoryChangeRoomId, setCategoryChangeRoomId] = useState('');
   const [newCategoryValue, setNewCategoryValue] = useState('Standard Room');
 
+  // Build floors dynamically from contextRooms
+  const floors = useMemo(() => {
+    if (!contextRooms || contextRooms.length === 0) return [];
+    const grouped = {};
+    contextRooms.forEach(r => {
+      const fKey = r.floor || 'Ground Floor';
+      if (!grouped[fKey]) {
+        grouped[fKey] = [];
+      }
+      const dev = deviceOverrides[String(r.roomNumber)] || {};
+      grouped[fKey].push({
+        id: String(r.roomNumber),
+        name: `Room ${r.roomNumber}`,
+        seq: String(r.roomNumber),
+        category: (r.type || 'Standard Room').toUpperCase(),
+        status: (r.status || 'VACANT READY').replace('_', ' ').toUpperCase(),
+        floor: fKey,
+        bed: r.bed || 'King',
+        price: r.price || 2500,
+        power: dev.power !== undefined ? dev.power : true,
+        ac: dev.ac !== undefined ? dev.ac : true,
+        wifi: dev.wifi !== undefined ? dev.wifi : true
+      });
+    });
+
+    return Object.keys(grouped).map(floorKey => ({
+      floorId: floorKey,
+      floorName: floorKey,
+      rooms: grouped[floorKey]
+    }));
+  }, [contextRooms, deviceOverrides]);
+
   const toggleFloor = (floorId) => {
     setOpenFloors(prev => ({
       ...prev,
@@ -180,19 +121,22 @@ export default function HousekeepingView() {
 
   const handleToggleDevice = (device) => {
     if (!selectedRoomProfile) return;
+    const newVal = !selectedRoomProfile[device];
     const updated = {
       ...selectedRoomProfile,
-      [device]: !selectedRoomProfile[device]
+      [device]: newVal
     };
     setSelectedRoomProfile(updated);
     
-    // Also update in state
-    setFloors(prev => prev.map(f => ({
-      ...f,
-      rooms: f.rooms.map(r => r.id === selectedRoomProfile.id ? { ...r, [device]: updated[device] } : r)
-    })));
+    setDeviceOverrides(prev => ({
+      ...prev,
+      [selectedRoomProfile.id]: {
+        ...(prev[selectedRoomProfile.id] || {}),
+        [device]: newVal
+      }
+    }));
 
-    showNotification(`${device.toUpperCase()} set to ${updated[device] ? 'ON' : 'OFF'} in ${selectedRoomProfile.name}`);
+    showNotification(`${device.toUpperCase()} set to ${newVal ? 'ON' : 'OFF'} in ${selectedRoomProfile.name}`);
   };
 
   const handleApplyStatusChange = () => {
@@ -201,21 +145,14 @@ export default function HousekeepingView() {
       return;
     }
 
-    setFloors(prev => prev.map(f => ({
-      ...f,
-      rooms: f.rooms.map(r => {
-        if (r.id === statusChangeRoomId || r.name === statusChangeRoomId) {
-          return { ...r, status: newStatusValue };
-        }
-        return r;
-      })
-    })));
+    if (updateRoomStatus) {
+      updateRoomStatus(statusChangeRoomId, newStatusValue);
+    }
 
     if (selectedRoomProfile && (selectedRoomProfile.id === statusChangeRoomId || selectedRoomProfile.name === statusChangeRoomId)) {
       setSelectedRoomProfile(prev => ({ ...prev, status: newStatusValue }));
     }
 
-    showNotification(`Room status updated to ${newStatusValue}`);
     setIsStatusModalOpen(false);
   };
 
@@ -224,16 +161,6 @@ export default function HousekeepingView() {
       showNotification('Please select a room.');
       return;
     }
-
-    setFloors(prev => prev.map(f => ({
-      ...f,
-      rooms: f.rooms.map(r => {
-        if (r.id === categoryChangeRoomId || r.name === categoryChangeRoomId) {
-          return { ...r, category: newCategoryValue.toUpperCase() };
-        }
-        return r;
-      })
-    })));
 
     if (selectedRoomProfile && (selectedRoomProfile.id === categoryChangeRoomId || selectedRoomProfile.name === categoryChangeRoomId)) {
       setSelectedRoomProfile(prev => ({ ...prev, category: newCategoryValue.toUpperCase() }));
@@ -397,7 +324,24 @@ export default function HousekeepingView() {
 
       {/* 5. Floors Accordion List (Screenshot 1, 2, 3) */}
       <div className="space-y-3">
-        {filteredFloors.map((floor) => {
+        {filteredFloors.length === 0 ? (
+          <div className="bg-white rounded-xl border border-slate-200/90 p-12 text-center shadow-2xs">
+            <div className="w-12 h-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mx-auto mb-3">
+              <Building className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-800">No Rooms in Housekeeping</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              No rooms have been added yet. Click Add Room to configure your inventory and track housekeeping operations.
+            </p>
+            <button
+              onClick={() => setIsCreateRoomModalOpen(true)}
+              className="mt-4 px-4 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold transition shadow-2xs"
+            >
+              + Add Room
+            </button>
+          </div>
+        ) : (
+          filteredFloors.map((floor) => {
           const isOpen = openFloors[floor.floorId];
 
           return (
@@ -518,7 +462,7 @@ export default function HousekeepingView() {
 
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* 6. SLIDE-OVER DRAWER: ROOM PROFILE (Exact Screenshot 3) */}
@@ -943,7 +887,7 @@ export default function HousekeepingView() {
             <div className="space-y-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span className="font-bold text-slate-700">Property:</span>
-                <span className="text-slate-900 font-semibold">BookOne Suite</span>
+                <span className="text-slate-900 font-semibold">AuraStay Suite</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span className="font-bold text-slate-700">Room Name:</span>

@@ -43,6 +43,7 @@ export function DashboardProvider({ children }) {
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCreateReservationModalOpen, setIsCreateReservationModalOpen] = useState(false);
+  const [isCreateRoomModalOpen, setIsCreateRoomModalOpen] = useState(false);
   
   // Popover state for Master Service Home cards
   const [activePopoverModule, setActivePopoverModule] = useState(null);
@@ -67,7 +68,7 @@ export function DashboardProvider({ children }) {
 
         if (isMounted) {
           let tablesFound = false;
-          if (roomsRes.data && roomsRes.data.length > 0) {
+          if (roomsRes.data) {
             setRooms(roomsRes.data.map(r => ({
               roomNumber: r.room_number,
               floor: r.floor,
@@ -81,7 +82,7 @@ export function DashboardProvider({ children }) {
             })));
             tablesFound = true;
           }
-          if (resRes.data && resRes.data.length > 0) {
+          if (resRes.data) {
             setReservations(resRes.data.map(r => ({
               id: r.id,
               guest: r.guest,
@@ -93,9 +94,8 @@ export function DashboardProvider({ children }) {
               status: r.status,
               payment: r.payment
             })));
-            tablesFound = true;
           }
-          if (fnbRes.data && fnbRes.data.length > 0) {
+          if (fnbRes.data) {
             setFnbOrders(fnbRes.data.map(o => ({
               orderId: o.id,
               roomTable: o.room_table,
@@ -105,11 +105,9 @@ export function DashboardProvider({ children }) {
               status: o.status,
               time: o.time
             })));
-            tablesFound = true;
           }
-          if (staffRes.data && staffRes.data.length > 0) {
+          if (staffRes.data) {
             setStaffUsers(staffRes.data);
-            tablesFound = true;
           }
           if (chanRes.data && chanRes.data.length > 0) {
             setOtaChannels(chanRes.data.map(c => ({
@@ -120,12 +118,11 @@ export function DashboardProvider({ children }) {
               activeBookings: c.active_bookings,
               commission: c.commission
             })));
-            tablesFound = true;
           }
 
           if (tablesFound) {
             setIsLiveConnected(true);
-            showNotification('🟢 Connected to live Supabase database with Realtime sync.');
+            showNotification('🟢 Live Cloud Sync Active. Ready to create your property data.');
           }
         }
       } catch (err) {
@@ -285,6 +282,40 @@ export function DashboardProvider({ children }) {
           .eq('room_number', roomNumber);
       } catch (err) {
         console.warn('Supabase room update sync pending table setup', err);
+      }
+    }
+  };
+
+  // Add room (saved to Supabase & local state)
+  const addRoom = async (newRoom) => {
+    const room = {
+      roomNumber: String(newRoom.roomNumber).trim(),
+      floor: newRoom.floor || '1st Floor',
+      type: newRoom.type || 'Standard Room',
+      bed: newRoom.bed || 'King Bed',
+      status: 'VACANT_READY',
+      price: Number(newRoom.price) || 2000,
+      guest: null,
+      bookingId: null,
+      checkOut: null
+    };
+
+    setRooms(prev => [room, ...prev.filter(r => r.roomNumber !== room.roomNumber)]);
+    showNotification(`Room ${room.roomNumber} created successfully.`);
+    setIsCreateRoomModalOpen(false);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('rooms').insert({
+          room_number: room.roomNumber,
+          floor: room.floor,
+          type: room.type,
+          bed: room.bed,
+          status: 'VACANT_READY',
+          price: room.price
+        });
+      } catch (err) {
+        console.warn('Supabase room insert error:', err);
       }
     }
   };
@@ -502,7 +533,10 @@ export function DashboardProvider({ children }) {
       setIsMonitoringModalOpen,
       setIsTourOpen,
       setIsSearchOpen,
-      setIsCreateReservationModalOpen
+      setIsCreateReservationModalOpen,
+      isCreateRoomModalOpen,
+      setIsCreateRoomModalOpen,
+      addRoom
     }}>
       {children}
     </DashboardContext.Provider>

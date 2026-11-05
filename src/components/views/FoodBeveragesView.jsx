@@ -22,7 +22,7 @@ export default function FoodBeveragesView() {
   const handleCreateOrder = (e) => {
     e.preventDefault();
     const newOrd = {
-      orderId: `BSE-O-${360 + orders.length + 1}`,
+      orderId: `AST-O-${Date.now().toString().slice(-4)}`,
       roomTable: newRoom,
       guest: 'Checked-in Guest',
       items: newItems,
@@ -141,7 +141,12 @@ export default function FoodBeveragesView() {
         </div>
 
         <div className="divide-y divide-slate-100">
-          {orders.map(order => (
+          {orders.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-xs">
+              No active food & beverage orders. Click <button onClick={() => setIsFormOpen(true)} className="text-indigo-600 font-bold underline hover:text-indigo-800">Take New Order</button> to place an order.
+            </div>
+          ) : (
+            orders.map(order => (
             <div key={order.orderId} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-slate-50/60 transition">
               <div>
                 <div className="flex items-center space-x-2">
@@ -182,7 +187,7 @@ export default function FoodBeveragesView() {
                 )}
               </div>
             </div>
-          ))}
+          )))}
         </div>
       </div>
     </div>

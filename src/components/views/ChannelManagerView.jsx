@@ -30,8 +30,8 @@ const INITIAL_CHANNELS = [
     status: 'ACTIVE',
     syncStatus: 'Fully Synced',
     lastSync: 'Just now (17:18)',
-    mappedRooms: 7,
-    activeBookings: 54,
+    mappedRooms: 0,
+    activeBookings: 0,
     commission: '15.0%',
     rateRule: 'Direct Parity (0%)',
     syncRates: true,
@@ -47,8 +47,8 @@ const INITIAL_CHANNELS = [
     status: 'ACTIVE',
     syncStatus: 'Fully Synced',
     lastSync: '2 mins ago (17:16)',
-    mappedRooms: 7,
-    activeBookings: 31,
+    mappedRooms: 0,
+    activeBookings: 0,
     commission: '14.0%',
     rateRule: 'Direct Parity (0%)',
     syncRates: true,
@@ -64,8 +64,8 @@ const INITIAL_CHANNELS = [
     status: 'ACTIVE',
     syncStatus: 'Fully Synced',
     lastSync: '4 mins ago (17:14)',
-    mappedRooms: 7,
-    activeBookings: 29,
+    mappedRooms: 0,
+    activeBookings: 0,
     commission: '18.0%',
     rateRule: 'Direct Parity (0%)',
     syncRates: true,
@@ -81,8 +81,8 @@ const INITIAL_CHANNELS = [
     status: 'ACTIVE',
     syncStatus: 'Fully Synced',
     lastSync: '6 mins ago (17:12)',
-    mappedRooms: 6,
-    activeBookings: 14,
+    mappedRooms: 0,
+    activeBookings: 0,
     commission: '16.0%',
     rateRule: '+5% Dynamic Markup',
     syncRates: true,
@@ -98,8 +98,8 @@ const INITIAL_CHANNELS = [
     status: 'ACTIVE',
     syncStatus: 'Fully Synced',
     lastSync: '10 mins ago (17:08)',
-    mappedRooms: 4,
-    activeBookings: 8,
+    mappedRooms: 0,
+    activeBookings: 0,
     commission: '12.0%',
     rateRule: '+8% Dynamic Markup',
     syncRates: true,
@@ -115,8 +115,8 @@ const INITIAL_CHANNELS = [
     status: 'ACTIVE',
     syncStatus: 'Fully Synced',
     lastSync: '12 mins ago (17:06)',
-    mappedRooms: 7,
-    activeBookings: 18,
+    mappedRooms: 0,
+    activeBookings: 0,
     commission: '15.0%',
     rateRule: 'Direct Parity (0%)',
     syncRates: true,
@@ -175,7 +175,7 @@ export default function ChannelManagerView() {
       status: 'ACTIVE',
       syncStatus: 'Fully Synced',
       lastSync: 'Just now',
-      mappedRooms: 7,
+      mappedRooms: 0,
       activeBookings: 0,
       commission: `${newChannelData.commissionPct}%`,
       rateRule: 'Direct Parity (0%)',
@@ -210,7 +210,7 @@ export default function ChannelManagerView() {
         <div>
           <div className="flex items-center space-x-2 mb-1.5">
             <span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 px-2 py-0.5 rounded tracking-wider">
-              BOOKONE PMS
+              AURASTAY PMS
             </span>
             <span className="text-[10.5px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-wider">
               <Trophy className="w-3.5 h-3.5 text-amber-500" /> MASTERY: 0%

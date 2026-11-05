@@ -175,7 +175,7 @@ export default function RevenueInsightsView() {
         <div>
           <div className="flex items-center space-x-2 mb-1.5">
             <span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 px-2 py-0.5 rounded tracking-wider">
-              BOOKONE PMS
+              AURASTAY PMS
             </span>
             <span className="text-[10.5px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-wider">
               <Trophy className="w-3.5 h-3.5 text-amber-500" /> MASTERY: 0%

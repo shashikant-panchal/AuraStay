@@ -114,12 +114,7 @@ export const suiteModules = [
     primaryOptions: [
       'View Customer history'
     ],
-    moreOptions: [
-      'Guest Profiles',
-      'Membership Tiers',
-      'VIP Preferences',
-      'Feedback & Surveys'
-    ]
+    moreOptions: null
   },
   {
     id: 'account-finance',
@@ -247,11 +242,7 @@ export const suiteModules = [
       'Manage Promotion',
       'Promotion Types'
     ],
-    moreOptions: [
-      'Coupon Codes',
-      'Discount Rules',
-      'Package Bundles'
-    ]
+    moreOptions: null
   },
   {
     id: 'reputation-management',
@@ -264,11 +255,7 @@ export const suiteModules = [
     primaryOptions: [
       'Manage Business Review'
     ],
-    moreOptions: [
-      'Review Scanner',
-      'Guest Feedback Analytics',
-      'OTA Sentiment Ratings'
-    ]
+    moreOptions: null
   },
   {
     id: 'revenue-management',

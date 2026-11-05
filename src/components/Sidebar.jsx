@@ -155,20 +155,19 @@ export default function Sidebar() {
             <div 
               onClick={() => handleNav('master-service-home')}
               className="flex-1 flex flex-col items-center justify-center cursor-pointer group"
-              title="Bookone - All In One Hospitality Suite"
+              title="AuraStay - All In One Hospitality Suite"
             >
-              {/* bookone brand logo */}
-              <div className="flex items-center space-x-1">
-                {/* Stylized 'b' with cyan to purple circular gradient */}
-                <div className="w-6 h-6 rounded-full bg-linear-to-tr from-[#00b4db] via-[#6a11cb] to-[#9c27b0] flex items-center justify-center shadow-xs">
-                  <span className="text-white font-extrabold text-sm leading-none">b</span>
+              {/* aurastay brand logo */}
+              <div className="flex items-center space-x-1.5">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#0284c7] via-[#4f46e5] to-[#7c3aed] flex items-center justify-center shadow-xs">
+                  <span className="text-white font-extrabold text-sm leading-none">A</span>
                 </div>
                 <div className="flex items-baseline tracking-tight font-black">
-                  <span className="text-xl text-[#25255a]">ook</span>
-                  <span className="text-xl text-[#7c63b4]">one</span>
+                  <span className="text-xl text-[#0f172a]">Aura</span>
+                  <span className="text-xl text-[#4f46e5]">Stay</span>
                 </div>
               </div>
-              <div className="text-[8.5px] font-black tracking-[0.22em] text-[#005a9c] uppercase mt-1 leading-none text-center">
+              <div className="text-[8.5px] font-black tracking-[0.22em] text-[#0284c7] uppercase mt-1 leading-none text-center">
                 ALL IN ONE HOSPITALITY SUITE
               </div>
             </div>
@@ -176,10 +175,10 @@ export default function Sidebar() {
             <div 
               onClick={() => handleNav('master-service-home')}
               className="w-full flex items-center justify-center cursor-pointer"
-              title="Bookone Hospitality Suite"
+              title="AuraStay Hospitality Suite"
             >
-              <div className="w-8 h-8 rounded-full bg-linear-to-tr from-[#00b4db] via-[#6a11cb] to-[#9c27b0] flex items-center justify-center shadow-sm">
-                <span className="text-white font-extrabold text-base leading-none">b</span>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#0284c7] via-[#4f46e5] to-[#7c3aed] flex items-center justify-center shadow-sm">
+                <span className="text-white font-extrabold text-base leading-none">A</span>
               </div>
             </div>
           )}

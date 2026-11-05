@@ -39,8 +39,10 @@ import {
 export default function FrontOfficeView() {
   const {
     rooms,
+    reservations,
     updateRoomStatus,
     setIsCreateReservationModalOpen,
+    setIsCreateRoomModalOpen,
     setIsTourOpen,
     setIsSearchOpen,
     navigateTo,
@@ -61,49 +63,42 @@ export default function FrontOfficeView() {
   const [activeActionModal, setActiveActionModal] = useState(null); // 'grc', 'feedback', 'invoice'
   const [selectedCheckInForAction, setSelectedCheckInForAction] = useState(null);
 
-  // Table Data for Today's Room Availability & BAR (Exact values from Screenshot 2 & 3)
-  const roomAvailabilityData = [
-    { category: 'DayTrip', bar: 1000.00, toSell: 5, sold: 0, available: 5, occupancy: 0 },
-    { category: 'Standard Room', bar: 2000.00, toSell: 5, sold: 1, available: 4, occupancy: 20 },
-    { category: 'Deluxe Room', bar: 2500.00, toSell: 5, sold: 0, available: 5, occupancy: 0 },
-    { category: 'Super Deluxe Room', bar: 3000.00, toSell: 5, sold: 0, available: 5, occupancy: 0 },
-    { category: 'Suite Room', bar: 3500.00, toSell: 5, sold: 0, available: 5, occupancy: 0 },
-    { category: 'Banquet Hall', bar: 5000.00, toSell: 2, sold: 0, available: 2, occupancy: 0 },
-  ];
+  // Dynamic Room Availability & BAR derived from active rooms
+  const roomAvailabilityData = useMemo(() => {
+    if (!rooms || rooms.length === 0) return [];
+    const catMap = {};
+    rooms.forEach(r => {
+      const type = r.type || 'Standard Room';
+      if (!catMap[type]) {
+        catMap[type] = { category: type, bar: Number(r.price) || 2000, toSell: 0, sold: 0, available: 0, occupancy: 0 };
+      }
+      catMap[type].toSell += 1;
+      if (r.status === 'OCCUPIED') {
+        catMap[type].sold += 1;
+      } else if (r.status === 'VACANT_READY') {
+        catMap[type].available += 1;
+      }
+    });
+    return Object.values(catMap).map(c => ({
+      ...c,
+      occupancy: c.toSell > 0 ? Math.round((c.sold / c.toSell) * 100) : 0
+    }));
+  }, [rooms]);
 
-  // Recent Check-ins (Exact records from Screenshot 4)
-  const recentCheckIns = [
-    {
-      id: 'BSE-B-864',
-      guest: 'Sristi Bhattacharya',
-      room: 'Standard Room',
-      time: '2 hrs ago',
-      amount: 2600.00,
-      status: 'CHECKEDIN',
-      phone: '+91 98450 44211',
-      idProof: 'Aadhaar Verified'
-    },
-    {
-      id: 'BSE-B-861',
-      guest: 'Dibyajeeban Nayak',
-      room: 'Super Deluxe Room',
-      time: '23 hrs ago',
-      amount: 3139.50,
-      status: 'CHECKEDIN',
-      phone: '+91 97110 88299',
-      idProof: 'Passport on file'
-    },
-    {
-      id: 'BSE-B-858',
-      guest: 'Dr. Alok Mishra',
-      room: 'Deluxe Room',
-      time: '1 day ago',
-      amount: 3200.00,
-      status: 'CHECKEDIN',
-      phone: '+91 94370 12890',
-      idProof: 'Corporate DCC Medical'
-    }
-  ];
+  // Dynamic Recent Check-ins derived from live reservations
+  const recentCheckIns = useMemo(() => {
+    if (!reservations || reservations.length === 0) return [];
+    return reservations.map(r => ({
+      id: r.id,
+      guest: r.guest,
+      room: r.room,
+      time: 'Recently',
+      amount: Number(r.amount) || 0,
+      status: r.status || 'CONFIRMED',
+      phone: r.guestPhone || r.phone || '—',
+      idProof: 'Verified on check-in'
+    }));
+  }, [reservations]);
 
   const handleDownloadReport = () => {
     showNotification('Generating Accommodation Operations Report (CSV / PDF)...');
@@ -229,7 +224,7 @@ export default function FrontOfficeView() {
             <div>
               <div className="flex items-center space-x-2 mb-1.5">
                 <span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 px-2 py-0.5 rounded tracking-wider">
-                  BOOKONE PMS
+                  AURASTAY PMS
                 </span>
                 <span className="text-[10.5px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-wider">
                   <Trophy className="w-3.5 h-3.5 text-amber-500" /> MASTERY: 0%
@@ -259,6 +254,13 @@ export default function FrontOfficeView() {
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Download Report</span>
+              </button>
+              <button
+                onClick={() => setIsCreateRoomModalOpen(true)}
+                className="flex items-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Room</span>
               </button>
               <button
                 onClick={() => setIsCreateReservationModalOpen(true)}
@@ -515,7 +517,14 @@ export default function FrontOfficeView() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                    {roomAvailabilityData.map(row => (
+                    {roomAvailabilityData.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-400 text-xs">
+                          No rooms available yet. Click <button type="button" onClick={() => setIsCreateRoomModalOpen(true)} className="text-indigo-600 font-bold underline hover:text-indigo-800">Add Room</button> to create your first room.
+                        </td>
+                      </tr>
+                    ) : (
+                      roomAvailabilityData.map(row => (
                       <tr key={row.category} className="hover:bg-slate-50/70 transition">
                         <td className="py-3 px-4 font-bold text-slate-800">{row.category}</td>
                         <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">₹{row.bar.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
@@ -542,23 +551,25 @@ export default function FrontOfficeView() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )))}
                     {/* Total Row */}
                     <tr className="bg-slate-50 font-black text-slate-900 border-t-2 border-slate-200">
                       <td className="py-3 px-4">Total</td>
                       <td className="py-3 px-4"></td>
-                      <td className="py-3 px-4 text-center">28</td>
+                      <td className="py-3 px-4 text-center">{rooms.length}</td>
                       <td className="py-3 px-4 text-center">
                         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold text-xs">
-                          1
+                          {rooms.filter(r => r.status === 'OCCUPIED').length}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center">
                         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs">
-                          27
+                          {rooms.filter(r => r.status === 'VACANT_READY').length}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-slate-800">4%</td>
+                      <td className="py-3 px-4 text-slate-800">
+                        {rooms.length > 0 ? Math.round((rooms.filter(r => r.status === 'OCCUPIED').length / rooms.length) * 100) : 0}%
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -680,7 +691,12 @@ export default function FrontOfficeView() {
             </div>
 
             <div className="p-4 space-y-3">
-              {recentCheckIns.map(chk => (
+              {recentCheckIns.length === 0 ? (
+                <div className="py-8 text-center text-slate-400 text-xs">
+                  No recent check-ins found. Click <button type="button" onClick={() => setIsCreateReservationModalOpen(true)} className="text-[#0e4860] font-bold underline hover:text-[#135d7c]">Create Reservation</button> to book your first guest.
+                </div>
+              ) : (
+                recentCheckIns.map(chk => (
                 <div
                   key={chk.id}
                   className="p-3.5 rounded-xl border border-slate-100 hover:border-slate-200 bg-white hover:bg-slate-50/50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
@@ -719,7 +735,7 @@ export default function FrontOfficeView() {
                     </button>
                   </div>
                 </div>
-              ))}
+              )))}
             </div>
           </div>
         </div>
@@ -765,7 +781,7 @@ export default function FrontOfficeView() {
             <div className="space-y-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span className="font-bold text-slate-700">Property:</span>
-                <span className="text-slate-900 font-semibold">BookOne Suite (DLF Cyber City, Patia)</span>
+                <span className="text-slate-900 font-semibold">AuraStay Suite (DLF Cyber City, Patia)</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span className="font-bold text-slate-700">Guest Name:</span>

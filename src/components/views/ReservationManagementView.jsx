@@ -34,199 +34,6 @@ import {
 import BookingPaymentsModal from '../modals/BookingPaymentsModal';
 import BookARoomView from './BookARoomView';
 
-// Exact 9 records from Screenshots 2 & 3
-const INITIAL_RESERVATIONS = [
-  {
-    id: 'BSE-B-864',
-    hash: 'BSE-B-CI-382/2026',
-    guest: 'Sristi Bhattacharya',
-    guestType: 'WALKIN',
-    phone: '+91 98450 44211',
-    createdAt: '5 Nov 2026',
-    createdTime: '08:31 AM',
-    stayPeriod: '5 Nov 2026 — 6 Nov 2026',
-    checkInOut: '5 Nov 2026 08:31 AM — 6 Nov 2026 08:31 AM',
-    roomType: 'Standard Room',
-    ratePlan: 'EP PLAN',
-    rooms: ['102'],
-    status: 'CHECKEDIN',
-    total: 2600.00,
-    paid: 2600.00,
-    due: 0.00,
-    note: null,
-    highlight: false,
-    invoiceNumber: null
-  },
-  {
-    id: 'BSE-B-863',
-    hash: null,
-    guest: 'Hiten Palreja',
-    guestType: 'WALKIN',
-    phone: '+91 98201 55321',
-    note: 'empty baggage',
-    createdAt: '4 Nov 2026',
-    createdTime: '05:08 PM',
-    stayPeriod: '4 Nov 2026 — 5 Nov 2026',
-    checkInOut: '4 Nov 2026 05:07 PM — 5 Nov 2026 05:07 PM',
-    roomType: 'Standard Room',
-    ratePlan: 'EP PLAN',
-    rooms: ['103'],
-    status: 'CONFIRMED',
-    total: 1800.00,
-    paid: 1800.00,
-    due: 0.00,
-    highlight: false,
-    invoiceNumber: null
-  },
-  {
-    id: 'BSE-B-862',
-    hash: null,
-    guest: 'Ganesh Mr',
-    guestType: 'WALKIN',
-    phone: '+91 97120 44901',
-    createdAt: '4 Nov 2026',
-    createdTime: '03:25 PM',
-    stayPeriod: '4 Nov 2026 — 5 Nov 2026',
-    checkInOut: '4 Nov 2026 03:10 PM — 5 Nov 2026 03:10 PM',
-    roomType: 'Standard Room',
-    ratePlan: 'EP PLAN',
-    rooms: ['104'],
-    status: 'CONFIRMED',
-    total: 1900.00,
-    paid: 1900.00,
-    due: 0.00,
-    note: null,
-    highlight: false,
-    invoiceNumber: null
-  },
-  {
-    id: 'BSE-B-861',
-    hash: 'BSE-B-CI-380/2026',
-    guest: 'Dibyajeeban Nayak',
-    guestType: 'WALKIN',
-    phone: '+91 97110 88299',
-    createdAt: '4 Nov 2026',
-    createdTime: '11:35 AM',
-    stayPeriod: '4 Nov 2026 — 5 Nov 2026',
-    checkInOut: '4 Nov 2026 11:38 AM — 5 Nov 2026 11:32 AM',
-    roomType: 'Super Deluxe Room',
-    ratePlan: 'EP PLAN',
-    rooms: ['302'],
-    status: 'CHECKOUT DUE',
-    total: 3139.50,
-    paid: 3139.50,
-    due: 0.00,
-    note: null,
-    highlight: true, // red border on left & pink background
-    invoiceNumber: null
-  },
-  {
-    id: 'BSE-B-860',
-    hash: 'BSE-B-CI-381/2026',
-    guest: 'Mr. Sabyasachi Jena',
-    guestType: 'WALKIN',
-    phone: '+91 94370 12890',
-    createdAt: '4 Nov 2026',
-    createdTime: '11:23 AM',
-    stayPeriod: '4 Nov 2026 — 5 Nov 2026',
-    checkInOut: '4 Nov 2026 06:04 PM — 5 Nov 2026 08:45 AM',
-    roomType: 'Standard Room',
-    ratePlan: 'EP PLAN',
-    rooms: ['101'],
-    status: 'CHECKEDOUT',
-    total: 4092.00,
-    paid: 4092.00,
-    due: 0.00,
-    note: null,
-    highlight: false,
-    invoiceNumber: 'BSE-INV/442/2026-27'
-  },
-  {
-    id: 'BSE-B-859',
-    hash: null,
-    guest: 'Mr Manoj',
-    guestType: 'WALKIN',
-    phone: '+91 98980 11223',
-    note: 'empty baggage',
-    createdAt: '4 Nov 2026',
-    createdTime: '10:30 AM',
-    stayPeriod: '4 Nov 2026 — 5 Nov 2026',
-    checkInOut: '4 Nov 2026 10:29 AM — 5 Nov 2026 10:29 AM',
-    roomType: 'Standard Room',
-    ratePlan: 'EP PLAN',
-    rooms: ['102'],
-    status: 'CONFIRMED',
-    total: 1575.00,
-    paid: 1575.00,
-    due: 0.00,
-    highlight: false,
-    invoiceNumber: null
-  },
-  {
-    id: 'BSE-B-852',
-    hash: null,
-    guest: 'Tejender Thakur',
-    guestType: 'WALKIN',
-    phone: '+91 98160 77412',
-    createdAt: '2 Nov 2026',
-    createdTime: '07:44 PM',
-    stayPeriod: '3 Nov 2026 — 5 Nov 2026',
-    checkInOut: '3 Nov 2026 07:42 PM — 5 Nov 2026 07:42 PM',
-    roomType: 'Deluxe Room',
-    ratePlan: 'CP PLAN',
-    rooms: ['202'],
-    status: 'CONFIRMED',
-    total: 11000.00,
-    paid: 5000.00,
-    due: 6000.00,
-    note: null,
-    highlight: false,
-    invoiceNumber: null
-  },
-  {
-    id: 'BSE-B-844',
-    hash: null,
-    guest: 'Ankit',
-    guestType: 'WALKIN',
-    phone: '+91 99100 33411',
-    createdAt: '2 Nov 2026',
-    createdTime: '02:48 PM',
-    stayPeriod: '11 Nov 2026 — 13 Nov 2026',
-    checkInOut: '11 Nov 2026 02:44 PM — 13 Nov 2026 02:44 PM',
-    roomType: 'Standard Room',
-    ratePlan: 'CP PLAN',
-    rooms: [], // Unallocated room
-    status: 'CONFIRMED',
-    total: 11000.00,
-    paid: 2000.00,
-    due: 9000.00,
-    note: null,
-    highlight: false,
-    invoiceNumber: null
-  },
-  {
-    id: 'BSE-B-731',
-    hash: null,
-    guest: 'Mukeshbhai Patel',
-    guestType: 'WALKIN',
-    phone: '+91 98250 88990',
-    createdAt: '26 Sep 2026',
-    createdTime: '10:24 AM',
-    stayPeriod: '11 Nov 2026 — 13 Nov 2026',
-    checkInOut: '11 Nov 2026 10:22 AM — 13 Nov 2026 10:22 AM',
-    roomType: 'Standard Room (2)',
-    ratePlan: 'EP PLAN',
-    rooms: ['102', '103'],
-    status: 'CONFIRMED',
-    total: 5800.00,
-    paid: 5800.00,
-    due: 0.00,
-    note: null,
-    highlight: false,
-    invoiceNumber: null
-  }
-];
-
 export default function ReservationManagementView({ isSubTab = false }) {
   const { 
     setIsTourOpen,
@@ -237,7 +44,27 @@ export default function ReservationManagementView({ isSubTab = false }) {
   // Mode: 'list' or 'book-a-room'
   const [viewMode, setViewMode] = useState('list');
 
-  const [reservations, setReservations] = useState(INITIAL_RESERVATIONS);
+  const reservations = (contextReservations || []).map(r => ({
+    id: r.id,
+    hash: r.hash || `AST-B-${r.id || Date.now()}`,
+    guest: r.guest,
+    guestType: r.source || 'WALKIN',
+    phone: r.guestPhone || r.phone || '—',
+    createdAt: r.checkIn || 'Today',
+    createdTime: '10:00 AM',
+    stayPeriod: `${r.checkIn || 'Today'} — ${r.checkOut || 'Tomorrow'}`,
+    checkInOut: `${r.checkIn || 'Today'} — ${r.checkOut || 'Tomorrow'}`,
+    roomType: r.room || 'Standard Room',
+    ratePlan: 'EP PLAN',
+    rooms: [r.room || '101'],
+    status: r.status || 'CONFIRMED',
+    total: Number(r.amount) || 0,
+    paid: r.payment === 'PAID' ? Number(r.amount) : 0,
+    due: r.payment === 'PAID' ? 0 : Number(r.amount),
+    note: null,
+    highlight: false,
+    invoiceNumber: null
+  }));
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchType, setSearchType] = useState('ALL');
   const [filterCategory, setFilterCategory] = useState('Recent');
@@ -343,7 +170,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
         <div>
           <div className="flex items-center space-x-2 mb-1.5">
             <span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 px-2 py-0.5 rounded tracking-wider">
-              BOOKONE PMS
+              AURASTAY PMS
             </span>
             <span className="text-[10.5px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-wider">
               <Trophy className="w-3.5 h-3.5 text-amber-500" /> MASTERY: 0%
@@ -812,10 +639,10 @@ export default function ReservationManagementView({ isSubTab = false }) {
       {/* 6. Bottom Bar (Screenshot 3 & 4) */}
       <div className="rounded-xl bg-[#091b29] text-white p-3.5 flex items-center justify-between shadow-xs">
         <button
-          onClick={() => showNotification('Connected to BookOne Local PMS Sync Agent')}
+          onClick={() => showNotification('Connected to AuraStay Local PMS Sync Agent')}
           className="px-3.5 py-1.5 bg-[#132c3f] hover:bg-[#1a3c56] text-white text-xs font-semibold rounded-lg border border-slate-700 transition"
         >
-          Go Bookone local
+          Go AuraStay local
         </button>
 
         <div className="flex items-center space-x-2 text-xs">
@@ -823,7 +650,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
             b
           </div>
           <span className="font-semibold text-slate-300">
-            Powered by <strong className="text-white">BookOne</strong>
+            Powered by <strong className="text-white">AuraStay</strong>
           </span>
         </div>
       </div>

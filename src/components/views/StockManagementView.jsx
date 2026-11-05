@@ -17,17 +17,7 @@ import {
   Truck
 } from 'lucide-react';
 
-const INITIAL_STOCK = [
-  { id: 'SKU-FNB-01', name: 'Fresh Paneer (Dairy Cottage Cheese)', category: 'F&B Raw Materials', currentStock: 12, minThreshold: 15, unit: 'Kg', costPerUnit: 320, status: 'LOW_STOCK', supplier: 'Amul Fresh Dairy' },
-  { id: 'SKU-FNB-02', name: 'Basmati Rice (Extra Long Grain)', category: 'F&B Raw Materials', currentStock: 85, minThreshold: 30, unit: 'Kg', costPerUnit: 140, status: 'IN_STOCK', supplier: 'India Gate Traders' },
-  { id: 'SKU-FNB-03', name: 'Refined Sunflower Cooking Oil', category: 'F&B Raw Materials', currentStock: 45, minThreshold: 25, unit: 'Liters', costPerUnit: 130, status: 'IN_STOCK', supplier: 'Fortune Wholesale' },
-  { id: 'SKU-BAR-01', name: 'Kingfisher Premium Draught Keg (30L)', category: 'Beverage & Bar', currentStock: 4, minThreshold: 6, unit: 'Kegs', costPerUnit: 4800, status: 'LOW_STOCK', supplier: 'United Breweries' },
-  { id: 'SKU-BAR-02', name: 'Sparkling Soda & Tonic Cans', category: 'Beverage & Bar', currentStock: 180, minThreshold: 80, unit: 'Cans', costPerUnit: 25, status: 'IN_STOCK', supplier: 'Schweppes Supply' },
-  { id: 'SKU-HSK-01', name: 'Luxury Cotton Bed Sheets (King)', category: 'Housekeeping Linens', currentStock: 42, minThreshold: 20, unit: 'Sets', costPerUnit: 850, status: 'IN_STOCK', supplier: 'Bombay Dyeing Corp' },
-  { id: 'SKU-HSK-02', name: 'Bath Towels (700 GSM)', category: 'Housekeeping Linens', currentStock: 18, minThreshold: 30, unit: 'Units', costPerUnit: 420, status: 'LOW_STOCK', supplier: 'Bombay Dyeing Corp' },
-  { id: 'SKU-AMN-01', name: 'Organic Body Wash & Shampoo (50ml)', category: 'Guest Amenities', currentStock: 250, minThreshold: 100, unit: 'Bottles', costPerUnit: 22, status: 'IN_STOCK', supplier: 'Forest Essentials' },
-  { id: 'SKU-FDK-01', name: 'Keycards RFID NFC 13.56MHz', category: 'Front Desk Supplies', currentStock: 0, minThreshold: 50, unit: 'Cards', costPerUnit: 35, status: 'OUT_OF_STOCK', supplier: 'SmartAccess Tech' },
-];
+const INITIAL_STOCK = [];
 
 export default function StockManagementView() {
   const { navigateTo, showNotification } = useDashboard();
@@ -105,7 +95,7 @@ export default function StockManagementView() {
         <div>
           <div className="flex items-center space-x-2 mb-1.5">
             <span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 px-2 py-0.5 rounded tracking-wider">
-              BOOKONE PMS
+              AURASTAY PMS
             </span>
             <span className="text-[10.5px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-wider">
               <Trophy className="w-3.5 h-3.5 text-amber-500" /> MASTERY: 0%

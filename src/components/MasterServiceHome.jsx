@@ -112,11 +112,11 @@ export default function MasterServiceHome() {
           return (
             <div 
               key={module.id}
-              className={`bg-white rounded-xl border ${module.borderColor} shadow-xs hover:shadow-md transition duration-200 flex flex-col justify-between overflow-visible relative group`}
+              className={`bg-white rounded-xl border ${module.borderColor} shadow-2xs hover:shadow-md transition duration-200 flex flex-col justify-between overflow-visible relative group min-h-[175px]`}
             >
               <div>
                 {/* Header */}
-                <div className={`px-4 py-3 border-b ${module.borderColor} ${module.headerBg} rounded-t-xl flex items-center space-x-2`}>
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center space-x-2">
                   <Icon className={`w-4 h-4 ${module.textColor}`} />
                   <h2 className={`text-xs font-bold ${module.textColor}`}>
                     {module.title}
@@ -124,12 +124,12 @@ export default function MasterServiceHome() {
                 </div>
 
                 {/* Primary Options List */}
-                <div className="p-3 space-y-1.5">
+                <div className="divide-y divide-slate-100/90">
                   {module.primaryOptions.map(opt => (
                     <button
                       key={opt}
                       onClick={() => handleOptionClick(module.id, opt)}
-                      className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:bg-slate-50/80 rounded-lg transition border border-transparent hover:border-slate-200 flex items-center justify-between"
+                      className="w-full text-left px-4 py-2.5 text-xs font-medium text-slate-700 hover:text-indigo-600 hover:bg-slate-50/70 transition flex items-center justify-between"
                     >
                       <span>{opt}</span>
                       <ChevronRight className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition" />
@@ -140,29 +140,27 @@ export default function MasterServiceHome() {
 
               {/* View More Trigger */}
               {module.moreOptions && module.moreOptions.length > 0 && (
-                <div className="p-2 border-t border-slate-100/80 bg-slate-50/40 rounded-b-xl relative">
+                <div className="border-t border-slate-100 bg-white rounded-b-xl relative">
                   <button
                     onClick={(e) => togglePopover(module.id, e)}
-                    className="w-full text-center py-1 text-xs font-semibold text-slate-500 hover:text-indigo-600 flex items-center justify-center space-x-1 transition"
+                    className={`w-full text-center py-2 text-xs font-bold ${module.textColor} hover:opacity-80 flex items-center justify-center space-x-1.5 transition select-none`}
                   >
                     <span>View More</span>
-                    {isPopoverOpen ? (
-                      <ChevronUp className="w-3.5 h-3.5 text-indigo-500" />
-                    ) : (
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                    )}
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-current text-[10px]">
+                      {isPopoverOpen ? '▲' : '▼'}
+                    </span>
                   </button>
 
                   {/* Popover Menu with exact expanded options */}
                   {isPopoverOpen && (
                     <div 
                       onClick={(e) => e.stopPropagation()}
-                      className="absolute left-2 right-2 bottom-9 bg-white rounded-xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150 max-h-56 overflow-y-auto"
+                      className="absolute left-2 right-2 bottom-10 bg-white rounded-xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150 max-h-56 overflow-y-auto"
                     >
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 border-b border-slate-100 mb-1">
                         More {module.title} Features
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-0.5">
                         {module.moreOptions.map(opt => (
                           <button
                             key={opt}

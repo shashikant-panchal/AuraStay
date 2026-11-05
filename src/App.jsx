@@ -37,10 +37,12 @@ import MonitoringModal from './components/modals/MonitoringModal';
 import TourModal from './components/modals/TourModal';
 import QuickSearchModal from './components/modals/QuickSearchModal';
 import CreateReservationModal from './components/modals/CreateReservationModal';
+import CreateRoomModal from './components/modals/CreateRoomModal';
 import NotificationToast from './components/NotificationToast';
+import { LogOut } from 'lucide-react';
 
 export default function App() {
-  const { currentView, activeTab } = useDashboard();
+  const { currentView, activeTab, showNotification } = useDashboard();
 
   const renderContent = () => {
     switch (currentView) {
@@ -78,12 +80,15 @@ export default function App() {
       case 'reports':
         return <ReportsView />;
       case 'rate-plans':
+      case 'promotions':
         return <RatePlansView />;
       case 'ari-grid':
         return <AriGridView />;
       case 'night-audit':
         return <NightAuditView />;
       case 'guests':
+      case 'guest-crm':
+      case 'reputation-management':
         return <GuestsView />;
       case 'stock-management':
         return <StockManagementView />;
@@ -92,6 +97,7 @@ export default function App() {
       case 'account-finance':
         return <AccountsFinanceView />;
       case 'staff-admin':
+      case 'hr-payroll':
         return <StaffAdminView />;
       default:
         return <MasterServiceHome />;
@@ -111,24 +117,23 @@ export default function App() {
           {renderContent()}
         </main>
 
-        {/* Bottom Dark Blue Footer Bar */}
-        <footer className="bg-[#121c33] text-white px-6 py-3 flex items-center justify-between border-t border-slate-800 shrink-0">
-          <a
-            href="https://aurastay.io"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-1.5 bg-[#1b2b48] hover:bg-[#223558] text-white text-xs font-semibold rounded-lg border border-slate-700/80 transition"
+        {/* Bottom Dark Blue Footer Bar (Matching Screenshot) */}
+        <footer className="bg-[#0b1a30] text-white px-6 py-2.5 flex items-center justify-between border-t border-slate-800 shrink-0 select-none">
+          <button
+            onClick={() => showNotification('Connected to AuraStay Local Node & Cloud Sync')}
+            className="flex items-center space-x-2 px-3.5 py-1.5 bg-[#132644] hover:bg-[#1a335c] text-white text-xs font-semibold rounded-lg border border-slate-700/80 transition"
           >
-            Go AuraStay local
-          </a>
+            <LogOut className="w-3.5 h-3.5 text-slate-300 rotate-180" />
+            <span>Go AuraStay local</span>
+          </button>
 
           <div className="flex items-center space-x-2 text-xs">
-            <div className="w-7 h-7 rounded-full bg-linear-to-tr from-[#00b4db] via-[#6a11cb] to-[#9c27b0] flex items-center justify-center text-white font-extrabold text-sm shadow">
-              b
+            <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-[#0b1a30] font-black text-xs shadow-xs">
+              a
             </div>
             <div className="text-right leading-none">
-              <div className="text-[10px] text-slate-400">Powered by</div>
-              <div className="font-bold text-white text-xs">Bookone Suite</div>
+              <span className="text-slate-400 text-xs">Powered by </span>
+              <span className="font-bold text-white text-xs">AuraStay</span>
             </div>
           </div>
         </footer>
@@ -144,6 +149,7 @@ export default function App() {
       <TourModal />
       <QuickSearchModal />
       <CreateReservationModal />
+      <CreateRoomModal />
       <NotificationToast />
     </div>
   );

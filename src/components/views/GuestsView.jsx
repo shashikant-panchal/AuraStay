@@ -29,74 +29,7 @@ import {
   Trash2
 } from 'lucide-react';
 
-// Sample existing guests from PMS reservations
-const DEFAULT_HOTEL_GUESTS = [
-  {
-    id: 'CUST-1001',
-    name: 'Sristi Bhattacharya',
-    company: 'Mindtree Solutions',
-    email: 'sristi.b@mindtree.com',
-    phone: '+91 98450 44211',
-    room: '102 (Standard)',
-    status: 'IN-HOUSE',
-    loyalty: 'Gold',
-    stays: 4,
-    lifetimeSpend: 24800,
-    kyc: 'Aadhaar Verified'
-  },
-  {
-    id: 'CUST-1002',
-    name: 'Tejender Thakur',
-    company: 'Himachal Hydro Power',
-    email: 'tejender.thakur@hhp.gov.in',
-    phone: '+91 98160 77412',
-    room: '202 (Deluxe)',
-    status: 'IN-HOUSE',
-    loyalty: 'Platinum',
-    stays: 7,
-    lifetimeSpend: 68500,
-    kyc: 'Passport Verified'
-  },
-  {
-    id: 'CUST-1003',
-    name: 'Dibyajeeban Nayak',
-    company: 'Tata Consultancy Services',
-    email: 'd.nayak@tcs.com',
-    phone: '+91 97110 88299',
-    room: '302 (Super Deluxe)',
-    status: 'CHECKOUT DUE',
-    loyalty: 'Silver',
-    stays: 2,
-    lifetimeSpend: 11400,
-    kyc: 'Aadhaar Verified'
-  },
-  {
-    id: 'CUST-1004',
-    name: 'Hiten Palreja',
-    company: 'FinEdge Capital',
-    email: 'hiten.p@finedge.com',
-    phone: '+91 98201 55321',
-    room: '103 (Standard)',
-    status: 'CONFIRMED',
-    loyalty: 'Silver',
-    stays: 1,
-    lifetimeSpend: 5400,
-    kyc: 'PAN Verified'
-  },
-  {
-    id: 'CUST-1005',
-    name: 'Mukeshbhai Patel',
-    company: 'Patel Agro Exports',
-    email: 'mukesh.patel@agroexports.in',
-    phone: '+91 98250 88990',
-    room: '102 & 103 (Standard)',
-    status: 'CONFIRMED',
-    loyalty: 'Platinum',
-    stays: 6,
-    lifetimeSpend: 52000,
-    kyc: 'Aadhaar Verified'
-  }
-];
+const DEFAULT_HOTEL_GUESTS = [];
 
 export default function GuestsView() {
   const { navigateTo, showNotification } = useDashboard();
@@ -810,7 +743,7 @@ export default function GuestsView() {
               <div className="flex justify-between items-center p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
                 <div>
                   <span className="font-bold text-emerald-950 block">Lifetime Total Spend: ₹{selectedGuestProfile.lifetimeSpend.toLocaleString()}</span>
-                  <span className="text-[11px] text-emerald-700">{selectedGuestProfile.stays} Completed Stays at BookOne Suite</span>
+                  <span className="text-[11px] text-emerald-700">{selectedGuestProfile.stays} Completed Stays at AuraStay Suite</span>
                 </div>
                 <button
                   onClick={() => {

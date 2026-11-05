@@ -18,41 +18,24 @@ export const initialMockData = {
     "notificationCount": 2
   },
   "kpis": {
-    "period": "5 Oct 2026 – 3 Nov 2026 (inclusive)",
-    "revpar": 859.56,
-    "adr": 3556.81,
-    "occupancy": 24.17,
-    "totalRevenue": 896122.68,
-    "totalRevenueFormatted": "₹8.96L",
-    "roomRevenue": 722033.18,
-    "nonRoomRevenue": 174089.5,
-    "roomNightsSold": 203,
-    "totalAvailableNights": 840,
-    "goppar": 1066.81,
-    "averageBookingValue": 6438.29,
-    "totalBookings": 140
+    "period": "Current Cycle",
+    "revpar": 0.00,
+    "adr": 0.00,
+    "occupancy": 0.00,
+    "totalRevenue": 0.00,
+    "totalRevenueFormatted": "₹0.00",
+    "roomRevenue": 0.00,
+    "nonRoomRevenue": 0.00,
+    "roomNightsSold": 0,
+    "totalAvailableNights": 0,
+    "goppar": 0.00,
+    "averageBookingValue": 0.00,
+    "totalBookings": 0
   },
   "todayActions": {
     "title": "Today’s Revenue Actions",
-    "subtitle": "Persisted exceptions and decisions only. Setup gaps remain in VARO Configuration.",
-    "items": [
-      {
-        "id": "act-1",
-        "count": 1,
-        "title": "Rate recommendations need review",
-        "description": "1 recommendation(s) in the next 30 days contain persisted pricing exceptions.",
-        "severity": "ATTENTION",
-        "status": "PENDING_REVIEW",
-        "evidence": {
-          "targetDate": "2026-11-12",
-          "roomType": "Standard Room",
-          "currentRate": 2000,
-          "recommendedRate": 2450,
-          "reason": "High demand surge detected for wedding season weekend + competitor price uptick (+22%).",
-          "exceptionFlag": "Persisted Floor Guardrail (₹2,000 min, ₹4,500 max)"
-        }
-      }
-    ]
+    "subtitle": "Real-time pricing exceptions and rate review alerts.",
+    "items": []
   },
   "revenueTrend30Days": [
     {

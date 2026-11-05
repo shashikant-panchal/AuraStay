@@ -36,6 +36,14 @@ export default function Header() {
 
   const { property } = data;
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return { text: 'GOOD MORNING', isNight: false };
+    if (hour < 17) return { text: 'GOOD AFTERNOON', isNight: false };
+    return { text: 'GOOD EVENING', isNight: true };
+  };
+  const greeting = getGreeting();
+
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs select-none">
       {/* Top Navbar */}
@@ -51,19 +59,24 @@ export default function Header() {
           </button>
 
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shadow-xs">
-              <Sun className="w-4 h-4 fill-amber-400 text-amber-500" />
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-xs ${
+              greeting.isNight ? 'bg-amber-100/80 text-amber-600' : 'bg-amber-100 text-amber-700'
+            }`}>
+              {greeting.isNight ? (
+                <Moon className="w-4 h-4 fill-amber-400 text-amber-500" />
+              ) : (
+                <Sun className="w-4 h-4 fill-amber-400 text-amber-500" />
+              )}
             </div>
 
             <div className="flex items-center space-x-2">
               <div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  GOOD MORNING
+                  {greeting.text}
                 </div>
                 <div className="text-sm font-bold text-slate-800 leading-tight flex items-center space-x-1.5">
                   <span>{property.managerName}</span>
                   <span className="text-slate-400 text-xs font-normal">({property.managerRole})</span>
-                  <span className="text-base leading-none">🪔</span>
                 </div>
               </div>
             </div>
@@ -95,7 +108,7 @@ export default function Header() {
           {/* Property Selector */}
           <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200/90 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-slate-100 transition shadow-xs">
             <Building2 className="w-4 h-4 text-slate-700" />
-            <span className="text-xs font-bold text-slate-800">BookOne Suite</span>
+            <span className="text-xs font-bold text-slate-800">AuraStay Suite</span>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </div>
 
@@ -140,7 +153,7 @@ export default function Header() {
               className="font-semibold text-slate-500 hover:text-indigo-600 flex items-center space-x-1"
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              <span>BookOne Suite</span>
+              <span>AuraStay Suite</span>
             </button>
             <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
             <span className="font-bold text-slate-800 capitalize">

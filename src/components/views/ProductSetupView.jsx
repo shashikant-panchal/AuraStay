@@ -23,120 +23,7 @@ import {
   Percent
 } from 'lucide-react';
 
-const INITIAL_PRODUCTS = [
-  {
-    id: 'PRD-101',
-    name: 'Paneer Butter Masala',
-    category: 'Main Course',
-    kitchenStation: 'Hot Kitchen (Indian)',
-    price: 360,
-    taxPct: 5,
-    costPrice: 120,
-    unit: 'Portion',
-    isVegetarian: true,
-    status: 'AVAILABLE',
-    prepTime: '15 mins',
-    description: 'Cottage cheese cubes simmered in rich velvety tomato cashew gravy.'
-  },
-  {
-    id: 'PRD-102',
-    name: 'Murgh Dum Biryani (Chef Special)',
-    category: 'Main Course',
-    kitchenStation: 'Hot Kitchen (Biryani)',
-    price: 450,
-    taxPct: 5,
-    costPrice: 160,
-    unit: 'Portion',
-    isVegetarian: false,
-    status: 'AVAILABLE',
-    prepTime: '20 mins',
-    description: 'Fragrant basmati rice layered with spiced tender chicken and saffron dum.'
-  },
-  {
-    id: 'PRD-103',
-    name: 'Crispy Corn & Water Chestnut',
-    category: 'Starters',
-    kitchenStation: 'Pan Asian Wok',
-    price: 280,
-    taxPct: 5,
-    costPrice: 85,
-    unit: 'Plate',
-    isVegetarian: true,
-    status: 'AVAILABLE',
-    prepTime: '12 mins',
-    description: 'Tossed sweet corn kernels with scallions, crushed pepper, and sea salt.'
-  },
-  {
-    id: 'PRD-104',
-    name: 'Tandoori Murgh (Full)',
-    category: 'Starters',
-    kitchenStation: 'Tandoor Clay Oven',
-    price: 520,
-    taxPct: 5,
-    costPrice: 210,
-    unit: 'Full Bird',
-    isVegetarian: false,
-    status: 'AVAILABLE',
-    prepTime: '25 mins',
-    description: 'Whole chicken marinated in Kashmiri chili and hung curd, roasted in clay oven.'
-  },
-  {
-    id: 'PRD-105',
-    name: 'Gulab Jamun with Rabri',
-    category: 'Desserts',
-    kitchenStation: 'Halwai / Dessert Bar',
-    price: 180,
-    taxPct: 5,
-    costPrice: 50,
-    unit: '2 Pcs',
-    isVegetarian: true,
-    status: 'AVAILABLE',
-    prepTime: '5 mins',
-    description: 'Warm fried milk solids drenched in cardamom sugar syrup with creamy rabri.'
-  },
-  {
-    id: 'PRD-106',
-    name: 'Fresh Mint Mojito',
-    category: 'Beverages',
-    kitchenStation: 'Mocktail & Bar',
-    price: 210,
-    taxPct: 5,
-    costPrice: 40,
-    unit: 'Glass (350ml)',
-    isVegetarian: true,
-    status: 'AVAILABLE',
-    prepTime: '5 mins',
-    description: 'Muddled fresh garden mint, lime wedges, simple syrup, and sparkling soda.'
-  },
-  {
-    id: 'PRD-107',
-    name: 'Artisan Wood-Fired Margherita Pizza',
-    category: 'Italian & Continental',
-    kitchenStation: 'Pizza Oven',
-    price: 420,
-    taxPct: 5,
-    costPrice: 130,
-    unit: '11 Inch',
-    isVegetarian: true,
-    status: 'AVAILABLE',
-    prepTime: '18 mins',
-    description: 'San Marzano tomato coulis, fresh mozzarella bocconcini, and handpicked basil.'
-  },
-  {
-    id: 'PRD-108',
-    name: 'Single Malt Scotch (Glenfiddich 12 YO)',
-    category: 'Beverages',
-    kitchenStation: 'Main Bar',
-    price: 650,
-    taxPct: 18,
-    costPrice: 320,
-    unit: 'Peg (60ml)',
-    isVegetarian: true,
-    status: 'OUT_OF_STOCK',
-    prepTime: '2 mins',
-    description: 'Signature Speyside 12-year-old single malt scotch whisky.'
-  }
-];
+const INITIAL_PRODUCTS = [];
 
 export default function ProductSetupView() {
   const { navigateTo, showNotification } = useDashboard();
@@ -245,7 +132,7 @@ export default function ProductSetupView() {
         <div>
           <div className="flex items-center space-x-2 mb-1.5">
             <span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 px-2 py-0.5 rounded tracking-wider">
-              BOOKONE PMS
+              AURASTAY PMS
             </span>
             <span className="text-[10.5px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-wider">
               <Trophy className="w-3.5 h-3.5 text-amber-500" /> MASTERY: 0%

@@ -3,15 +3,17 @@ import { useDashboard } from '../../context/DashboardContext';
 import { Wallet, Plus, Download, CheckCircle } from 'lucide-react';
 
 export default function AccountsFinanceView() {
-  const { data, showNotification } = useDashboard();
+  const { data, showNotification, reservations = [] } = useDashboard();
   const { kpis } = data;
 
-  const mockInvoices = [
-    { id: "INV-2026-001", client: "Shashank Verma", amount: 4780, date: "2026-11-03", status: "PAID", type: "Room & F&B" },
-    { id: "INV-2026-002", client: "DCC MEDICAL LTD", amount: 12800, date: "2026-11-02", status: "PENDING", type: "Direct Corporate Bill" },
-    { id: "INV-2026-003", client: "Priya Sundaram", amount: 9600, date: "2026-11-01", status: "PAID", type: "OTA Virtual Card" },
-    { id: "INV-2026-004", client: "CKS EDUCATION LTD", amount: 18000, date: "2026-10-31", status: "PAID", type: "Bank Transfer" },
-  ];
+  const invoices = (reservations || []).map((r, i) => ({
+    id: `INV-2026-${String(r.id || i + 1).padStart(3, '0')}`,
+    client: r.guest || 'Walk-in Guest',
+    amount: Number(r.amount) || 0,
+    date: r.checkIn || 'Today',
+    status: r.payment || 'PENDING',
+    type: `Room Booking (${r.room || 'Standard'})`
+  }));
 
   return (
     <div className="space-y-6">
@@ -55,22 +57,30 @@ export default function AccountsFinanceView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-mono">
-              {mockInvoices.map(inv => (
-                <tr key={inv.id} className="hover:bg-slate-50">
-                  <td className="py-3.5 px-4 font-bold text-indigo-600">{inv.id}</td>
-                  <td className="py-3.5 px-4 font-sans font-bold text-slate-900">{inv.client}</td>
-                  <td className="py-3.5 px-4 font-sans text-slate-600">{inv.type}</td>
-                  <td className="py-3.5 px-4 text-slate-500">{inv.date}</td>
-                  <td className="py-3.5 px-4 text-right font-extrabold text-slate-900">₹{inv.amount.toLocaleString('en-IN')}</td>
-                  <td className="py-3.5 px-4">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-sans uppercase ${
-                      inv.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                    }`}>
-                      {inv.status}
-                    </span>
+              {invoices.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-slate-400 font-sans text-xs">
+                    No invoices recorded yet. Invoices and folios will automatically populate as new reservations are created.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                invoices.map(inv => (
+                  <tr key={inv.id} className="hover:bg-slate-50">
+                    <td className="py-3.5 px-4 font-bold text-indigo-600">{inv.id}</td>
+                    <td className="py-3.5 px-4 font-sans font-bold text-slate-900">{inv.client}</td>
+                    <td className="py-3.5 px-4 font-sans text-slate-600">{inv.type}</td>
+                    <td className="py-3.5 px-4 text-slate-500">{inv.date}</td>
+                    <td className="py-3.5 px-4 text-right font-extrabold text-slate-900">₹{inv.amount.toLocaleString('en-IN')}</td>
+                    <td className="py-3.5 px-4">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-sans uppercase ${
+                        inv.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {inv.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

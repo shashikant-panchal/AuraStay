@@ -539,10 +539,10 @@ export default function ReportsView() {
       {/* 5. Bottom Local Bar (Screenshot 3) */}
       <div className="rounded-xl bg-[#091b29] text-white p-3.5 flex items-center justify-between shadow-xs">
         <button
-          onClick={() => showNotification('Connected to BookOne Local PMS Sync Agent')}
+          onClick={() => showNotification('Connected to AuraStay Local PMS Sync Agent')}
           className="px-3.5 py-1.5 bg-[#132c3f] hover:bg-[#1a3c56] text-white text-xs font-semibold rounded-lg border border-slate-700 transition"
         >
-          Go Bookone local
+          Go AuraStay local
         </button>
 
         <div className="flex items-center space-x-2 text-xs">
@@ -550,7 +550,7 @@ export default function ReportsView() {
             b
           </div>
           <span className="font-semibold text-slate-300">
-            Powered by <strong className="text-white">BookOne</strong>
+            Powered by <strong className="text-white">AuraStay</strong>
           </span>
         </div>
       </div>
@@ -641,7 +641,7 @@ export default function ReportsView() {
             {/* Modal Footer with Export & Print */}
             <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
               <span className="text-[11px] text-slate-400">
-                Official BookOne PMS statutory ledger export
+                Official AuraStay PMS statutory ledger export
               </span>
 
               <div className="flex items-center space-x-2">
