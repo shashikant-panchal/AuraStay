@@ -1,127 +1,992 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
-import { Home, CheckCircle, AlertTriangle, Sparkles, Wrench } from 'lucide-react';
+import { 
+  Building, 
+  ArrowLeft, 
+  RotateCcw, 
+  SlidersHorizontal, 
+  Calendar, 
+  Search, 
+  ChevronDown, 
+  ChevronRight, 
+  Bed, 
+  Zap, 
+  Snowflake, 
+  Wifi, 
+  FileText, 
+  RefreshCw, 
+  Check, 
+  X, 
+  Grid, 
+  Layers,
+  Printer,
+  CheckCircle2,
+  AlertTriangle,
+  Sparkles,
+  Info
+} from 'lucide-react';
+
+// Exact 7-day strip from Screenshots 1 & 2
+const WEEK_DAYS = [
+  { date: '05-11-2026', day: 'THU', isToday: true },
+  { date: '06-11-2026', day: 'FRI', isToday: false },
+  { date: '07-11-2026', day: 'SAT', isToday: false },
+  { date: '08-11-2026', day: 'SUN', isToday: false },
+  { date: '09-11-2026', day: 'MON', isToday: false },
+  { date: '10-11-2026', day: 'TUE', isToday: false },
+  { date: '11-11-2026', day: 'WED', isToday: false },
+];
+
+// Floors & Rooms matching Screenshots 1, 2, 3
+const INITIAL_FLOORS = [
+  {
+    floorId: 'GF',
+    floorName: 'Ground Floor',
+    roomsCount: 3,
+    rooms: [
+      {
+        id: 'gf-700',
+        name: 'Hall 1',
+        category: 'BANQUET HALL',
+        seq: '700',
+        bedCount: 1,
+        status: 'VACANT READY',
+        electricity: false,
+        ac: false,
+        wifi: false
+      },
+      {
+        id: 'gf-800',
+        name: 'Hall 2',
+        category: 'BANQUET HALL',
+        seq: '800',
+        bedCount: 1,
+        status: 'VACANT READY',
+        electricity: false,
+        ac: false,
+        wifi: false
+      },
+      {
+        id: 'gf-1000',
+        name: 'Day Outing',
+        category: 'DAYTRIP',
+        seq: '1000',
+        bedCount: 1,
+        status: 'VACANT READY',
+        electricity: false,
+        ac: false,
+        wifi: false
+      }
+    ]
+  },
+  {
+    floorId: '1st',
+    floorName: 'First',
+    roomsCount: 6,
+    rooms: [
+      { id: '101', name: '101', category: 'STANDARD ROOM', seq: '101', bedCount: 1, status: 'VACANT READY', electricity: true, ac: true, wifi: true },
+      { id: '102', name: '102', category: 'STANDARD ROOM', seq: '102', bedCount: 1, status: 'OCCUPIED', guest: 'Sristi Bhattacharya', electricity: true, ac: true, wifi: true },
+      { id: '103', name: '103', category: 'STANDARD ROOM', seq: '103', bedCount: 1, status: 'DIRTY', electricity: false, ac: false, wifi: true },
+      { id: '104', name: '104', category: 'STANDARD ROOM', seq: '104', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '105', name: '105', category: 'STANDARD ROOM', seq: '105', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '106', name: '106', category: 'STANDARD ROOM', seq: '106', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true }
+    ]
+  },
+  {
+    floorId: '2nd',
+    floorName: 'Second',
+    roomsCount: 6,
+    rooms: [
+      { id: '201', name: '201', category: 'DELUXE ROOM', seq: '201', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '202', name: '202', category: 'DELUXE ROOM', seq: '202', bedCount: 1, status: 'OCCUPIED', guest: 'Tejender Thakur', electricity: true, ac: true, wifi: true },
+      { id: '203', name: '203', category: 'DELUXE ROOM', seq: '203', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '204', name: '204', category: 'DELUXE ROOM', seq: '204', bedCount: 1, status: 'DIRTY', electricity: false, ac: false, wifi: true },
+      { id: '205', name: '205', category: 'DELUXE ROOM', seq: '205', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '206', name: '206', category: 'DELUXE ROOM', seq: '206', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true }
+    ]
+  },
+  {
+    floorId: '3rd',
+    floorName: 'Third',
+    roomsCount: 6,
+    rooms: [
+      { id: '301', name: '301', category: 'SUPER DELUXE ROOM', seq: '301', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '302', name: '302', category: 'SUPER DELUXE ROOM', seq: '302', bedCount: 1, status: 'CHECKOUT DUE', guest: 'Dibyajeeban Nayak', electricity: true, ac: true, wifi: true },
+      { id: '303', name: '303', category: 'SUPER DELUXE ROOM', seq: '303', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '304', name: '304', category: 'SUPER DELUXE ROOM', seq: '304', bedCount: 1, status: 'MAINTENANCE', electricity: false, ac: false, wifi: false },
+      { id: '305', name: '305', category: 'SUPER DELUXE ROOM', seq: '305', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '306', name: '306', category: 'SUPER DELUXE ROOM', seq: '306', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true }
+    ]
+  },
+  {
+    floorId: '4th',
+    floorName: 'Fourth',
+    roomsCount: 7,
+    rooms: [
+      { id: '401', name: '401', category: 'SUITE ROOM', seq: '401', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '402', name: '402', category: 'SUITE ROOM', seq: '402', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '403', name: '403', category: 'SUITE ROOM', seq: '403', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '404', name: '404', category: 'SUITE ROOM', seq: '404', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '405', name: '405', category: 'SUITE ROOM', seq: '405', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '406', name: '406', category: 'SUITE ROOM', seq: '406', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true },
+      { id: '407', name: '407', category: 'SUITE ROOM', seq: '407', bedCount: 1, status: 'VACANT READY', electricity: false, ac: false, wifi: true }
+    ]
+  }
+];
 
 export default function HousekeepingView() {
-  const { rooms, updateRoomStatus } = useDashboard();
+  const { navigateTo, showNotification } = useDashboard();
 
-  const dirtyCount = rooms.filter(r => r.status === 'DIRTY').length;
-  const readyCount = rooms.filter(r => r.status === 'VACANT_READY').length;
-  const occupiedCount = rooms.filter(r => r.status === 'OCCUPIED').length;
-  const maintenanceCount = rooms.filter(r => r.status === 'MAINTENANCE').length;
+  const [floors, setFloors] = useState(INITIAL_FLOORS);
+  const [selectedDate, setSelectedDate] = useState('05-11-2026');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Floor accordion open/collapse state (GF open by default as in screenshot)
+  const [openFloors, setOpenFloors] = useState({
+    GF: true,
+    '1st': false,
+    '2nd': false,
+    '3rd': false,
+    '4th': false
+  });
+
+  // Slide-over drawer state
+  const [selectedRoomProfile, setSelectedRoomProfile] = useState(null);
+
+  // Modals state
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [selectedFloorDetail, setSelectedFloorDetail] = useState(null);
+  const [isGrcModalOpen, setIsGrcModalOpen] = useState(false);
+
+  // Status modal form state
+  const [statusChangeRoomId, setStatusChangeRoomId] = useState('');
+  const [newStatusValue, setNewStatusValue] = useState('VACANT READY');
+
+  // Category modal form state
+  const [categoryChangeRoomId, setCategoryChangeRoomId] = useState('');
+  const [newCategoryValue, setNewCategoryValue] = useState('Standard Room');
+
+  const toggleFloor = (floorId) => {
+    setOpenFloors(prev => ({
+      ...prev,
+      [floorId]: !prev[floorId]
+    }));
+  };
+
+  const handleOpenRoomProfile = (room) => {
+    setSelectedRoomProfile({ ...room });
+  };
+
+  const handleToggleDevice = (device) => {
+    if (!selectedRoomProfile) return;
+    const updated = {
+      ...selectedRoomProfile,
+      [device]: !selectedRoomProfile[device]
+    };
+    setSelectedRoomProfile(updated);
+    
+    // Also update in state
+    setFloors(prev => prev.map(f => ({
+      ...f,
+      rooms: f.rooms.map(r => r.id === selectedRoomProfile.id ? { ...r, [device]: updated[device] } : r)
+    })));
+
+    showNotification(`${device.toUpperCase()} set to ${updated[device] ? 'ON' : 'OFF'} in ${selectedRoomProfile.name}`);
+  };
+
+  const handleApplyStatusChange = () => {
+    if (!statusChangeRoomId) {
+      showNotification('Please select a room to update status.');
+      return;
+    }
+
+    setFloors(prev => prev.map(f => ({
+      ...f,
+      rooms: f.rooms.map(r => {
+        if (r.id === statusChangeRoomId || r.name === statusChangeRoomId) {
+          return { ...r, status: newStatusValue };
+        }
+        return r;
+      })
+    })));
+
+    if (selectedRoomProfile && (selectedRoomProfile.id === statusChangeRoomId || selectedRoomProfile.name === statusChangeRoomId)) {
+      setSelectedRoomProfile(prev => ({ ...prev, status: newStatusValue }));
+    }
+
+    showNotification(`Room status updated to ${newStatusValue}`);
+    setIsStatusModalOpen(false);
+  };
+
+  const handleApplyCategoryChange = () => {
+    if (!categoryChangeRoomId) {
+      showNotification('Please select a room.');
+      return;
+    }
+
+    setFloors(prev => prev.map(f => ({
+      ...f,
+      rooms: f.rooms.map(r => {
+        if (r.id === categoryChangeRoomId || r.name === categoryChangeRoomId) {
+          return { ...r, category: newCategoryValue.toUpperCase() };
+        }
+        return r;
+      })
+    })));
+
+    if (selectedRoomProfile && (selectedRoomProfile.id === categoryChangeRoomId || selectedRoomProfile.name === categoryChangeRoomId)) {
+      setSelectedRoomProfile(prev => ({ ...prev, category: newCategoryValue.toUpperCase() }));
+    }
+
+    showNotification(`Room category changed to ${newCategoryValue}`);
+    setIsCategoryModalOpen(false);
+  };
+
+  // Filtered floors & rooms
+  const filteredFloors = useMemo(() => {
+    if (!searchQuery.trim()) return floors;
+    const q = searchQuery.toLowerCase();
+    return floors.map(floor => ({
+      ...floor,
+      rooms: floor.rooms.filter(r => 
+        r.name.toLowerCase().includes(q) ||
+        r.category.toLowerCase().includes(q) ||
+        r.status.toLowerCase().includes(q) ||
+        r.seq.includes(q)
+      )
+    })).filter(floor => floor.rooms.length > 0);
+  }, [floors, searchQuery]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center space-x-2">
-            <Home className="w-5 h-5 text-teal-600" />
-            <h2 className="text-base font-bold text-slate-900">
-              Housekeeping & Room Hygiene Management
-            </h2>
+    <div className="space-y-4 animate-in fade-in duration-200">
+      
+      {/* 1. Breadcrumb (Exact match with Screenshot 1) */}
+      <div className="flex items-center space-x-1.5 text-xs text-slate-500 pb-1 border-b border-slate-200">
+        <span 
+          onClick={() => navigateTo('master-service-home')}
+          className="hover:text-slate-900 cursor-pointer transition flex items-center gap-1"
+        >
+          🏠 Home
+        </span>
+        <span>/</span>
+        <span className="font-semibold text-slate-900">
+          Manage Room
+        </span>
+      </div>
+
+      {/* 2. Sub-Tab Pill (Screenshot 1: Room Grid) */}
+      <div className="flex items-center space-x-2">
+        <button
+          className="flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold bg-[#0e4860] text-white shadow-xs"
+        >
+          <Grid className="w-4 h-4" />
+          <span>Room Grid</span>
+        </button>
+      </div>
+
+      {/* 3. Weekly View Header Row (Screenshot 1) */}
+      <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-2xs space-y-4">
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          
+          {/* Back button & Title */}
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => navigateTo('front-office')}
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
+              title="Back"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+
+            <div>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight">
+                Weekly View
+              </h1>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Room status, occupancy, and operational readiness
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Real-time room cleaning turnarounds, inspection statuses, and maintenance logs.
-          </p>
+
+          {/* Top Right Action Buttons (Screenshot 1) */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => {
+                setStatusChangeRoomId(floors[0]?.rooms[0]?.id || '');
+                setIsStatusModalOpen(true);
+              }}
+              className="flex items-center space-x-1.5 px-3.5 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold shadow-2xs transition"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Room Status Change</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setCategoryChangeRoomId(floors[0]?.rooms[0]?.id || '');
+                setIsCategoryModalOpen(true);
+              }}
+              className="flex items-center space-x-1.5 px-3.5 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold shadow-2xs transition"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Room Category Change</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedDate('05-11-2026');
+                showNotification('Switched to Today\'s View (05-11-2026)');
+              }}
+              className="flex items-center space-x-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold shadow-2xs transition"
+            >
+              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+              <span>Today's View</span>
+            </button>
+          </div>
+
         </div>
+
+        {/* Date Picker & Search Input Bar (Screenshot 1) */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1 border-t border-slate-100">
+          <div className="relative w-44">
+            <input
+              type="text"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-1 focus:ring-sky-500 shadow-2xs"
+            />
+            <Calendar className="w-4 h-4 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+          </div>
+
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500 shadow-2xs"
+            />
+          </div>
+        </div>
+
+        {/* 4. 7-Day Week Columns Header Strip (Screenshot 1 & 2) */}
+        <div className="grid grid-cols-7 gap-2 text-center select-none pt-1">
+          {WEEK_DAYS.map((dayItem) => (
+            <div
+              key={dayItem.date}
+              className={`rounded-xl border p-2.5 shadow-2xs transition ${
+                dayItem.isToday 
+                  ? 'bg-white border-slate-300 ring-1 ring-sky-300' 
+                  : 'bg-white border-slate-200'
+              }`}
+            >
+              <div className="text-[11px] font-semibold text-slate-500">
+                {dayItem.date}
+              </div>
+              <div className="text-xs font-black text-slate-900 mt-0.5 tracking-wider">
+                {dayItem.day}
+              </div>
+            </div>
+          ))}
+        </div>
+
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Clean & Ready</div>
-          <div className="text-2xl font-extrabold text-emerald-600 mt-1">{readyCount}</div>
-          <div className="text-xs text-slate-500 mt-0.5">Vacant Ready rooms</div>
-        </div>
+      {/* 5. Floors Accordion List (Screenshot 1, 2, 3) */}
+      <div className="space-y-3">
+        {filteredFloors.map((floor) => {
+          const isOpen = openFloors[floor.floorId];
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Dirty (Need Cleaning)</div>
-          <div className="text-2xl font-extrabold text-amber-600 mt-1">{dirtyCount}</div>
-          <div className="text-xs text-slate-500 mt-0.5">Pending housekeeping</div>
-        </div>
+          return (
+            <div 
+              key={floor.floorId}
+              className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden"
+            >
+              {/* Floor Header Bar (Screenshot 1) */}
+              <div 
+                onClick={() => toggleFloor(floor.floorId)}
+                className="px-4 py-3 bg-slate-50/60 hover:bg-slate-100/70 border-b border-slate-200/80 flex items-center justify-between cursor-pointer transition select-none"
+              >
+                <div className="flex items-center space-x-2.5 text-xs">
+                  <div className="text-slate-400">
+                    {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  </div>
+                  <Building className="w-4 h-4 text-slate-600" />
+                  <span className="font-extrabold text-slate-900">
+                    Floor no: {floor.floorId}
+                  </span>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-slate-600 font-medium">
+                    Floor Name: {floor.floorName}
+                  </span>
+                </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Occupied</div>
-          <div className="text-2xl font-extrabold text-blue-600 mt-1">{occupiedCount}</div>
-          <div className="text-xs text-slate-500 mt-0.5">Guests in house</div>
-        </div>
+                <div className="flex items-center space-x-2.5" onClick={(e) => e.stopPropagation()}>
+                  <span className="bg-sky-100 text-sky-800 font-bold px-2.5 py-0.5 rounded-lg text-xs">
+                    {floor.rooms.length} Rooms
+                  </span>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Maintenance (OOO)</div>
-          <div className="text-2xl font-extrabold text-rose-600 mt-1">{maintenanceCount}</div>
-          <div className="text-xs text-slate-500 mt-0.5">Out of Order</div>
-        </div>
+                  <button
+                    onClick={() => setSelectedFloorDetail(floor)}
+                    className="flex items-center space-x-1 px-3 py-1 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold transition shadow-2xs"
+                  >
+                    <span>Floor Detail</span>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Room Grid across the 7 Days when open (Screenshot 1 & 2) */}
+              {isOpen && (
+                <div className="p-4 space-y-3 overflow-x-auto">
+                  {floor.rooms.map((room) => {
+                    const isVacantReady = room.status === 'VACANT READY';
+                    const isOccupied = room.status === 'OCCUPIED';
+                    const isDirty = room.status === 'DIRTY';
+
+                    return (
+                      <div key={room.id} className="grid grid-cols-7 gap-2 min-w-[700px]">
+                        {WEEK_DAYS.map((dayItem, dIdx) => (
+                          <div
+                            key={dIdx}
+                            onClick={() => handleOpenRoomProfile(room)}
+                            className={`rounded-xl p-3 text-center space-y-2 cursor-pointer transition transform hover:-translate-y-0.5 hover:shadow-md ${
+                              isVacantReady 
+                                ? 'border-2 border-emerald-600 bg-white hover:bg-emerald-50/20' 
+                                : isOccupied
+                                ? 'border-2 border-rose-500 bg-white hover:bg-rose-50/20'
+                                : isDirty
+                                ? 'border-2 border-amber-500 bg-white hover:bg-amber-50/20'
+                                : 'border-2 border-slate-400 bg-white hover:bg-slate-50'
+                            }`}
+                          >
+                            {/* Category Header */}
+                            <div className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                              {room.category}
+                            </div>
+
+                            {/* Sequence subtext */}
+                            <div className="text-[9.5px] text-slate-400 font-medium -mt-1">
+                              Seq: {room.seq}
+                            </div>
+
+                            {/* Room Badge Pill with Bed icon */}
+                            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full border border-slate-200 bg-white shadow-2xs font-bold text-xs text-slate-800">
+                              <span>{room.name}</span>
+                              <Bed className="w-3.5 h-3.5 text-slate-500" />
+                              <span className="text-[11px]">{room.bedCount}</span>
+                            </div>
+
+                            {/* Status Pill */}
+                            <div>
+                              <span className={`inline-block font-extrabold text-[9.5px] px-2.5 py-0.5 rounded-full uppercase tracking-wider text-white ${
+                                isVacantReady 
+                                  ? 'bg-[#388e3c]' 
+                                  : isOccupied
+                                  ? 'bg-rose-600'
+                                  : isDirty
+                                  ? 'bg-amber-600'
+                                  : 'bg-slate-600'
+                              }`}>
+                                {room.status}
+                              </span>
+                            </div>
+
+                            {/* ACTIONS Button (Screenshot 1 & 2) */}
+                            <div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenRoomProfile(room);
+                                }}
+                                className="px-3 py-0.5 bg-white hover:bg-slate-50 border border-slate-300 rounded text-[9.5px] font-bold text-slate-700 shadow-2xs transition"
+                              >
+                                ACTIONS
+                              </button>
+                            </div>
+
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+            </div>
+          );
+        })}
       </div>
 
-      {/* Room Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-100 text-xs font-bold text-slate-700">
-          All Rooms Housekeeping Schedule
-        </div>
+      {/* 6. SLIDE-OVER DRAWER: ROOM PROFILE (Exact Screenshot 3) */}
+      {selectedRoomProfile && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop */}
+          <div 
+            onClick={() => setSelectedRoomProfile(null)}
+            className="absolute inset-0 bg-black/40 backdrop-blur-2xs transition-opacity duration-300"
+          />
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="bg-slate-50 text-slate-600 uppercase tracking-wider text-[11px] border-b border-slate-200">
-                <th className="py-3 px-4 font-bold">Room</th>
-                <th className="py-3 px-4 font-bold">Category</th>
-                <th className="py-3 px-4 font-bold">Floor</th>
-                <th className="py-3 px-4 font-bold">Current Status</th>
-                <th className="py-3 px-4 font-bold text-right">Quick Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rooms.map(room => (
-                <tr key={room.roomNumber} className="hover:bg-slate-50/70 transition">
-                  <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                    Room {room.roomNumber}
-                  </td>
-                  <td className="py-3 px-4 text-slate-700 font-semibold">
-                    {room.type}
-                  </td>
-                  <td className="py-3 px-4 text-slate-500">
-                    {room.floor} Floor
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                      room.status === 'VACANT_READY' 
-                        ? 'bg-emerald-100 text-emerald-800' 
-                        : room.status === 'DIRTY'
-                        ? 'bg-amber-100 text-amber-800'
-                        : room.status === 'OCCUPIED'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-rose-100 text-rose-800'
-                    }`}>
-                      {room.status.replace('_', ' ')}
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-md bg-slate-50 border-l border-slate-200 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+              
+              {/* Drawer Header (Exact Screenshot 3: Dark Teal Background) */}
+              <div className="bg-[#0e4860] text-white p-5 flex items-center space-x-3.5 shrink-0">
+                <button
+                  onClick={() => setSelectedRoomProfile(null)}
+                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition"
+                  title="Close profile"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-wider text-sky-200">
+                    ROOM PROFILE
+                  </div>
+                  <h2 className="text-xl font-extrabold text-white tracking-tight mt-0.5">
+                    {selectedRoomProfile.name}
+                  </h2>
+                </div>
+              </div>
+
+              {/* Drawer Body (Screenshot 3) */}
+              <div className="p-5 space-y-4 flex-1 overflow-y-auto">
+                
+                {/* Room Info Card */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-4">
+                  
+                  {/* Title & Badges */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 text-base">
+                      {selectedRoomProfile.name}
                     </span>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    {room.status === 'DIRTY' ? (
+
+                    <div className="flex items-center space-x-2">
+                      <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200">
+                        <span>▲</span>
+                        <span>{selectedRoomProfile.category === 'DAYTRIP' ? 'DayTrip' : selectedRoomProfile.category}</span>
+                      </span>
+
+                      <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200">
+                        <Bed className="w-3.5 h-3.5" />
+                        <span>{selectedRoomProfile.status}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quick Actions (Screenshot 3) */}
+                  <div className="space-y-2 pt-1 border-t border-slate-100">
+                    <h4 className="text-xs font-bold text-slate-800">
+                      Quick Actions
+                    </h4>
+
+                    <div className="grid grid-cols-2 gap-3">
                       <button
-                        onClick={() => updateRoomStatus(room.roomNumber, 'VACANT_READY')}
-                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-semibold transition"
+                        onClick={() => setIsGrcModalOpen(true)}
+                        className="p-3 bg-sky-50/50 hover:bg-sky-50 border border-sky-100 rounded-xl text-center space-y-1.5 transition flex flex-col items-center justify-center group"
                       >
-                        Mark Clean & Ready
+                        <FileText className="w-5 h-5 text-sky-700 group-hover:scale-110 transition" />
+                        <span className="text-xs font-bold text-slate-800">GRC Form</span>
                       </button>
-                    ) : room.status === 'VACANT_READY' ? (
+
                       <button
-                        onClick={() => updateRoomStatus(room.roomNumber, 'DIRTY')}
-                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-semibold transition"
+                        onClick={() => {
+                          setStatusChangeRoomId(selectedRoomProfile.id);
+                          setNewStatusValue(selectedRoomProfile.status);
+                          setIsStatusModalOpen(true);
+                        }}
+                        className="p-3 bg-sky-50/50 hover:bg-sky-50 border border-sky-100 rounded-xl text-center space-y-1.5 transition flex flex-col items-center justify-center group"
                       >
-                        Mark Dirty
+                        <RefreshCw className="w-5 h-5 text-sky-700 group-hover:scale-110 transition" />
+                        <span className="text-xs font-bold text-slate-800">Room Status</span>
                       </button>
-                    ) : (
-                      <span className="text-slate-400 font-mono text-[11px]">In Guest Use</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </div>
+                  </div>
+
+                  {/* Control Section / IoT (Screenshot 3) */}
+                  <div className="space-y-3 pt-2 border-t border-slate-100">
+                    <div>
+                      <button className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#0e4860] text-white rounded-lg text-xs font-bold shadow-2xs">
+                        <span>☁</span>
+                        <span>Control</span>
+                      </button>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 p-3.5 space-y-3 bg-white text-xs">
+                      
+                      {/* Electricity Toggle */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 font-bold text-slate-800">
+                          <Zap className="w-4 h-4 text-sky-600" />
+                          <span>Electricity</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleDevice('electricity')}
+                          className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 ${
+                            selectedRoomProfile.electricity ? 'bg-[#0e4860]' : 'bg-slate-300'
+                          }`}
+                        >
+                          <div
+                            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
+                              selectedRoomProfile.electricity ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Air Conditioner Toggle */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 font-bold text-slate-800">
+                          <Snowflake className="w-4 h-4 text-sky-600" />
+                          <span>Air Conditioner</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleDevice('ac')}
+                          className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 ${
+                            selectedRoomProfile.ac ? 'bg-[#0e4860]' : 'bg-slate-300'
+                          }`}
+                        >
+                          <div
+                            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
+                              selectedRoomProfile.ac ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Wi-Fi Status / Toggle */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 font-bold text-slate-800">
+                          <Wifi className="w-4 h-4 text-sky-600" />
+                          <span>Wi-Fi</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded ${
+                            selectedRoomProfile.wifi 
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                              : 'bg-rose-50 text-rose-600 border border-rose-200'
+                          }`}>
+                            {selectedRoomProfile.wifi ? 'Active' : 'Disabled'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleDevice('wifi')}
+                            className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 ${
+                              selectedRoomProfile.wifi ? 'bg-[#0e4860]' : 'bg-slate-300'
+                            }`}
+                          >
+                            <div
+                              className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
+                                selectedRoomProfile.wifi ? 'translate-x-4' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Drawer Footer */}
+              <div className="p-4 bg-white border-t border-slate-200 flex justify-end">
+                <button
+                  onClick={() => setSelectedRoomProfile(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition"
+                >
+                  Close Profile
+                </button>
+              </div>
+
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* 7. ROOM STATUS CHANGE MODAL */}
+      {isStatusModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden">
+            <div className="px-5 py-4 bg-[#0e4860] text-white flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <RotateCcw className="w-5 h-5" />
+                <h3 className="font-bold text-base">Room Status Change</h3>
+              </div>
+              <button 
+                onClick={() => setIsStatusModalOpen(false)}
+                className="text-white/80 hover:text-white p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  Select Room
+                </label>
+                <select
+                  value={statusChangeRoomId}
+                  onChange={(e) => setStatusChangeRoomId(e.target.value)}
+                  className="w-full text-xs font-semibold p-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-500"
+                >
+                  {floors.flatMap(f => f.rooms).map(rm => (
+                    <option key={rm.id} value={rm.id}>
+                      {rm.name} ({rm.category}) - Current: {rm.status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  New Status
+                </label>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {['VACANT READY', 'OCCUPIED', 'DIRTY', 'MAINTENANCE'].map(st => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setNewStatusValue(st)}
+                      className={`p-2.5 rounded-lg border text-left font-bold transition text-xs ${
+                        newStatusValue === st 
+                          ? 'border-[#0e4860] bg-sky-50 text-[#0e4860] ring-1 ring-[#0e4860]' 
+                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2">
+              <button
+                type="button"
+                onClick={() => setIsStatusModalOpen(false)}
+                className="px-3.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-600 text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyStatusChange}
+                className="px-4 py-1.5 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold"
+              >
+                Apply Status
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. ROOM CATEGORY CHANGE MODAL */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden">
+            <div className="px-5 py-4 bg-[#0e4860] text-white flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <SlidersHorizontal className="w-5 h-5" />
+                <h3 className="font-bold text-base">Room Category Change</h3>
+              </div>
+              <button 
+                onClick={() => setIsCategoryModalOpen(false)}
+                className="text-white/80 hover:text-white p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  Select Room
+                </label>
+                <select
+                  value={categoryChangeRoomId}
+                  onChange={(e) => setCategoryChangeRoomId(e.target.value)}
+                  className="w-full text-xs font-semibold p-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-500"
+                >
+                  {floors.flatMap(f => f.rooms).map(rm => (
+                    <option key={rm.id} value={rm.id}>
+                      {rm.name} - Current: {rm.category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  New Category
+                </label>
+                <select
+                  value={newCategoryValue}
+                  onChange={(e) => setNewCategoryValue(e.target.value)}
+                  className="w-full text-xs font-semibold p-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-500"
+                >
+                  <option value="Standard Room">Standard Room</option>
+                  <option value="Deluxe Room">Deluxe Room</option>
+                  <option value="Super Deluxe Room">Super Deluxe Room</option>
+                  <option value="Suite Room">Suite Room</option>
+                  <option value="Banquet Hall">Banquet Hall</option>
+                  <option value="DayTrip">DayTrip</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2">
+              <button
+                type="button"
+                onClick={() => setIsCategoryModalOpen(false)}
+                className="px-3.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-600 text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyCategoryChange}
+                className="px-4 py-1.5 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold"
+              >
+                Update Category
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 9. FLOOR DETAIL POPUP MODAL */}
+      {selectedFloorDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-slate-200 overflow-hidden">
+            <div className="px-5 py-3.5 bg-[#0e4860] text-white flex items-center justify-between">
+              <div className="font-bold text-sm">
+                Floor Details: {selectedFloorDetail.floorName} ({selectedFloorDetail.floorId})
+              </div>
+              <button 
+                onClick={() => setSelectedFloorDetail(null)}
+                className="text-white/80 hover:text-white p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3 text-xs">
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-slate-500">Total Operational Units:</span>
+                <span className="font-bold text-slate-900">{selectedFloorDetail.rooms.length} Units</span>
+              </div>
+              <div className="flex justify-between border-b pb-2 text-emerald-700">
+                <span>Vacant Ready:</span>
+                <span className="font-bold">
+                  {selectedFloorDetail.rooms.filter(r => r.status === 'VACANT READY').length}
+                </span>
+              </div>
+              <div className="flex justify-between border-b pb-2 text-rose-700">
+                <span>Occupied:</span>
+                <span className="font-bold">
+                  {selectedFloorDetail.rooms.filter(r => r.status === 'OCCUPIED').length}
+                </span>
+              </div>
+              <div className="flex justify-between border-b pb-2 text-amber-700">
+                <span>Dirty / In-Service:</span>
+                <span className="font-bold">
+                  {selectedFloorDetail.rooms.filter(r => r.status === 'DIRTY').length}
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-500">
+                <span>Maintenance (OOO):</span>
+                <span className="font-bold">
+                  {selectedFloorDetail.rooms.filter(r => r.status === 'MAINTENANCE').length}
+                </span>
+              </div>
+            </div>
+
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setSelectedFloorDetail(null)}
+                className="px-4 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700 text-xs font-semibold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 10. GRC FORM MODAL (triggered from Room Profile) */}
+      {isGrcModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div>
+                <h3 className="text-base font-black text-slate-900">Guest Registration Card (GRC)</h3>
+                <p className="text-xs text-slate-500">Room: {selectedRoomProfile?.name} ({selectedRoomProfile?.category})</p>
+              </div>
+              <button
+                onClick={() => setIsGrcModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="flex justify-between border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-700">Property:</span>
+                <span className="text-slate-900 font-semibold">BookOne Suite</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-700">Room Name:</span>
+                <span className="text-slate-900 font-semibold">{selectedRoomProfile?.name}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-700">Category:</span>
+                <span className="text-slate-900 font-semibold">{selectedRoomProfile?.category}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-700">Status:</span>
+                <span className="text-emerald-700 font-bold">{selectedRoomProfile?.status}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-bold text-slate-700">Statutory KYC:</span>
+                <span className="text-emerald-700 font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Mandatory on Arrival
+                </span>
+              </div>
+            </div>
+
+            <div className="flex space-x-2 pt-2">
+              <button
+                onClick={() => {
+                  showNotification(`Printing GRC card for ${selectedRoomProfile?.name}...`);
+                  setIsGrcModalOpen(false);
+                }}
+                className="flex-1 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs rounded-lg flex items-center justify-center space-x-1.5 shadow-sm transition"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Official GRC</span>
+              </button>
+              <button
+                onClick={() => setIsGrcModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
-

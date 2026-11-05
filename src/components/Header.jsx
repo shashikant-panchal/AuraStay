@@ -2,6 +2,7 @@ import React from 'react';
 import { useDashboard } from '../context/DashboardContext';
 import { 
   Menu,
+  Sun,
   Moon, 
   Search, 
   Building2, 
@@ -32,7 +33,7 @@ export default function Header() {
     subModuleTitle 
   } = useDashboard();
 
-  const { property, configuration } = data;
+  const { property } = data;
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs select-none">
@@ -50,15 +51,19 @@ export default function Header() {
 
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shadow-xs">
-              <Moon className="w-4 h-4 fill-amber-400 text-amber-500" />
+              <Sun className="w-4 h-4 fill-amber-400 text-amber-500" />
             </div>
 
-            <div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                GOOD EVENING
-              </div>
-              <div className="text-sm font-bold text-slate-800 leading-tight">
-                {property.managerName} <span className="text-slate-400 text-xs font-normal">({property.managerRole})</span>
+            <div className="flex items-center space-x-2">
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  GOOD MORNING
+                </div>
+                <div className="text-sm font-bold text-slate-800 leading-tight flex items-center space-x-1.5">
+                  <span>{property.managerName}</span>
+                  <span className="text-slate-400 text-xs font-normal">({property.managerRole})</span>
+                  <span className="text-base leading-none">🪔</span>
+                </div>
               </div>
             </div>
           </div>
@@ -81,7 +86,7 @@ export default function Header() {
           {/* Property Selector */}
           <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200/90 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-slate-100 transition shadow-xs">
             <Building2 className="w-4 h-4 text-slate-700" />
-            <span className="text-xs font-bold text-slate-800">{property.name}</span>
+            <span className="text-xs font-bold text-slate-800">BookOne Suite</span>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </div>
 
@@ -96,29 +101,29 @@ export default function Header() {
 
           {/* Language Switcher */}
           <button 
-            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
+            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition text-xs font-bold font-serif"
             title="Language: English"
           >
-            <Languages className="w-4 h-4" />
+            文A
           </button>
 
           {/* Notification Bell */}
           <div className="relative cursor-pointer p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition">
             <Bell className="w-4 h-4" />
-            <span className="absolute 1 top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">
-              {property.notificationCount || 2}
+            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">
+              3
             </span>
           </div>
 
           {/* User Profile Avatar */}
-          <div className="w-8 h-8 rounded-full bg-[#1b2b48] text-white flex items-center justify-center font-bold text-xs shadow-xs cursor-pointer ring-2 ring-indigo-100">
+          <div className="w-8 h-8 rounded-full bg-[#0b2b48] text-white flex items-center justify-center font-bold text-xs shadow-xs cursor-pointer ring-2 ring-indigo-100">
             <User className="w-4 h-4" />
           </div>
         </div>
       </div>
 
-      {/* Secondary Bar if in a specific sub-view or Revenue Dashboard */}
-      {currentView !== 'master-service-home' && (
+      {/* Secondary Bar if in a specific sub-view or Revenue Dashboard (except front-office which has its own native breadcrumb and tab strip) */}
+      {currentView !== 'master-service-home' && currentView !== 'front-office' && (
         <div className="px-6 py-2.5 bg-slate-50/80 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center space-x-2">
             <button
@@ -126,7 +131,7 @@ export default function Header() {
               className="font-semibold text-slate-500 hover:text-indigo-600 flex items-center space-x-1"
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              <span>AuraStay Suite</span>
+              <span>BookOne Suite</span>
             </button>
             <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
             <span className="font-bold text-slate-800 capitalize">
@@ -141,32 +146,6 @@ export default function Header() {
               </>
             )}
           </div>
-
-          {currentView.includes('revenue') && (
-            <div className="flex items-center space-x-2">
-              <span className="bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
-                MASTERY: {property.masteryPercentage}%
-              </span>
-              <button
-                onClick={() => setIsTourOpen(true)}
-                className="px-2.5 py-0.5 bg-white border border-slate-200 hover:border-indigo-300 rounded-full font-medium text-slate-600 hover:text-indigo-600 text-[11px]"
-              >
-                Tour
-              </button>
-              <button
-                onClick={() => setIsConfigOpen(true)}
-                className="px-2.5 py-0.5 bg-white border border-slate-200 hover:border-indigo-300 rounded-full font-medium text-slate-600 hover:text-indigo-600 text-[11px]"
-              >
-                Configuration ({configuration.readinessScore}%)
-              </button>
-              <button
-                onClick={() => setIsGlossaryOpen(true)}
-                className="px-2.5 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-full font-bold text-[11px]"
-              >
-                Glossary (35)
-              </button>
-            </div>
-          )}
         </div>
       )}
     </header>

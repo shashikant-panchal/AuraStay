@@ -18,6 +18,12 @@ import ChannelManagerView from './components/views/ChannelManagerView';
 import ReportsView from './components/views/ReportsView';
 import AccountsFinanceView from './components/views/AccountsFinanceView';
 import StaffAdminView from './components/views/StaffAdminView';
+import RatePlansView from './components/views/RatePlansView';
+import AriGridView from './components/views/AriGridView';
+import NightAuditView from './components/views/NightAuditView';
+import GuestsView from './components/views/GuestsView';
+import StockManagementView from './components/views/StockManagementView';
+import ServicesView from './components/views/ServicesView';
 import GlossaryModal from './components/modals/GlossaryModal';
 import ConfigurationModal from './components/modals/ConfigurationModal';
 import EvidenceModal from './components/modals/EvidenceModal';
@@ -60,6 +66,18 @@ export default function App() {
         return <ChannelManagerView />;
       case 'reports':
         return <ReportsView />;
+      case 'rate-plans':
+        return <RatePlansView />;
+      case 'ari-grid':
+        return <AriGridView />;
+      case 'night-audit':
+        return <NightAuditView />;
+      case 'guests':
+        return <GuestsView />;
+      case 'stock-management':
+        return <StockManagementView />;
+      case 'services':
+        return <ServicesView />;
       case 'account-finance':
         return <AccountsFinanceView />;
       case 'staff-admin':
@@ -71,7 +89,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f3f6f9] flex text-slate-800 selection:bg-indigo-500 selection:text-white font-sans antialiased">
-      {/* Exact Left Dark Sidebar Strip */}
+      {/* Left Dark Sidebar with Hover Expand & Pinned Mode */}
       <Sidebar />
 
       {/* Main Container Area */}
@@ -94,12 +112,12 @@ export default function App() {
           </a>
 
           <div className="flex items-center space-x-2 text-xs">
-            <div className="w-7 h-7 rounded-full bg-linear-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-extrabold text-sm shadow">
-              A
+            <div className="w-7 h-7 rounded-full bg-linear-to-tr from-[#00b4db] via-[#6a11cb] to-[#9c27b0] flex items-center justify-center text-white font-extrabold text-sm shadow">
+              b
             </div>
             <div className="text-right leading-none">
               <div className="text-[10px] text-slate-400">Powered by</div>
-              <div className="font-bold text-white text-xs">AuraStay</div>
+              <div className="font-bold text-white text-xs">Bookone Suite</div>
             </div>
           </div>
         </footer>

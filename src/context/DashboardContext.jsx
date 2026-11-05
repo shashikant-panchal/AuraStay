@@ -21,6 +21,7 @@ export function DashboardProvider({ children }) {
 
   // Revenue Dashboard active tab
   const [activeTab, setActiveTab] = useState('overview');
+  const [frontOfficeSubTab, setFrontOfficeSubTab] = useState('dashboard');
 
   // Rooms & Operations state
   const [rooms, setRooms] = useState(mockRooms);
@@ -287,6 +288,8 @@ export function DashboardProvider({ children }) {
       setIsSearchOpen,
       isCreateReservationModalOpen,
       setIsCreateReservationModalOpen,
+      frontOfficeSubTab,
+      setFrontOfficeSubTab,
       activePopoverModule,
       setActivePopoverModule,
       notificationMessage,
