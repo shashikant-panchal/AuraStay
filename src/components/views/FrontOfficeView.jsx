@@ -285,25 +285,25 @@ export default function FrontOfficeView() {
               <div className="space-y-3.5">
                 <div className="flex items-center space-x-3.5">
                   <span className="w-6 h-6 rounded-md bg-amber-50 text-amber-600 border border-amber-200/90 font-black text-xs flex items-center justify-center">
-                    0
+                    {reservations.filter(r => r.status === 'CONFIRMED').length}
                   </span>
                   <span className="text-xs font-bold text-slate-700">Pending Arrivals</span>
                 </div>
                 <div className="flex items-center space-x-3.5">
                   <span className="w-6 h-6 rounded-md bg-rose-50 text-rose-600 border border-rose-200/90 font-black text-xs flex items-center justify-center">
-                    1
+                    {rooms.filter(r => r.status === 'OCCUPIED').length}
                   </span>
                   <span className="text-xs font-bold text-slate-700">Pending Checkouts</span>
                 </div>
                 <div className="flex items-center space-x-3.5">
                   <span className="w-6 h-6 rounded-md bg-sky-50 text-sky-600 border border-sky-200/90 font-black text-xs flex items-center justify-center">
-                    1
+                    {rooms.filter(r => r.status === 'DIRTY').length}
                   </span>
                   <span className="text-xs font-bold text-slate-700">Rooms to Clean</span>
                 </div>
                 <div className="flex items-center space-x-3.5">
                   <span className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200/90 font-black text-xs flex items-center justify-center">
-                    0
+                    {reservations.filter(r => r.payment === 'PENDING').length}
                   </span>
                   <span className="text-xs font-bold text-slate-700">Payment Pending</span>
                 </div>
