@@ -27,40 +27,7 @@ export default function AriGridView() {
     { date: '2026-11-11', day: 'Wed', label: '11 Nov' },
   ];
 
-  const [gridData, setGridData] = useState([
-    {
-      category: 'Standard Room',
-      totalRooms: 10,
-      rates: [2000, 2400, 2400, 2200, 2000, 2000, 2000],
-      avail: [6, 4, 3, 5, 8, 9, 8],
-      minStay: [1, 2, 2, 1, 1, 1, 1],
-      stopSell: [false, false, false, false, false, false, false],
-    },
-    {
-      category: 'Deluxe King',
-      totalRooms: 8,
-      rates: [3200, 3800, 3800, 3500, 3200, 3200, 3200],
-      avail: [4, 2, 1, 3, 6, 7, 7],
-      minStay: [1, 2, 2, 1, 1, 1, 1],
-      stopSell: [false, false, false, false, false, false, false],
-    },
-    {
-      category: 'Executive Suite',
-      totalRooms: 6,
-      rates: [4500, 5200, 5200, 4800, 4500, 4500, 4500],
-      avail: [3, 1, 0, 2, 4, 5, 5],
-      minStay: [2, 2, 2, 1, 1, 1, 1],
-      stopSell: [false, false, true, false, false, false, false],
-    },
-    {
-      category: 'Presidential Suite',
-      totalRooms: 4,
-      rates: [7500, 9000, 9000, 8000, 7500, 7500, 7500],
-      avail: [2, 1, 1, 2, 3, 3, 3],
-      minStay: [1, 2, 2, 1, 1, 1, 1],
-      stopSell: [false, false, false, false, false, false, false],
-    },
-  ]);
+  const [gridData, setGridData] = useState([]);
 
   const toggleStopSell = (catIdx, dayIdx) => {
     setGridData(prev => {
@@ -138,7 +105,18 @@ export default function AriGridView() {
               </tr>
             </thead>
             <tbody>
-              {gridData.map((row, catIdx) => (
+              {gridData.length === 0 ? (
+                <tr>
+                  <td colSpan={days.length + 1} className="p-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center">
+                      <LayoutGrid className="w-8 h-8 text-slate-400 mb-2" />
+                      <p className="font-bold text-slate-700">No Room Categories Configured</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Configure room categories to view and publish your multi-day ARI distribution matrix.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                gridData.map((row, catIdx) => (
                 <React.Fragment key={row.category}>
                   {/* Category Header Row */}
                   <tr className="bg-slate-100/80 border-t border-b border-slate-300 font-bold text-slate-800">
@@ -211,7 +189,8 @@ export default function AriGridView() {
                     ))}
                   </tr>
                 </React.Fragment>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>

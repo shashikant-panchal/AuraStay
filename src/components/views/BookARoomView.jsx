@@ -33,7 +33,7 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
   const [groupMode, setGroupMode] = useState('SINGLE'); // 'SINGLE' | 'GROUP'
   const [bookingStatus, setBookingStatus] = useState('Confirmed'); // 'Confirmed' | 'Tentative' | 'Hold Until' | 'Maintenance'
   const [counter, setCounter] = useState('AuraStay Suite-2259');
-  const [operator, setOperator] = useState('Twinkle Bagh');
+  const [operator, setOperator] = useState('AuraStay Admin');
 
   // Primary Guest
   const [isAddGuestModalOpen, setIsAddGuestModalOpen] = useState(false);
@@ -370,9 +370,9 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
                   onChange={(e) => setOperator(e.target.value)}
                   className="appearance-none bg-white border border-slate-300 rounded-lg px-3 py-1.5 pr-8 font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs shadow-2xs"
                 >
-                  <option value="Twinkle Bagh">Twinkle Bagh</option>
-                  <option value="Guest">Guest</option>
-                  <option value="Pooja Rawat">Pooja Rawat</option>
+                  <option value="AuraStay Admin">AuraStay Admin</option>
+                  <option value="Front Desk Agent">Front Desk Agent</option>
+                  <option value="Self Check-in">Self Check-in</option>
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
               </div>

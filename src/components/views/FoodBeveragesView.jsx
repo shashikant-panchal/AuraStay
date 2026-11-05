@@ -12,9 +12,9 @@ import {
 } from 'lucide-react';
 
 export default function FoodBeveragesView() {
-  const { fnbOrders, showNotification } = useDashboard();
+  const { fnbOrders, showNotification, rooms = [] } = useDashboard();
   const [orders, setOrders] = useState(fnbOrders);
-  const [newRoom, setNewRoom] = useState('Room 102');
+  const [newRoom, setNewRoom] = useState(rooms.length > 0 ? `Room ${rooms[0].roomNumber}` : 'Table 1 (Dine-in)');
   const [newItems, setNewItems] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -82,11 +82,12 @@ export default function FoodBeveragesView() {
                 onChange={(e) => setNewRoom(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
               >
-                <option value="Room 101">Room 101</option>
-                <option value="Room 102">Room 102</option>
-                <option value="Room 201">Room 201</option>
-                <option value="Room 302">Room 302</option>
+                {rooms.map(r => (
+                  <option key={r.roomNumber} value={`Room ${r.roomNumber}`}>Room {r.roomNumber}</option>
+                ))}
                 <option value="Table 1 (Dine-in)">Table 1 (Dine-in)</option>
+                <option value="Table 2 (Dine-in)">Table 2 (Dine-in)</option>
+                <option value="Table 3 (Dine-in)">Table 3 (Dine-in)</option>
                 <option value="Table 4 (Dine-in)">Table 4 (Dine-in)</option>
               </select>
             </div>

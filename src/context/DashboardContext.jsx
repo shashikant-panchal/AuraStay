@@ -8,10 +8,16 @@ const DashboardContext = createContext(null);
 export function DashboardProvider({ children }) {
   const [data, setData] = useState(() => {
     try {
-      const saved = localStorage.getItem('aurastay_suite_data');
-      if (saved) return JSON.parse(saved);
+      const version = localStorage.getItem('aurastay_data_version');
+      if (version === 'v2_clean_zero') {
+        const saved = localStorage.getItem('aurastay_suite_data');
+        if (saved) return JSON.parse(saved);
+      } else {
+        localStorage.removeItem('aurastay_suite_data');
+        localStorage.setItem('aurastay_data_version', 'v2_clean_zero');
+      }
     } catch (e) {
-      console.warn('Could not load from localStorage, using initial mock data', e);
+      console.warn('Could not load from localStorage, using initial clean data', e);
     }
     return initialMockData;
   });
@@ -230,7 +236,7 @@ export function DashboardProvider({ children }) {
     try {
       if (isSupabaseConfigured) {
         const { data: latestRooms } = await supabase.from('rooms').select('*').order('room_number');
-        if (latestRooms && latestRooms.length > 0) {
+        if (latestRooms) {
           setRooms(latestRooms.map(r => ({
             roomNumber: r.room_number,
             floor: r.floor,

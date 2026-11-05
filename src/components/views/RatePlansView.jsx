@@ -36,184 +36,7 @@ import {
 } from 'lucide-react';
 
 // Exact 7 Room Categories from Screenshots
-const INITIAL_ROOM_CATEGORIES = [
-  {
-    id: 'banquet-hall-1',
-    name: 'Banquet Hall',
-    code: 'BAN',
-    totalRooms: 1,
-    basePrice: 10000,
-    plansCount: 1,
-    otasCount: 5,
-    maxOccupancy: 2,
-    minPerson: 1,
-    maxPerson: 2,
-    minLos: 0,
-    maxLos: 0,
-    hsnCode: '996311',
-    ranking: 0,
-    shortCode: 'BAN',
-    description: 'Spacious banquet hall designed for private gatherings, meetings, and residential functions.',
-    isDayTrip: false,
-    roomsList: ['Banquet Hall-1'],
-    plans: [
-      { name: 'EP Plan (Room Only)', code: 'EP', price: 10000, description: 'Flexible event & room tariff excluding meals.' }
-    ],
-    facilities: ['Air Conditioning', 'Free Wi-Fi', 'En-suite Bathroom', 'Projector & Audio', 'Power Backup']
-  },
-  {
-    id: 'deluxe-non-ac',
-    name: 'Deluxe Non AC',
-    code: 'DNA',
-    totalRooms: 2,
-    basePrice: 2000,
-    plansCount: 2,
-    otasCount: 5,
-    maxOccupancy: 2,
-    minPerson: 1,
-    maxPerson: 2,
-    minLos: 0,
-    maxLos: 0,
-    hsnCode: '996311',
-    ranking: 1,
-    shortCode: 'DNA',
-    description: 'Comfortable natural ventilation deluxe room with essential modern amenities.',
-    isDayTrip: false,
-    roomsList: ['Room 101', 'Room 102'],
-    plans: [
-      { name: 'EP Plan (Room Only)', code: 'EP', price: 2000, description: 'Room only plan.' },
-      { name: 'CP Plan (Bed & Breakfast)', code: 'CP', price: 2350, description: 'Includes gourmet buffet breakfast.' }
-    ],
-    facilities: ['Ceiling Fan', 'Double Bed', 'Free Wi-Fi', 'Television', 'Attached Bathroom']
-  },
-  {
-    id: 'deluxe-ac',
-    name: 'Deluxe AC',
-    code: 'DAC',
-    totalRooms: 10,
-    basePrice: 2500,
-    plansCount: 3,
-    otasCount: 6,
-    maxOccupancy: 2,
-    minPerson: 1,
-    maxPerson: 2,
-    minLos: 0,
-    maxLos: 0,
-    hsnCode: '996311',
-    ranking: 2,
-    shortCode: 'DAC',
-    description: 'Fully climate-controlled deluxe room with king bed and premium furnishings.',
-    isDayTrip: false,
-    roomsList: ['Room 201', 'Room 202', 'Room 203', 'Room 204', 'Room 205', 'Room 206', 'Room 207', 'Room 208', 'Room 209', 'Room 210'],
-    plans: [
-      { name: 'EP Plan (Room Only)', code: 'EP', price: 2500, description: 'Room only tariff.' },
-      { name: 'CP Plan (Bed & Breakfast)', code: 'CP', price: 2950, description: 'Buffet breakfast included.' },
-      { name: 'MAP Plan (Half Board)', code: 'MAP', price: 3600, description: 'Includes Breakfast and Lunch or Dinner.' }
-    ],
-    facilities: ['Double Bed', 'Air Conditioning', 'Free Wi-Fi', 'Television', 'Work Desk', 'En-suite Bathroom']
-  },
-  {
-    id: 'executive-non-ac',
-    name: 'Executive Non AC',
-    code: 'ENA',
-    totalRooms: 2,
-    basePrice: 3000,
-    plansCount: 2,
-    otasCount: 5,
-    maxOccupancy: 3,
-    minPerson: 1,
-    maxPerson: 3,
-    minLos: 0,
-    maxLos: 0,
-    hsnCode: '996311',
-    ranking: 3,
-    shortCode: 'ENA',
-    description: 'Spacious executive room with lounge seating and pleasant ventilation.',
-    isDayTrip: false,
-    roomsList: ['Room 301', 'Room 302'],
-    plans: [
-      { name: 'EP Plan (Room Only)', code: 'EP', price: 3000, description: 'Room only tariff.' },
-      { name: 'CP Plan (Bed & Breakfast)', code: 'CP', price: 3500, description: 'Breakfast included.' }
-    ],
-    facilities: ['Ceiling Fan', 'King Bed', 'Free Wi-Fi', 'Coffee Maker', 'Sofa Seating', 'Balcony']
-  },
-  {
-    id: 'executive-ac',
-    name: 'Executive AC',
-    code: 'EAC',
-    totalRooms: 10,
-    basePrice: 3500,
-    plansCount: 3,
-    otasCount: 6,
-    maxOccupancy: 3,
-    minPerson: 1,
-    maxPerson: 3,
-    minLos: 0,
-    maxLos: 0,
-    hsnCode: '996311',
-    ranking: 4,
-    shortCode: 'EAC',
-    description: 'Premium executive room with central cooling, ergonomic desk, and smart entertainment.',
-    isDayTrip: false,
-    roomsList: ['Room 303', 'Room 304', 'Room 305', 'Room 306', 'Room 307', 'Room 308', 'Room 309', 'Room 310', 'Room 311', 'Room 312'],
-    plans: [
-      { name: 'EP Plan (Room Only)', code: 'EP', price: 3500, description: 'Executive room only tariff.' },
-      { name: 'CP Plan (Bed & Breakfast)', code: 'CP', price: 4100, description: 'Includes gourmet breakfast.' },
-      { name: 'MAP Plan (Half Board)', code: 'MAP', price: 4900, description: 'Breakfast & Dinner buffet included.' }
-    ],
-    facilities: ['King Bed', 'Air Conditioning', 'Free Wi-Fi', 'Smart TV', 'Mini Bar', 'Bathrobe & Slippers', 'Work Desk']
-  },
-  {
-    id: 'family-suite-non-ac',
-    name: 'Family Suite Non AC',
-    code: 'FNA',
-    totalRooms: 1,
-    basePrice: 4500,
-    plansCount: 2,
-    otasCount: 5,
-    maxOccupancy: 4,
-    minPerson: 1,
-    maxPerson: 4,
-    minLos: 0,
-    maxLos: 0,
-    hsnCode: '996311',
-    ranking: 5,
-    shortCode: 'FNA',
-    description: 'Multi-room family suite with connected living area for extended stays.',
-    isDayTrip: false,
-    roomsList: ['Suite 401'],
-    plans: [
-      { name: 'EP Plan (Room Only)', code: 'EP', price: 4500, description: 'Family suite room only.' },
-      { name: 'CP Plan (Bed & Breakfast)', code: 'CP', price: 5400, description: 'Breakfast for up to 4 guests.' }
-    ],
-    facilities: ['2 Double Beds', 'Ceiling Fan', 'Free Wi-Fi', 'Dining Area', 'Kitchenette', 'Living Area']
-  },
-  {
-    id: 'family-suite-ac',
-    name: 'Family Suite AC',
-    code: 'FAC',
-    totalRooms: 2,
-    basePrice: 5500,
-    plansCount: 2,
-    otasCount: 6,
-    maxOccupancy: 4,
-    minPerson: 1,
-    maxPerson: 4,
-    minLos: 0,
-    maxLos: 0,
-    hsnCode: '996311',
-    ranking: 6,
-    shortCode: 'FAC',
-    description: 'Luxury air-conditioned family suite featuring master bedroom, living hall, and 2 full bathrooms.',
-    isDayTrip: false,
-    roomsList: ['Suite 402', 'Suite 403'],
-    plans: [
-      { name: 'EP Plan (Room Only)', code: 'EP', price: 5500, description: 'AC Family suite room only.' },
-      { name: 'AP Plan (Full Board)', code: 'AP', price: 7900, description: 'All meals included for family.' }
-    ],
-    facilities: ['2 King Beds', 'Air Conditioning', 'Free High-Speed Wi-Fi', '2 Smart TVs', '2 Bathrooms', 'Mini Bar', 'Living Room']
-  }
-];
+const INITIAL_ROOM_CATEGORIES = [];
 
 export default function RatePlansView() {
   const { navigateTo, showNotification } = useDashboard();
@@ -221,17 +44,17 @@ export default function RatePlansView() {
   // Property Profile State (Matching Screenshot 1)
   const [propertyProfile, setPropertyProfile] = useState({
     name: 'AuraStay Suite',
-    location: 'DIF Cyber City , Patia, Bhubaneswar, India, 751024',
+    location: 'DLF Cyber City , Patia, Bhubaneswar, India, 751024',
     email: 'aurastaydemo123@gmail.com',
     phone: '',
     mobile: '7978578046',
-    managerName: 'Twinkle Bagh',
-    managerEmail: 'aurastaydemo123@gmail.com',
-    managerPhone: '7608928399'
+    managerName: 'AuraStay Admin',
+    managerEmail: 'admin@aurastay.com',
+    managerPhone: '7978578046'
   });
 
   const [roomCategories, setRoomCategories] = useState(INITIAL_ROOM_CATEGORIES);
-  const [expandedCategoryId, setExpandedCategoryId] = useState('banquet-hall-1'); // Expanded by default
+  const [expandedCategoryId, setExpandedCategoryId] = useState(null); // Expanded by default
   const [activeSubTab, setActiveSubTab] = useState('Details'); // 'Details' | 'Facilities' | 'Plan Details' | 'ARI' | 'OTA'
 
   // Modals state
@@ -394,10 +217,7 @@ export default function RatePlansView() {
       <div className="bg-[#0e4860] text-white rounded-xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-3.5">
           <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center p-1.5 shrink-0 shadow-xs">
-            <div className="flex items-center space-x-0.5">
-              <span className="font-extrabold text-lg text-[#0e4860]">b</span>
-              <span className="font-bold text-xs text-slate-600">one</span>
-            </div>
+            <span className="font-extrabold text-sm text-[#0e4860] tracking-wide">AuraStay</span>
           </div>
 
           <div>
@@ -559,7 +379,24 @@ export default function RatePlansView() {
 
       {/* 6. Room Categories Accordions */}
       <div className="space-y-3">
-        {roomCategories.map((cat) => {
+        {roomCategories.length === 0 ? (
+          <div className="bg-white rounded-xl border border-slate-200/90 p-12 text-center shadow-2xs">
+            <div className="w-12 h-12 rounded-full bg-sky-50 text-sky-700 flex items-center justify-center mx-auto mb-3">
+              <Building2 className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-800">No Room Categories Configured</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              Get started by adding your first room type, pricing plans, and amenities.
+            </p>
+            <button
+              onClick={() => setIsAddRoomTypeModalOpen(true)}
+              className="mt-4 px-4 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold transition shadow-2xs"
+            >
+              + Add Room Type
+            </button>
+          </div>
+        ) : (
+          roomCategories.map((cat) => {
           const isExpanded = expandedCategoryId === cat.id;
 
           return (
@@ -858,7 +695,7 @@ export default function RatePlansView() {
               )}
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* MODAL 1: ADD ROOM */}

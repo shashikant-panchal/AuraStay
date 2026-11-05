@@ -6,7 +6,7 @@ export const initialMockData = {
     "shortName": "AST",
     "email": "admin@aurastay.com",
     "mobile": "7978578046",
-    "managerName": "Twinkle Bagh",
+    "managerName": "AuraStay Admin",
     "managerRole": "Property Admin",
     "address": "DLF Cyber City, Patia, Bhubaneswar, Odisha, India - 751024",
     "totalRooms": 0,

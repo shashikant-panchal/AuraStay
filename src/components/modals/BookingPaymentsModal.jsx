@@ -29,17 +29,19 @@ export default function BookingPaymentsModal({ isOpen, onClose, reservation, onU
   const [paymentMode, setPaymentMode] = useState('UPI');
 
   // Transactions list
-  const [transactions, setTransactions] = useState([
-    {
-      id: 'TXN-88412',
-      date: '2 Nov 2026, 07:45 PM',
-      mode: 'UPI (PhonePe)',
-      type: 'Advance Deposit',
-      amount: initialPaid > 0 ? initialPaid : totalTariff,
-      status: 'SETTLED',
-      ref: 'BSE-REC-489'
-    }
-  ]);
+  const [transactions, setTransactions] = useState(
+    initialPaid > 0 ? [
+      {
+        id: `TXN-${reservation?.id ? reservation.id.replace(/[^0-9]/g, '') : '101'}`,
+        date: 'Booking Date',
+        mode: reservation?.payment === 'PAID' ? 'Direct / UPI' : 'Advance Payment',
+        type: 'Advance Deposit',
+        amount: initialPaid,
+        status: 'SETTLED',
+        ref: `AST-REC-${Math.floor(100 + Math.random() * 900)}`
+      }
+    ] : []
+  );
 
   const handleFullPayment = () => {
     if (dueAmount <= 0) {
@@ -54,7 +56,7 @@ export default function BookingPaymentsModal({ isOpen, onClose, reservation, onU
       type: 'Balance Settle',
       amount: settledAmount,
       status: 'SETTLED',
-      ref: `BSE-REC-${Math.floor(500 + Math.random() * 500)}`
+      ref: `AST-REC-${Math.floor(500 + Math.random() * 500)}`
     };
 
     setTransactions(prev => [newTxn, ...prev]);
@@ -89,7 +91,7 @@ export default function BookingPaymentsModal({ isOpen, onClose, reservation, onU
       type: activeAction === 'part' ? 'Part Payment' : 'New Receipt',
       amount: amt,
       status: 'SETTLED',
-      ref: `BSE-REC-${Math.floor(500 + Math.random() * 500)}`
+      ref: `AST-REC-${Math.floor(500 + Math.random() * 500)}`
     };
 
     setTransactions(prev => [newTxn, ...prev]);

@@ -866,7 +866,7 @@ export default function FrontOfficeView() {
                 <label className="font-bold text-slate-700 block mb-1">Comments / Suggestions</label>
                 <textarea
                   rows="3"
-                  defaultValue="Excellent front desk service and prompt check-in by Twinkle Bagh."
+                  placeholder="Enter guest comments or feedback..."
                   className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium"
                 />
               </div>

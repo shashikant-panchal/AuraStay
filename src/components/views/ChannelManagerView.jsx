@@ -136,7 +136,7 @@ export default function ChannelManagerView() {
   // New channel connect form
   const [newChannelData, setNewChannelData] = useState({
     name: 'Google Hotel Ads',
-    hotelId: 'BSE-865',
+    hotelId: 'AST-865',
     apiKey: '',
     commissionPct: 10
   });

@@ -651,10 +651,10 @@ export default function Sidebar() {
 
                 <div className="min-w-0">
                   <div className="text-sm font-bold text-white tracking-wide truncate">
-                    Twinkle Bagh
+                    {data?.property?.managerName || 'AuraStay Admin'}
                   </div>
                   <div className="text-[9.5px] font-semibold text-slate-400 tracking-wider uppercase truncate mt-0.5">
-                    PROP ADMIN
+                    {data?.property?.managerRole || 'PROP ADMIN'}
                   </div>
                 </div>
               </div>
@@ -676,7 +676,7 @@ export default function Sidebar() {
               {/* Collapsed Avatar */}
               <div 
                 className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 p-0.5 relative overflow-hidden flex items-center justify-center cursor-pointer shadow-sm group"
-                title="Twinkle Bagh (PROP ADMIN)"
+                title={`${data?.property?.managerName || 'AuraStay Admin'} (${data?.property?.managerRole || 'PROP ADMIN'})`}
                 onClick={() => setIsHovered(true)}
               >
                 <div className="w-full h-full bg-linear-to-b from-sky-400 to-emerald-600 rounded-lg relative overflow-hidden flex items-center justify-center">
@@ -697,7 +697,7 @@ export default function Sidebar() {
               >
                 <LogOut className="w-3.5 h-3.5 transition group-hover:scale-110" />
                 <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
-                  Sign Out (Twinkle Bagh)
+                  Sign Out ({data?.property?.managerName || 'AuraStay Admin'})
                 </span>
               </button>
             </div>
