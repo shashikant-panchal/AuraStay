@@ -117,7 +117,7 @@ export default function DayViewOperations() {
     setSelectedType('ALL');
     setSelectedStatus('ALL');
     setSelectedRoomNumber('ALL');
-    showNotification('Filters reset to show all 28 rooms.');
+    showNotification(`Filters reset to show all ${contextRooms.length} rooms.`);
   };
 
   return (

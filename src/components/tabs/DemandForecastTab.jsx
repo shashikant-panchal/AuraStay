@@ -36,8 +36,12 @@ export default function DemandForecastTab() {
   } = demandForecast;
 
   // Manual Override Form State
-  const [fromDate, setFromDate] = useState('2026-11-10');
-  const [toDate, setToDate] = useState('2026-11-15');
+  const [fromDate, setFromDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [toDate, setToDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+  });
   const [adjustedOccupancy, setAdjustedOccupancy] = useState('0');
   const [reason, setReason] = useState('Local Event');
   const [customReason, setCustomReason] = useState('');

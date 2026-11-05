@@ -50,8 +50,8 @@ export const initialMockData = {
   },
   "leadTimeDistribution": {
     "propertyId": 2259,
-    "arrivalStartDate": "2026-11-05",
-    "arrivalEndDate": "2026-12-05",
+    "arrivalStartDate": "",
+    "arrivalEndDate": "",
     "totalRooms": 0,
     "buckets": []
   },

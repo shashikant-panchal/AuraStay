@@ -325,7 +325,7 @@ export default function ReportsView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('ALL');
   const [activeReportModal, setActiveReportModal] = useState(null);
-  const [reportDateRange, setReportDateRange] = useState('Today (05 Nov 2026)');
+  const [reportDateRange, setReportDateRange] = useState(`Today (${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})`);
 
   const handleToggleDepartment = (deptName) => {
     if (selectedDepartment === deptName) {
@@ -594,7 +594,7 @@ export default function ReportsView() {
                     onChange={(e) => setReportDateRange(e.target.value)}
                     className="text-xs font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer mt-0.5"
                   >
-                    <option value="Today (05 Nov 2026)">Today (05 Nov 2026)</option>
+                    <option value="Today">Today ({new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})</option>
                     <option value="Yesterday (04 Nov 2026)">Yesterday (04 Nov 2026)</option>
                     <option value="Last 7 Days">Last 7 Days</option>
                     <option value="Month of November 2026">Month of November 2026</option>

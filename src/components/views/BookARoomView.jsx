@@ -128,7 +128,7 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
       guest: guestName,
       guestType: 'WALKIN',
       phone: guest.phone || '',
-      createdAt: '5 Nov 2026',
+      createdAt: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
       createdTime: '12:30 PM',
       stayPeriod: `${checkIn} — ${checkOut}`,
       checkInOut: `${checkIn} 12:00 PM — ${checkOut} 11:00 AM`,

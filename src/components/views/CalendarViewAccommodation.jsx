@@ -20,13 +20,13 @@ import {
 } from 'lucide-react';
 
 export default function CalendarViewAccommodation() {
-  const { showNotification, setIsCreateReservationModalOpen, reservations = [] } = useDashboard();
+  const { showNotification, setIsCreateReservationModalOpen, reservations = [], rooms = [] } = useDashboard();
 
   // Mode Switcher: 'operations' | 'revenue' | 'housekeeping'
   const [activeMode, setActiveMode] = useState('operations');
 
   // Selected Day (5th Nov selected by default as in screenshot)
-  const [selectedDay, setSelectedDay] = useState(5);
+  const [selectedDay, setSelectedDay] = useState(() => new Date().getDate());
 
   // Selected reservation modal for inspection
   const [selectedReservation, setSelectedReservation] = useState(null);
@@ -37,9 +37,11 @@ export default function CalendarViewAccommodation() {
   // Calendar Day Data for November 2026 (30 Days)
   // Matching Screenshots 1, 2, 3, 4, 5
   const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  const calendarDays = Array.from({ length: 30 }, (_, i) => ({
+  const now = new Date();
+  const currentMonthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const calendarDays = Array.from({ length: currentMonthDays }, (_, i) => ({
     day: i + 1,
-    dayOfWeek: daysOfWeek[i % 7],
+    dayOfWeek: daysOfWeek[(new Date(now.getFullYear(), now.getMonth(), i + 1)).getDay()],
     opsOccupancy: 0,
     opsCount: '0/0',
     arrivals: 0,
@@ -68,7 +70,7 @@ export default function CalendarViewAccommodation() {
       checkIn: r.checkIn || 'Today',
       checkOut: r.checkOut || 'Tomorrow',
       duration: '1 NIGHT',
-      tariff: `₹${(Number(r.amount) || 2500).toLocaleString('en-IN')}`
+      tariff: `₹${(Number(r.amount) || 0).toLocaleString('en-IN')}`
     }));
 
   const departuresList = (reservations || [])
@@ -82,13 +84,13 @@ export default function CalendarViewAccommodation() {
       checkIn: r.checkIn || 'Yesterday',
       checkOut: r.checkOut || 'Today',
       duration: '1 NIGHT',
-      tariff: `₹${(Number(r.amount) || 2500).toLocaleString('en-IN')}`
+      tariff: `₹${(Number(r.amount) || 0).toLocaleString('en-IN')}`
     }));
 
   const handleReset = () => {
-    setSelectedDay(5);
+    setSelectedDay(new Date().getDate());
     setActiveMode('operations');
-    showNotification('Calendar reset to default operations view for November 2026.');
+    showNotification('Calendar reset to default operations view for current month.');
   };
 
   return (
@@ -112,15 +114,15 @@ export default function CalendarViewAccommodation() {
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-600">Not Ready</span>
-                <span className="font-black text-amber-500 text-sm">2</span>
+                <span className="font-black text-amber-500 text-sm">{rooms.filter(r => r.status === 'DIRTY').length}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600">Maintenance (OOO)</span>
-                <span className="font-black text-amber-500 text-sm">0</span>
+                <span className="font-black text-amber-500 text-sm">{rooms.filter(r => r.status === 'MAINTENANCE').length}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600">Pending Arrivals</span>
-                <span className="font-black text-amber-500 text-sm">0</span>
+                <span className="font-black text-amber-500 text-sm">{reservations.filter(r => r.status === 'CONFIRMED').length}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600">Overbook Risk</span>
@@ -138,11 +140,11 @@ export default function CalendarViewAccommodation() {
             <div className="space-y-2.5 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-600">Avg Occupancy</span>
-                <span className="font-black text-slate-900">4.00%</span>
+                <span className="font-black text-slate-900">{rooms.length > 0 ? ((rooms.filter(r => r.status === 'OCCUPIED').length / rooms.length) * 100).toFixed(2) : '0.00'}%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600">Avg ADR</span>
-                <span className="font-black text-slate-900">Rs. 2476.19</span>
+                <span className="font-black text-slate-900">₹0.00</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600">Total Alerts</span>

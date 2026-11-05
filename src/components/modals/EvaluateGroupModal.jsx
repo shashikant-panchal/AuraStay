@@ -25,8 +25,12 @@ export default function EvaluateGroupModal() {
   const { inventoryRooms } = displacement;
 
   const [groupName, setGroupName] = useState('Tech Mahindra Annual Offsite');
-  const [checkIn, setCheckIn] = useState('2026-11-20');
-  const [checkOut, setCheckOut] = useState('2026-11-23');
+  const [checkIn, setCheckIn] = useState(() => new Date().toISOString().split('T')[0]);
+  const [checkOut, setCheckOut] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return d.toISOString().split('T')[0];
+  });
   const [rooms, setRooms] = useState(15);
   const [rate, setRate] = useState(2800);
   const [ancillary, setAncillary] = useState(30000);
@@ -252,7 +256,7 @@ export default function EvaluateGroupModal() {
                   required
                 />
                 <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  Current property ADR baseline: ₹3,556.81
+                  Current property ADR baseline: ₹{(data?.kpis?.adr || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
               </div>
 

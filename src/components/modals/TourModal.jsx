@@ -31,7 +31,7 @@ export default function TourModal() {
       title: "Today's Revenue Actions & Live KPIs",
       tab: "overview",
       icon: TrendingUp,
-      desc: "Check today's urgent pricing exceptions on the Overview tab. Review rate recommendations triggered by demand surges or competitor price spikes, and view core metrics: RevPAR (₹859.56), ADR (₹3,556.81), and Occupancy (24.17%)."
+      desc: "Check today's urgent pricing exceptions on the Overview tab. Review rate recommendations triggered by demand surges or competitor price spikes, and view real-time core metrics: RevPAR, ADR, and Occupancy."
     },
     {
       title: "Pickup & Booking Pace",

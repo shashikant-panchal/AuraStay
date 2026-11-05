@@ -17,15 +17,22 @@ import {
 export default function AriGridView() {
   const { showNotification } = useDashboard();
 
-  const days = [
-    { date: '2026-11-05', day: 'Thu', label: '05 Nov' },
-    { date: '2026-11-06', day: 'Fri', label: '06 Nov', weekend: true },
-    { date: '2026-11-07', day: 'Sat', label: '07 Nov', weekend: true },
-    { date: '2026-11-08', day: 'Sun', label: '08 Nov', weekend: true },
-    { date: '2026-11-09', day: 'Mon', label: '09 Nov' },
-    { date: '2026-11-10', day: 'Tue', label: '10 Nov' },
-    { date: '2026-11-11', day: 'Wed', label: '11 Nov' },
-  ];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const dayOfWeek = d.getDay();
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return {
+      date: `${yyyy}-${mm}-${dd}`,
+      day: dayNames[dayOfWeek],
+      label: `${dd} ${monthNames[d.getMonth()]}`,
+      weekend: dayOfWeek === 0 || dayOfWeek === 6
+    };
+  });
 
   const [gridData, setGridData] = useState([]);
 
@@ -66,7 +73,7 @@ export default function AriGridView() {
             <button className="p-1 hover:bg-white rounded transition text-slate-600">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-2 font-bold text-slate-800">05 Nov – 11 Nov 2026</span>
+            <span className="px-2 font-bold text-slate-800">{WEEK_DAYS[0]?.label} – {WEEK_DAYS[6]?.label} {new Date().getFullYear()}</span>
             <button className="p-1 hover:bg-white rounded transition text-slate-600">
               <ChevronRight className="w-4 h-4" />
             </button>

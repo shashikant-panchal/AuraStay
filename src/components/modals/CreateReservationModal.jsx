@@ -12,8 +12,12 @@ export default function CreateReservationModal() {
 
   const [guest, setGuest] = useState('');
   const [room, setRoom] = useState('101 (Standard Room)');
-  const [checkIn, setCheckIn] = useState('2026-11-04');
-  const [checkOut, setCheckOut] = useState('2026-11-06');
+  const [checkIn, setCheckIn] = useState(() => new Date().toISOString().split('T')[0]);
+  const [checkOut, setCheckOut] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  });
   const [source, setSource] = useState('Direct Walk-in');
   const [amount, setAmount] = useState('4000');
 

@@ -29,7 +29,7 @@ export default function StockManagementView() {
 
   // New PO State
   const [newPo, setNewPo] = useState({
-    skuId: 'SKU-FNB-01',
+    skuId: '',
     qty: 25,
     supplier: 'Amul Fresh Dairy',
     urgent: false

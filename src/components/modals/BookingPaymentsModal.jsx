@@ -51,7 +51,7 @@ export default function BookingPaymentsModal({ isOpen, onClose, reservation, onU
     const settledAmount = dueAmount;
     const newTxn = {
       id: `TXN-${Math.floor(10000 + Math.random() * 90000)}`,
-      date: 'Just now (5 Nov 2026)',
+      date: `Just now (${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })})`,
       mode: 'Card / POS Terminal',
       type: 'Balance Settle',
       amount: settledAmount,
@@ -86,7 +86,7 @@ export default function BookingPaymentsModal({ isOpen, onClose, reservation, onU
 
     const newTxn = {
       id: `TXN-${Math.floor(10000 + Math.random() * 90000)}`,
-      date: 'Just now (5 Nov 2026)',
+      date: `Just now (${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })})`,
       mode: paymentMode,
       type: activeAction === 'part' ? 'Part Payment' : 'New Receipt',
       amount: amt,

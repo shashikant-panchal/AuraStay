@@ -44,18 +44,22 @@ export default function StayViewCalendar() {
   // Category collapse states
   const [collapsedCategories, setCollapsedCategories] = useState({});
 
-  // Tooltip for Room 203 category override
+  // Tooltip for room category override
   const [hoveredRoom203, setHoveredRoom203] = useState(false);
 
-  // 15-day timeline: 05/11/2026 to 19/11/2026
+  // 15-day timeline: starting dynamically from today
   const timelineDays = Array.from({ length: 15 }, (_, i) => {
-    const d = new Date(2026, 10, 5 + i);
+    const d = new Date();
+    d.setDate(d.getDate() + i);
     const dayNum = String(d.getDate());
     const dayName = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][d.getDay()];
+    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
     const weekend = d.getDay() === 0 || d.getDay() === 6;
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
     return {
-      date: `2026-11-${dayNum.padStart(2, '0')}`,
-      month: 'NOV',
+      date: `${yyyy}-${mm}-${dayNum.padStart(2, '0')}`,
+      month: monthNames[d.getMonth()],
       dayNum,
       dayName,
       weekend,
@@ -192,7 +196,7 @@ export default function StayViewCalendar() {
                       onClick={() => handleAllocateRoom(item)}
                       className="px-3.5 py-1.5 bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs rounded-lg shadow-sm transition"
                     >
-                      Allocate Room 104
+                      Allocate Room
                     </button>
                   </div>
                 </div>
@@ -440,7 +444,7 @@ export default function StayViewCalendar() {
                                     {/* Tooltip from Screenshot 4 */}
                                     {hoveredRoom203 && (
                                       <div className="absolute left-0 bottom-full mb-2 w-64 bg-[#1e293b] text-white text-[11px] font-medium p-3 rounded-xl shadow-2xl z-50 pointer-events-none leading-relaxed border border-slate-700">
-                                        Room 203 belongs to Deluxe Room. It is shown under Standard Room for this date range because its category was changed.
+                                        Room category has been modified for this operational date range.
                                       </div>
                                     )}
                                   </div>
@@ -487,7 +491,7 @@ export default function StayViewCalendar() {
                               );
                             }
 
-                            // If room is overridden or N/A (like Room 203)
+                            // If room is overridden or N/A
                             if (room.isOverridden || (room.isDeluxeNA && dayIdx === 0)) {
                               return (
                                 <td 

@@ -113,10 +113,21 @@ export default function ReservationManagementView({ isSubTab = false }) {
   const filteredReservations = useMemo(() => {
     return reservations.filter(r => {
       // Filter tab
-      if (filterCategory === "Today's Arrival" && !r.stayPeriod.startsWith('5 Nov 2026')) return false;
-      if (filterCategory === "In House" && r.status !== 'CHECKEDIN') return false;
-      if (filterCategory === "Today's Departure" && !r.stayPeriod.includes('5 Nov 2026')) return false;
-      if (filterCategory === "Future" && !r.stayPeriod.includes('11 Nov 2026')) return false;
+      const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const todayIso = new Date().toISOString().split('T')[0];
+      if (filterCategory === "Today's Arrival") {
+        const matches = (r.checkIn && r.checkIn === todayIso) || (r.stayPeriod && r.stayPeriod.includes(todayStr));
+        if (!matches) return false;
+      }
+      if (filterCategory === "In House" && r.status !== 'CHECKED_IN' && r.status !== 'CHECKEDIN') return false;
+      if (filterCategory === "Today's Departure") {
+        const matches = (r.checkOut && r.checkOut === todayIso) || (r.stayPeriod && r.stayPeriod.includes(todayStr));
+        if (!matches) return false;
+      }
+      if (filterCategory === "Future") {
+        const isFuture = (r.checkIn && r.checkIn > todayIso) || r.status === 'CONFIRMED';
+        if (!isFuture) return false;
+      }
       if (filterCategory === "Maintenance") return false;
 
       // Keyword search
