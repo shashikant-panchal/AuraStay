@@ -26,6 +26,8 @@ import StockManagementView from './components/views/StockManagementView';
 import ServicesView from './components/views/ServicesView';
 import RevenueInsightsView from './components/views/RevenueInsightsView';
 import AuditLogsView from './components/views/AuditLogsView';
+import RestaurantPosView from './components/views/RestaurantPosView';
+import ProductSetupView from './components/views/ProductSetupView';
 import GlossaryModal from './components/modals/GlossaryModal';
 import ConfigurationModal from './components/modals/ConfigurationModal';
 import EvidenceModal from './components/modals/EvidenceModal';
@@ -61,7 +63,10 @@ export default function App() {
       case 'reservation-management':
         return <ReservationManagementView />;
       case 'food-beverages':
-        return <FoodBeveragesView />;
+      case 'restaurant-pos':
+        return <RestaurantPosView />;
+      case 'product-setup':
+        return <ProductSetupView />;
       case 'housekeeping':
         return <HousekeepingView />;
       case 'channel-manager':
