@@ -168,11 +168,10 @@ export default function RestaurantPosView() {
             <button
               key={ar}
               onClick={() => setActiveArea(ar)}
-              className={`px-3 py-1 rounded-lg font-bold text-xs transition ${
-                activeArea === ar
+              className={`px-3 py-1 rounded-lg font-bold text-xs transition ${activeArea === ar
                   ? 'bg-[#0e4860] text-white shadow-2xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
+                }`}
             >
               {ar}
             </button>
@@ -207,26 +206,24 @@ export default function RestaurantPosView() {
                 <div
                   key={t.id}
                   onClick={() => setSelectedTable(t)}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition select-none flex flex-col justify-between ${
-                    isSelected
+                  className={`p-3.5 rounded-xl border cursor-pointer transition select-none flex flex-col justify-between ${isSelected
                       ? 'border-[#ff6d00] ring-2 ring-orange-400/40 bg-orange-50/40 shadow-sm'
                       : t.status === 'VACANT'
-                      ? 'bg-white border-slate-200 hover:border-slate-300'
-                      : t.status === 'OCCUPIED'
-                      ? 'bg-blue-50/50 border-blue-200 hover:border-blue-300'
-                      : t.status === 'KOT_PENDING'
-                      ? 'bg-amber-50/50 border-amber-200 hover:border-amber-300'
-                      : 'bg-purple-50/50 border-purple-200 hover:border-purple-300'
-                  }`}
+                        ? 'bg-white border-slate-200 hover:border-slate-300'
+                        : t.status === 'OCCUPIED'
+                          ? 'bg-blue-50/50 border-blue-200 hover:border-blue-300'
+                          : t.status === 'KOT_PENDING'
+                            ? 'bg-amber-50/50 border-amber-200 hover:border-amber-300'
+                            : 'bg-purple-50/50 border-purple-200 hover:border-purple-300'
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-black text-sm text-slate-900">{t.name}</span>
-                    <span className={`px-2 py-0.5 rounded text-[9.5px] font-bold ${
-                      t.status === 'VACANT' ? 'bg-emerald-100 text-emerald-800' :
-                      t.status === 'OCCUPIED' ? 'bg-blue-100 text-blue-800' :
-                      t.status === 'KOT_PENDING' ? 'bg-amber-100 text-amber-800' :
-                      'bg-purple-100 text-purple-800'
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded text-[9.5px] font-bold ${t.status === 'VACANT' ? 'bg-emerald-100 text-emerald-800' :
+                        t.status === 'OCCUPIED' ? 'bg-blue-100 text-blue-800' :
+                          t.status === 'KOT_PENDING' ? 'bg-amber-100 text-amber-800' :
+                            'bg-purple-100 text-purple-800'
+                      }`}>
                       {t.status.replace('_', ' ')}
                     </span>
                   </div>
@@ -267,11 +264,10 @@ export default function RestaurantPosView() {
                   <button
                     key={cat}
                     onClick={() => setSelectedMenuCategory(cat)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition ${
-                      selectedMenuCategory === cat
+                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition ${selectedMenuCategory === cat
                         ? 'bg-[#ff6d00] text-white'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                      }`}
                   >
                     {cat}
                   </button>

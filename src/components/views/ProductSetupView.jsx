@@ -161,7 +161,7 @@ export default function ProductSetupView() {
   const categories = ['ALL', 'Main Course', 'Starters', 'Desserts', 'Beverages', 'Italian & Continental'];
 
   const filteredProducts = products.filter(p => {
-    const matchesSearch = 
+    const matchesSearch =
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.kitchenStation.toLowerCase().includes(searchTerm.toLowerCase());
@@ -355,11 +355,10 @@ export default function ProductSetupView() {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
-                selectedCategory === cat
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${selectedCategory === cat
                   ? 'bg-[#ff6d00] text-white shadow-2xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
+                }`}
             >
               {cat}
             </button>
@@ -388,9 +387,8 @@ export default function ProductSetupView() {
                 <tr key={p.id} className="hover:bg-slate-50/80 transition">
                   <td className="p-3">
                     <div className="flex items-center space-x-2">
-                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 border ${
-                        p.isVegetarian ? 'bg-emerald-500 border-emerald-600' : 'bg-rose-500 border-rose-600'
-                      }`} title={p.isVegetarian ? 'Vegetarian' : 'Non-Vegetarian'} />
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 border ${p.isVegetarian ? 'bg-emerald-500 border-emerald-600' : 'bg-rose-500 border-rose-600'
+                        }`} title={p.isVegetarian ? 'Vegetarian' : 'Non-Vegetarian'} />
                       <div>
                         <span className="font-extrabold text-slate-900 block">{p.name}</span>
                         <span className="text-[10px] text-slate-400 font-mono">{p.id} • {p.unit}</span>
@@ -423,11 +421,10 @@ export default function ProductSetupView() {
                   <td className="p-3 text-center">
                     <button
                       onClick={() => toggleAvailability(p.id)}
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition ${
-                        p.status === 'AVAILABLE'
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition ${p.status === 'AVAILABLE'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                           : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
-                      }`}
+                        }`}
                     >
                       {p.status === 'AVAILABLE' ? 'In Stock' : '86\'d (Out)'}
                     </button>
