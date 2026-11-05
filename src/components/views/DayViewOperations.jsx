@@ -37,7 +37,8 @@ export default function DayViewOperations() {
     setIsCreateReservationModalOpen,
     rooms: contextRooms = [],
     reservations = [],
-    setIsCreateRoomModalOpen
+    setIsCreateRoomModalOpen,
+    updateRoomStatus
   } = useDashboard();
 
   // Search & Filter states
@@ -87,21 +88,11 @@ export default function DayViewOperations() {
 
   // Handle Checkout of R-302
   const handleCheckoutGuest = (roomId) => {
-    setDayRooms(prev => prev.map(r => {
-      if (r.id === roomId) {
-        showNotification(`Guest ${r.guest || 'in ' + r.id} checked out. Room marked for Housekeeping!`);
-        return {
-          ...r,
-          status: 'CLEANING',
-          statusLabel: 'Cleaning',
-          statusColor: 'yellow',
-          occupied: false,
-          departingToday: false,
-          housekeepingNeeded: true,
-        };
-      }
-      return r;
-    }));
+    const roomNumber = roomId.replace('R-', '');
+    if (updateRoomStatus) {
+      updateRoomStatus(roomNumber, 'CLEANING');
+    }
+    showNotification(`Guest checked out of Room ${roomNumber}. Room marked for Housekeeping!`);
   };
 
   // Filter Rooms
@@ -544,9 +535,12 @@ export default function DayViewOperations() {
                 {room.status === 'NOT_READY' && (
                   <button
                     onClick={() => {
-                      showNotification(`Room ${room.id} cleared for housekeeping.`);
-                      setDayRooms(prev => prev.map(r => r.id === room.id ? { ...r, status: 'VACANT_READY', statusLabel: 'Vacant Ready', statusColor: 'green' } : r));
-                    }}
+    const roomNumber = room.id.replace('R-', '');
+    if (updateRoomStatus) {
+      updateRoomStatus(roomNumber, 'VACANT_READY');
+    }
+    showNotification(`Room ${roomNumber} marked AVAILABLE.`);
+  }}
                     className="w-full py-2 bg-[#e8fbf3] hover:bg-[#d1f7e7] text-[#059669] font-bold text-xs rounded-lg flex items-center justify-center space-x-1.5 border border-emerald-200 transition shadow-2xs"
                   >
                     <Check className="w-3.5 h-3.5" />
@@ -636,9 +630,12 @@ export default function DayViewOperations() {
                     <button
                       onClick={() => {
                         const next = activeProfileRoom.status === 'VACANT_READY' ? 'OCCUPIED' : 'VACANT_READY';
-                        setDayRooms(prev => prev.map(r => r.id === activeProfileRoom.id ? { ...r, status: next, statusLabel: next === 'OCCUPIED' ? 'Occupied' : 'Vacant Ready', statusColor: next === 'OCCUPIED' ? 'red' : 'green' } : r));
-                        setActiveProfileRoom(prev => ({ ...prev, status: next, statusLabel: next === 'OCCUPIED' ? 'Occupied' : 'Vacant Ready', statusColor: next === 'OCCUPIED' ? 'red' : 'green' }));
-                        showNotification(`Room ${activeProfileRoom.id} status updated.`);
+    const roomNumber = activeProfileRoom.id.replace('R-', '');
+    if (updateRoomStatus) {
+      updateRoomStatus(roomNumber, next);
+    }
+    setActiveProfileRoom(prev => ({ ...prev, status: next, statusLabel: next === 'OCCUPIED' ? 'Occupied' : 'Vacant Ready', statusColor: next === 'OCCUPIED' ? 'red' : 'green' }));
+    showNotification(`Room ${roomNumber} status updated to ${next}.`);
                       }}
                       className="p-3 bg-sky-50/60 hover:bg-sky-100/70 border border-sky-100 rounded-xl text-center transition group cursor-pointer"
                     >
@@ -737,32 +734,3 @@ export default function DayViewOperations() {
     </div>
   );
 }
-  // Live Rooms Data mapped dynamically from context
-  const dayRooms = React.useMemo(() => {
-    if (!contextRooms || contextRooms.length === 0) return [];
-    return contextRooms.map(r => {
-      const isOccupied = r.status === 'OCCUPIED';
-      const booking = reservations.find(b => b.room === r.roomNumber || b.room === `Room ${r.roomNumber}`);
-      return {
-        id: `R-${r.roomNumber}`,
-        roomNumber: String(r.roomNumber),
-        type: r.type || 'Standard Room',
-        floor: r.floor || '1st Floor',
-        floorVal: '1',
-        status: r.status || 'VACANT_READY',
-        statusLabel: (r.status || 'VACANT_READY').replace('_', ' '),
-        statusColor: isOccupied ? 'red' : 'green',
-        readyTag: 'Room Ready',
-        occupied: isOccupied,
-        bookingId: booking?.id ? `AST-B-${booking.id}` : null,
-        guest: booking?.guest || null,
-        checkInTime: booking?.checkIn || null,
-        stayDuration: '1 night',
-        adults: 1,
-        children: 0,
-        amenities: { electricity: true, wifi: true, ac: true }
-      };
-    });
-  }, [contextRooms, reservations]);
-
-
