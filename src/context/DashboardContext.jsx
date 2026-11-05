@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { initialMockData } from '../data/mockData';
 import { mockRooms, mockReservations, mockFnbOrders, mockStaffUsers, mockOtaChannels } from '../data/suiteData';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const DashboardContext = createContext(null);
 
@@ -29,6 +30,7 @@ export function DashboardProvider({ children }) {
   const [fnbOrders, setFnbOrders] = useState(mockFnbOrders);
   const [staffUsers, setStaffUsers] = useState(mockStaffUsers);
   const [otaChannels, setOtaChannels] = useState(mockOtaChannels);
+  const [isLiveConnected, setIsLiveConnected] = useState(false);
 
   // Modals state
   const [isGlossaryOpen, setIsGlossaryOpen] = useState(false);
@@ -47,6 +49,158 @@ export function DashboardProvider({ children }) {
 
   const [notificationMessage, setNotificationMessage] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // 1. Fetch initial live data from Supabase
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let isMounted = true;
+
+    async function loadSupabaseData() {
+      try {
+        const [roomsRes, resRes, fnbRes, staffRes, chanRes] = await Promise.all([
+          supabase.from('rooms').select('*').order('room_number'),
+          supabase.from('reservations').select('*').order('created_at', { ascending: false }),
+          supabase.from('fnb_orders').select('*').order('created_at', { ascending: false }),
+          supabase.from('staff_users').select('*').order('id'),
+          supabase.from('ota_channels').select('*').order('id')
+        ]);
+
+        if (isMounted) {
+          let tablesFound = false;
+          if (roomsRes.data && roomsRes.data.length > 0) {
+            setRooms(roomsRes.data.map(r => ({
+              roomNumber: r.room_number,
+              floor: r.floor,
+              type: r.type,
+              bed: r.bed,
+              status: r.status,
+              price: Number(r.price),
+              guest: r.guest,
+              bookingId: r.booking_id,
+              checkOut: r.check_out
+            })));
+            tablesFound = true;
+          }
+          if (resRes.data && resRes.data.length > 0) {
+            setReservations(resRes.data.map(r => ({
+              id: r.id,
+              guest: r.guest,
+              room: r.room,
+              checkIn: r.check_in,
+              checkOut: r.check_out,
+              source: r.source,
+              amount: Number(r.amount),
+              status: r.status,
+              payment: r.payment
+            })));
+            tablesFound = true;
+          }
+          if (fnbRes.data && fnbRes.data.length > 0) {
+            setFnbOrders(fnbRes.data.map(o => ({
+              orderId: o.id,
+              roomTable: o.room_table,
+              guest: o.guest,
+              items: o.items,
+              total: Number(o.total),
+              status: o.status,
+              time: o.time
+            })));
+            tablesFound = true;
+          }
+          if (staffRes.data && staffRes.data.length > 0) {
+            setStaffUsers(staffRes.data);
+            tablesFound = true;
+          }
+          if (chanRes.data && chanRes.data.length > 0) {
+            setOtaChannels(chanRes.data.map(c => ({
+              name: c.name,
+              status: c.status,
+              syncStatus: c.sync_status,
+              mappedRooms: c.mapped_rooms,
+              activeBookings: c.active_bookings,
+              commission: c.commission
+            })));
+            tablesFound = true;
+          }
+
+          if (tablesFound) {
+            setIsLiveConnected(true);
+            showNotification('🟢 Connected to live Supabase database with Realtime sync.');
+          }
+        }
+      } catch (err) {
+        console.info('Supabase database initializing...', err);
+      }
+    }
+
+    loadSupabaseData();
+    return () => { isMounted = false; };
+  }, []);
+
+  // 2. Realtime WebSocket subscription
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    const channel = supabase.channel('aurastay-realtime-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, payload => {
+        if (payload.eventType === 'UPDATE' && payload.new) {
+          setRooms(prev => prev.map(r => r.roomNumber === payload.new.room_number ? {
+            ...r,
+            status: payload.new.status,
+            guest: payload.new.guest,
+            bookingId: payload.new.booking_id,
+            checkOut: payload.new.check_out
+          } : r));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, payload => {
+        if (payload.eventType === 'INSERT' && payload.new) {
+          const item = {
+            id: payload.new.id,
+            guest: payload.new.guest,
+            room: payload.new.room,
+            checkIn: payload.new.check_in,
+            checkOut: payload.new.check_out,
+            source: payload.new.source,
+            amount: Number(payload.new.amount),
+            status: payload.new.status,
+            payment: payload.new.payment
+          };
+          setReservations(prev => [item, ...prev.filter(r => r.id !== item.id)]);
+        } else if (payload.eventType === 'UPDATE' && payload.new) {
+          setReservations(prev => prev.map(r => r.id === payload.new.id ? {
+            ...r,
+            status: payload.new.status,
+            payment: payload.new.payment
+          } : r));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fnb_orders' }, payload => {
+        if (payload.eventType === 'INSERT' && payload.new) {
+          const item = {
+            orderId: payload.new.id,
+            roomTable: payload.new.room_table,
+            guest: payload.new.guest,
+            items: payload.new.items,
+            total: Number(payload.new.total),
+            status: payload.new.status,
+            time: payload.new.time
+          };
+          setFnbOrders(prev => [item, ...prev.filter(o => o.orderId !== item.orderId)]);
+        } else if (payload.eventType === 'UPDATE' && payload.new) {
+          setFnbOrders(prev => prev.map(o => o.orderId === payload.new.id ? { ...o, status: payload.new.status } : o));
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setIsLiveConnected(true);
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Keyboard shortcut Ctrl + K
   useEffect(() => {
@@ -74,12 +228,31 @@ export function DashboardProvider({ children }) {
     setTimeout(() => setNotificationMessage(null), 4000);
   };
 
-  const refreshData = () => {
+  const refreshData = async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
+    try {
+      if (isSupabaseConfigured) {
+        const { data: latestRooms } = await supabase.from('rooms').select('*').order('room_number');
+        if (latestRooms && latestRooms.length > 0) {
+          setRooms(latestRooms.map(r => ({
+            roomNumber: r.room_number,
+            floor: r.floor,
+            type: r.type,
+            bed: r.bed,
+            status: r.status,
+            price: Number(r.price),
+            guest: r.guest,
+            bookingId: r.booking_id,
+            checkOut: r.check_out
+          })));
+        }
+      }
+    } catch (err) {
+      console.warn('Refresh error:', err);
+    } finally {
       setIsRefreshing(false);
-      showNotification('AuraStay Suite updated with latest property synchronization.');
-    }, 600);
+      showNotification('AuraStay Suite synchronized with live database.');
+    }
   };
 
   const resetToDefaults = () => {
@@ -100,14 +273,25 @@ export function DashboardProvider({ children }) {
   };
 
   // Change room status (Housekeeping)
-  const updateRoomStatus = (roomNumber, newStatus) => {
+  const updateRoomStatus = async (roomNumber, newStatus) => {
     setRooms(prev => prev.map(r => r.roomNumber === roomNumber ? { ...r, status: newStatus } : r));
     showNotification(`Room ${roomNumber} status set to ${newStatus}`);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase
+          .from('rooms')
+          .update({ status: newStatus, updated_at: new Date().toISOString() })
+          .eq('room_number', roomNumber);
+      } catch (err) {
+        console.warn('Supabase room update sync pending table setup', err);
+      }
+    }
   };
 
   // Add reservation
-  const addReservation = (newRes) => {
-    const resId = `BSE-B-${860 + reservations.length + 1}`;
+  const addReservation = async (newRes) => {
+    const resId = `AST-B-${860 + reservations.length + 1}`;
     const reservation = {
       id: resId,
       ...newRes,
@@ -117,6 +301,26 @@ export function DashboardProvider({ children }) {
     setReservations([reservation, ...reservations]);
     showNotification(`Reservation ${resId} created for ${newRes.guest}`);
     setIsCreateReservationModalOpen(false);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('reservations').insert({
+          id: resId,
+          guest: newRes.guest,
+          guest_email: newRes.guestEmail || null,
+          guest_phone: newRes.guestPhone || null,
+          room: newRes.room,
+          check_in: newRes.checkIn,
+          check_out: newRes.checkOut,
+          source: newRes.source || 'Direct Website',
+          amount: newRes.amount || 4000,
+          status: 'CONFIRMED',
+          payment: 'PENDING'
+        });
+      } catch (err) {
+        console.warn('Supabase reservation insert sync pending table setup', err);
+      }
+    }
   };
 
   // Revenue actions
@@ -198,111 +402,107 @@ export function DashboardProvider({ children }) {
   const saveGroupEvaluation = (evaluation) => {
     const newEval = {
       id: 'eval-' + Date.now(),
-      timestamp: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      createdAt: new Date().toISOString(),
       ...evaluation
     };
     setData(prev => ({
       ...prev,
       displacement: {
         ...prev.displacement,
-        savedEvaluations: [newEval, ...prev.displacement.savedEvaluations]
+        evaluatedGroups: [newEval, ...(prev.displacement.evaluatedGroups || [])]
       }
     }));
-    showNotification(`Group Opportunity "${evaluation.groupName}" recorded.`);
+    showNotification(`Group "${evaluation.groupName}" evaluated: ${evaluation.recommendation}.`);
     setIsEvaluateGroupModalOpen(false);
   };
 
-  const toggleConfigRequirement = (catName, itemTitle) => {
+  const toggleConfigRequirement = (reqId) => {
     setData(prev => {
-      const updatedCategories = prev.configuration.categories.map(cat => {
-        if (cat.name === catName) {
-          const updatedItems = cat.items.map(it => {
-            if (it.title === itemTitle) {
-              const nextStatus = it.status === 'Configured' ? 'Action needed' : 'Configured';
-              return { ...it, status: nextStatus };
-            }
-            return it;
-          });
-          return { ...cat, items: updatedItems };
-        }
-        return cat;
-      });
+      const updatedCategories = prev.configuration.categories.map(cat => ({
+        ...cat,
+        requirements: cat.requirements.map(req => {
+          if (req.id === reqId) {
+            const nextStatus = req.status === 'READY' ? 'NEEDS_ATTENTION' : 'READY';
+            return { ...req, status: nextStatus };
+          }
+          return req;
+        })
+      }));
 
-      let configuredCount = 0;
-      let totalCount = 0;
-      updatedCategories.forEach(c => {
-        c.items.forEach(it => {
-          totalCount++;
-          if (it.status === 'Configured') configuredCount++;
+      // Recalculate readiness percentage
+      let total = 0;
+      let ready = 0;
+      updatedCategories.forEach(cat => {
+        cat.requirements.forEach(r => {
+          total++;
+          if (r.status === 'READY') ready++;
         });
       });
+      const readiness = Math.round((ready / total) * 100);
 
-      const score = Math.round((configuredCount / totalCount) * 100);
       return {
         ...prev,
         configuration: {
           ...prev.configuration,
-          readinessScore: score,
-          readinessRatio: `${configuredCount} of ${totalCount} requirements`,
+          overallReadiness: readiness,
           categories: updatedCategories
         }
       };
     });
-    showNotification(`Updated requirement: ${itemTitle}`);
   };
 
   return (
     <DashboardContext.Provider value={{
       data,
       currentView,
-      setCurrentView,
-      subModuleTitle,
-      setSubModuleTitle,
-      navigateTo,
       activeTab,
-      setActiveTab,
+      frontOfficeSubTab,
       rooms,
       reservations,
       fnbOrders,
       staffUsers,
       otaChannels,
-      updateRoomStatus,
-      addReservation,
-      isGlossaryOpen,
-      setIsGlossaryOpen,
-      isConfigOpen,
-      setIsConfigOpen,
-      isEvidenceModalOpen,
-      setIsEvidenceModalOpen,
-      isSetBudgetModalOpen,
-      setIsSetBudgetModalOpen,
-      isEvaluateGroupModalOpen,
-      setIsEvaluateGroupModalOpen,
-      isApplyOverrideModalOpen,
-      setIsApplyOverrideModalOpen,
-      isMonitoringModalOpen,
-      setIsMonitoringModalOpen,
-      isTourOpen,
-      setIsTourOpen,
-      isSearchOpen,
-      setIsSearchOpen,
-      isCreateReservationModalOpen,
-      setIsCreateReservationModalOpen,
-      frontOfficeSubTab,
-      setFrontOfficeSubTab,
+      isLiveConnected,
       activePopoverModule,
-      setActivePopoverModule,
       notificationMessage,
-      showNotification,
       isRefreshing,
+      subModuleTitle,
+      isGlossaryOpen,
+      isConfigOpen,
+      isEvidenceModalOpen,
+      isSetBudgetModalOpen,
+      isEvaluateGroupModalOpen,
+      isApplyOverrideModalOpen,
+      isMonitoringModalOpen,
+      isTourOpen,
+      isSearchOpen,
+      isCreateReservationModalOpen,
+      setCurrentView,
+      setActiveTab,
+      setFrontOfficeSubTab,
+      navigateTo,
+      setActivePopoverModule,
+      showNotification,
       refreshData,
       resetToDefaults,
+      updateRoomStatus,
+      addReservation,
       handleReviewAction,
       updateMonthlyBudget,
       addForecastOverride,
       saveOverbookingPolicy,
       saveGroupEvaluation,
-      toggleConfigRequirement
+      toggleConfigRequirement,
+      setIsGlossaryOpen,
+      setIsConfigOpen,
+      setIsEvidenceModalOpen,
+      setIsSetBudgetModalOpen,
+      setIsEvaluateGroupModalOpen,
+      setIsApplyOverrideModalOpen,
+      setIsMonitoringModalOpen,
+      setIsTourOpen,
+      setIsSearchOpen,
+      setIsCreateReservationModalOpen
     }}>
       {children}
     </DashboardContext.Provider>
