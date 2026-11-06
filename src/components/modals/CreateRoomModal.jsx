@@ -3,7 +3,7 @@ import { useDashboard } from '../../context/DashboardContext';
 import { X, Building2, Plus, DollarSign, Layers, Trash2, BedDouble, CheckCircle2 } from 'lucide-react';
 
 export default function CreateRoomModal() {
-  const { isCreateRoomModalOpen, setIsCreateRoomModalOpen, addRoom, deleteRoom, rooms = [] } = useDashboard();
+  const { isCreateRoomModalOpen, setIsCreateRoomModalOpen, addRoom, deleteRoom, requestDeleteRoom, rooms = [] } = useDashboard();
 
   const [activeTab, setActiveTab] = useState('add'); // 'add' | 'manage'
   const [roomNumber, setRoomNumber] = useState('');
@@ -33,7 +33,9 @@ export default function CreateRoomModal() {
   };
 
   const handleDelete = (num) => {
-    if (window.confirm(`Are you sure you want to permanently delete Room ${num} from hotel inventory?`)) {
+    if (requestDeleteRoom) {
+      requestDeleteRoom(num);
+    } else {
       deleteRoom(num);
     }
   };

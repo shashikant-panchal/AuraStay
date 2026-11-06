@@ -30,6 +30,7 @@ export default function StayViewCalendar() {
     showNotification, 
     setIsCreateReservationModalOpen,
     deleteRoom,
+    requestDeleteRoom,
     rooms = []
   } = useDashboard();
 
@@ -458,8 +459,10 @@ export default function StayViewCalendar() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     const roomNum = room.number || room.name;
-                                    if (window.confirm(`Are you sure you want to permanently delete Room ${roomNum}? This cannot be undone.`)) {
-                                      if (deleteRoom) deleteRoom(roomNum);
+                                    if (requestDeleteRoom) {
+                                      requestDeleteRoom(roomNum);
+                                    } else {
+                                      deleteRoom(roomNum);
                                     }
                                   }}
                                   title={`Delete Room ${room.number || room.name}`}

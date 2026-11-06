@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 
 export default function DashboardView() {
-  const { showNotification, reservations = [], rooms = [], addReservation, updateRoomStatus, setIsCreateRoomModalOpen, deleteRoom } = useDashboard();
+  const { showNotification, reservations = [], rooms = [], addReservation, updateRoomStatus, setIsCreateRoomModalOpen, deleteRoom, requestDeleteRoom } = useDashboard();
 
   // Dynamic suites mapped directly from real rooms in Supabase / Context
   const suites = useMemo(() => {
@@ -544,8 +544,10 @@ export default function DashboardView() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (window.confirm(`Are you sure you want to permanently delete Room ${suite.number}? This cannot be undone.`)) {
-                                  if (deleteRoom) deleteRoom(suite.number);
+                                if (requestDeleteRoom) {
+                                  requestDeleteRoom(suite.number);
+                                } else {
+                                  deleteRoom(suite.number);
                                 }
                               }}
                               title={`Delete Room ${suite.number}`}

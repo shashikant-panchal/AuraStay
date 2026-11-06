@@ -488,11 +488,21 @@ export function DashboardProvider({ children }) {
     }
   };
 
-  // Delete room
+  // Delete room state & modal controls
+  const [deleteConfirmRoom, setDeleteConfirmRoom] = useState(null);
+
+  const requestDeleteRoom = (roomOrNumber) => {
+    setDeleteConfirmRoom(roomOrNumber);
+  };
+
+  const cancelDeleteRoom = () => {
+    setDeleteConfirmRoom(null);
+  };
+
   const deleteRoom = async (roomNumber) => {
     const num = String(roomNumber).trim();
-    setRooms(prev => prev.filter(r => String(r.roomNumber) !== num));
-    showNotification(`Room ${num} removed from inventory.`);
+    setRooms(prev => prev.filter(r => String(r.roomNumber) !== num && String(r.room_number) !== num));
+    showNotification(`Room ${num} permanently deleted.`);
 
     if (isSupabaseConfigured) {
       try {
@@ -501,6 +511,15 @@ export function DashboardProvider({ children }) {
         console.warn('Supabase room delete error:', err);
       }
     }
+  };
+
+  const confirmDeleteRoom = async () => {
+    if (!deleteConfirmRoom) return;
+    const roomNum = typeof deleteConfirmRoom === 'object'
+      ? (deleteConfirmRoom.room_number || deleteConfirmRoom.roomNumber || deleteConfirmRoom.number)
+      : deleteConfirmRoom;
+    await deleteRoom(roomNum);
+    setDeleteConfirmRoom(null);
   };
 
   // Add reservation
@@ -731,6 +750,10 @@ export function DashboardProvider({ children }) {
       setIsCreateRoomModalOpen,
       addRoom,
       deleteRoom,
+      deleteConfirmRoom,
+      requestDeleteRoom,
+      cancelDeleteRoom,
+      confirmDeleteRoom,
       isLoggedIn,
       setIsLoggedIn,
       currentHotel,
