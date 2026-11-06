@@ -64,4 +64,4 @@ Visit **`http://localhost:3000`** in your browser.
 - **Food & Beverages**: POS orders and live KOT delivery statuses.
 - **Housekeeping**: Room cleanliness board (`Clean & Ready`, `Dirty`, `Occupied`, `Maintenance`).
 - **Channel Manager**: Real-time 2-way sync with Booking.com, Agoda, MakeMyTrip, and Expedia.
-- **Reports & Accounts**: Night audit, occupancy reports, and invoice logs.
+- **Reports & Accounts**: Occupancy reports, cashier settlements, and invoice logs.

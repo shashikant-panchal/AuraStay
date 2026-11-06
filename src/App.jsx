@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import TabBar from './components/TabBar';
 import MasterServiceHome from './components/MasterServiceHome';
+import DashboardView from './components/views/DashboardView';
 import OverviewTab from './components/tabs/OverviewTab';
 import PickupPaceTab from './components/tabs/PickupPaceTab';
 import SegmentationTab from './components/tabs/SegmentationTab';
@@ -20,7 +21,6 @@ import AccountsFinanceView from './components/views/AccountsFinanceView';
 import StaffAdminView from './components/views/StaffAdminView';
 import RatePlansView from './components/views/RatePlansView';
 import AriGridView from './components/views/AriGridView';
-import NightAuditView from './components/views/NightAuditView';
 import GuestsView from './components/views/GuestsView';
 import StockManagementView from './components/views/StockManagementView';
 import ServicesView from './components/views/ServicesView';
@@ -47,6 +47,8 @@ export default function App() {
 
   const renderContent = () => {
     switch (currentView) {
+      case 'dashboard':
+        return <DashboardView />;
       case 'master-service-home':
         return <MasterServiceHome />;
       case 'revenue-dashboard':
@@ -85,8 +87,6 @@ export default function App() {
         return <RatePlansView />;
       case 'ari-grid':
         return <AriGridView />;
-      case 'night-audit':
-        return <NightAuditView />;
       case 'guests':
       case 'guest-crm':
       case 'reputation-management':
@@ -101,7 +101,7 @@ export default function App() {
       case 'hr-payroll':
         return <StaffAdminView />;
       default:
-        return <MasterServiceHome />;
+        return <DashboardView />;
     }
   };
 

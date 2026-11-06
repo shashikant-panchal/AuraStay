@@ -22,8 +22,8 @@ export function DashboardProvider({ children }) {
     return initialMockData;
   });
 
-  // Current view: 'master-service-home' or 'revenue-dashboard' or other module views
-  const [currentView, setCurrentView] = useState('master-service-home');
+  // Current view: 'dashboard' as initial route
+  const [currentView, setCurrentView] = useState('dashboard');
   const [subModuleTitle, setSubModuleTitle] = useState('');
 
   // Revenue Dashboard active tab
@@ -50,7 +50,7 @@ export function DashboardProvider({ children }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCreateReservationModalOpen, setIsCreateReservationModalOpen] = useState(false);
   const [isCreateRoomModalOpen, setIsCreateRoomModalOpen] = useState(false);
-  
+
   // Popover state for Master Service Home cards
   const [activePopoverModule, setActivePopoverModule] = useState(null);
 
@@ -263,7 +263,7 @@ export function DashboardProvider({ children }) {
     setRooms(mockRooms);
     setReservations(mockReservations);
     setFnbOrders(mockFnbOrders);
-    setCurrentView('master-service-home');
+    setCurrentView('dashboard');
     localStorage.removeItem('aurastay_suite_data');
     showNotification('Suite reset to official AuraStay demo state.');
   };

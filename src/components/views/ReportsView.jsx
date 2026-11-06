@@ -3,7 +3,6 @@ import { useDashboard } from '../../context/DashboardContext';
 import { 
   Search, 
   ArrowUpRight, 
-  Clock, 
   BarChart3, 
   Contact, 
   LogIn, 
@@ -29,24 +28,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 
-// Exact 18 reports from Screenshots 1, 2, 3
 const REPORTS_CATALOG = [
-  {
-    id: 'night-audit',
-    title: 'Night Audit Report',
-    subtitle: 'Final summary of daily transactions, occupancy, and revenue.',
-    overview: 'End-of-day closure and validation.',
-    departments: ['Front-Office', 'Finance'],
-    icon: Clock,
-    iconBg: 'bg-sky-50 text-sky-700 border-sky-100',
-    data: [
-      { metric: 'Gross Room Revenue', value: '₹0.00', status: 'Reconciled' },
-      { metric: 'Occupancy Rate', value: '0% (0/0 Rooms)', status: 'Verified' },
-      { metric: 'ADR (Average Daily Rate)', value: '₹0.00', status: 'Calculated' },
-      { metric: 'RevPAR', value: '₹0.00', status: 'Calculated' },
-      { metric: 'Cash in Drawer', value: '₹0.00', status: 'Balanced' }
-    ]
-  },
   {
     id: 'occupancy',
     title: 'Occupancy Report',

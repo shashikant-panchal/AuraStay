@@ -164,12 +164,11 @@ export const suiteModules = [
     headerBg: 'bg-slate-100/60',
     textColor: 'text-slate-700',
     primaryOptions: [
-      'Night Audit Report',
       'Occupancy Report',
-      'Check-in/Police Report'
+      'Check-in/Police Report',
+      'Arrival Report'
     ],
     moreOptions: [
-      'Arrival Report',
       'Departure/Sales Report',
       'Cashier Report',
       'Booking Report',
