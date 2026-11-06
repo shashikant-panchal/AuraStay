@@ -3,7 +3,7 @@
 -- Supports:
 --   1. AuraStay Super Admin (Tenant creation, credentials & hotel management)
 --   2. AuraStay Hotel Admin (PMS, Room management, Operations)
---   3. AuraStay Booking (Guest-facing booking engine with real-time room lock)
+--   3. AuraStay Booking (Guest-facing booking engine with real-time room lock & guest auth)
 -- =========================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS rooms (
     CONSTRAINT rooms_hotel_room_unique UNIQUE (hotel_id, room_number)
 );
 
--- If rooms table already existed without hotel_id, add column safely:
+-- If rooms table already existed without hotel_id, add columns safely:
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS reservations (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- If reservations table already existed without hotel_id, add column safely:
+-- If reservations table already existed without hotel_id, add columns safely:
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -142,7 +142,18 @@ BEGIN
     END IF;
 END $$;
 
--- 6. Enable Realtime Publications for all 3 applications
+-- 6. Guest Users Table (for AuraStayBooking authenticated guests)
+CREATE TABLE IF NOT EXISTS guest_users (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    phone TEXT,
+    password TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 7. Enable Realtime Publications for all 3 applications
 DO $$
 BEGIN
     BEGIN
@@ -161,14 +172,19 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE fnb_orders;
     EXCEPTION WHEN duplicate_object THEN NULL;
     END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE guest_users;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
 END $$;
 
--- 7. Enable Row Level Security (RLS) & Public Access
+-- 8. Enable Row Level Security (RLS) & Public Access
 ALTER TABLE hotels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE super_admins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reservations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fnb_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE guest_users ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
@@ -187,9 +203,12 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public read/write fnb_orders') THEN
         CREATE POLICY "Public read/write fnb_orders" ON fnb_orders FOR ALL USING (true) WITH CHECK (true);
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public read/write guest_users') THEN
+        CREATE POLICY "Public read/write guest_users" ON guest_users FOR ALL USING (true) WITH CHECK (true);
+    END IF;
 END $$;
 
--- 8. Seed Default Super Admin and Primary Hotel
+-- 9. Seed Default Super Admin and Primary Hotel
 INSERT INTO super_admins (id, name, email, password, role)
 VALUES ('sa_01', 'Master Super Admin', 'superadmin@aurastay.com', 'super123', 'PLATFORM_OWNER')
 ON CONFLICT (id) DO NOTHING;
@@ -214,4 +233,3 @@ VALUES (
     'Enterprise'
 )
 ON CONFLICT (id) DO NOTHING;
-

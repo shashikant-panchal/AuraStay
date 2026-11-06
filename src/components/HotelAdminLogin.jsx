@@ -13,8 +13,8 @@ import {
 
 export default function HotelAdminLogin() {
   const { login } = useDashboard();
-  const [email, setEmail] = useState('admin@aurastay.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -26,19 +26,13 @@ export default function HotelAdminLogin() {
     try {
       const success = await login(email.trim(), password.trim());
       if (!success) {
-        setError('Invalid Hotel Admin credentials. Use admin@aurastay.com / admin123 or credentials created by Super Admin.');
+        setError('Invalid Hotel Admin credentials. Use the email and password provisioned by Super Admin.');
       }
     } catch (err) {
       setError('Login failed. Please verify your credentials.');
     } finally {
       setIsLoggingIn(false);
     }
-  };
-
-  const handleDemoLogin = () => {
-    setEmail('admin@aurastay.com');
-    setPassword('admin123');
-    login('admin@aurastay.com', 'admin123');
   };
 
   return (
@@ -120,16 +114,11 @@ export default function HotelAdminLogin() {
             </button>
           </form>
 
-          {/* Quick Demo Access */}
-          <div className="mt-6 pt-5 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              className="w-full py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>1-Click Demo Login (admin@aurastay.com)</span>
-            </button>
+          {/* Information Notice */}
+          <div className="mt-6 pt-5 border-t border-slate-200 text-center">
+            <p className="text-[11px] text-slate-500">
+              Sign in with credentials created by Super Admin.
+            </p>
           </div>
         </div>
 
