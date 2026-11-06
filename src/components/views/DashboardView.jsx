@@ -27,11 +27,12 @@ import {
   BadgeCheck,
   Send,
   BedDouble,
-  Receipt
+  Receipt,
+  Trash2
 } from 'lucide-react';
 
 export default function DashboardView() {
-  const { showNotification, reservations = [], rooms = [], addReservation, updateRoomStatus, setIsCreateRoomModalOpen } = useDashboard();
+  const { showNotification, reservations = [], rooms = [], addReservation, updateRoomStatus, setIsCreateRoomModalOpen, deleteRoom } = useDashboard();
 
   // Dynamic suites mapped directly from real rooms in Supabase / Context
   const suites = useMemo(() => {
@@ -525,18 +526,34 @@ export default function DashboardView() {
                             </span>
                           )}
 
-                          {/* Housekeeping Sub-state Dot (Clickable) */}
-                          <button
-                            onClick={() => cycleHousekeeping(suite.id)}
-                            className="flex items-center space-x-1 text-[10px] font-semibold text-slate-500 hover:text-slate-900 transition cursor-pointer"
-                            title="Click to toggle Housekeeping status"
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${suite.housekeeping === 'Clean' ? 'bg-emerald-500' :
-                              suite.housekeeping === 'Inspected' ? 'bg-teal-500' :
-                                suite.housekeeping === 'Turn-Down' ? 'bg-amber-500' : 'bg-slate-400'
-                              }`} />
-                            <span>{suite.housekeeping}</span>
-                          </button>
+                          <div className="flex items-center space-x-2 pt-0.5">
+                            {/* Housekeeping Sub-state Dot (Clickable) */}
+                            <button
+                              onClick={() => cycleHousekeeping(suite.id)}
+                              className="flex items-center space-x-1 text-[10px] font-semibold text-slate-500 hover:text-slate-900 transition cursor-pointer"
+                              title="Click to toggle Housekeeping status"
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${suite.housekeeping === 'Clean' ? 'bg-emerald-500' :
+                                suite.housekeeping === 'Inspected' ? 'bg-teal-500' :
+                                  suite.housekeeping === 'Turn-Down' ? 'bg-amber-500' : 'bg-slate-400'
+                                }`} />
+                              <span>{suite.housekeeping}</span>
+                            </button>
+
+                            {/* Delete Room Icon */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`Are you sure you want to permanently delete Room ${suite.number}? This cannot be undone.`)) {
+                                  if (deleteRoom) deleteRoom(suite.number);
+                                }
+                              }}
+                              title={`Delete Room ${suite.number}`}
+                              className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       </div>
 

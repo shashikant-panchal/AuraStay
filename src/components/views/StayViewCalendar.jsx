@@ -21,13 +21,15 @@ import {
   Sparkles,
   User,
   BedDouble,
-  DollarSign
+  DollarSign,
+  Trash2
 } from 'lucide-react';
 
 export default function StayViewCalendar() {
   const { 
     showNotification, 
     setIsCreateReservationModalOpen,
+    deleteRoom,
     rooms = []
   } = useDashboard();
 
@@ -450,7 +452,22 @@ export default function StayViewCalendar() {
                                   </div>
                                 )}
                               </div>
-                              <span className={`w-2.5 h-2.5 rounded-full ${room.statusColor}`} />
+                              <div className="flex items-center space-x-1.5">
+                                <span className={`w-2.5 h-2.5 rounded-full ${room.statusColor}`} />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const roomNum = room.number || room.name;
+                                    if (window.confirm(`Are you sure you want to permanently delete Room ${roomNum}? This cannot be undone.`)) {
+                                      if (deleteRoom) deleteRoom(roomNum);
+                                    }
+                                  }}
+                                  title={`Delete Room ${room.number || room.name}`}
+                                  className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
                           </td>
 
