@@ -59,22 +59,20 @@ export default function CreateRoomModal() {
         <div className="flex border-b border-slate-200 bg-slate-50 px-6 pt-3 shrink-0">
           <button
             onClick={() => setActiveTab('add')}
-            className={`pb-3 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'add'
+            className={`pb-3 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer ${activeTab === 'add'
                 ? 'border-indigo-600 text-indigo-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+              }`}
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add New Room</span>
           </button>
           <button
             onClick={() => setActiveTab('manage')}
-            className={`pb-3 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'manage'
+            className={`pb-3 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer ${activeTab === 'manage'
                 ? 'border-indigo-600 text-indigo-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+              }`}
           >
             <BedDouble className="w-3.5 h-3.5" />
             <span>Manage Existing ({rooms.length})</span>
