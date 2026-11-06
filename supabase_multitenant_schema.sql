@@ -214,3 +214,4 @@ VALUES (
     'Enterprise'
 )
 ON CONFLICT (id) DO NOTHING;
+
