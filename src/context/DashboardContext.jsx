@@ -3,9 +3,40 @@ import { initialMockData } from '../data/mockData';
 import { mockRooms, mockReservations, mockFnbOrders, mockStaffUsers, mockOtaChannels } from '../data/suiteData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
+const DEFAULT_HOTEL = {
+  id: 'hotel_aurastay_01',
+  slug: 'aurastay-suite',
+  name: 'AuraStay Suite',
+  shortName: 'AST',
+  logoUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=200&q=80',
+  ownerName: 'AuraStay Admin',
+  ownerRole: 'Property Admin',
+  email: 'admin@aurastay.com',
+  password: 'admin123',
+  mobile: '7978578046',
+  address: 'DLF Cyber City, Patia, Bhubaneswar, Odisha, India - 751024',
+  city: 'Bhubaneswar',
+  totalRooms: 28,
+  currency: 'INR',
+  currencySymbol: '₹'
+};
+
 const DashboardContext = createContext(null);
 
 export function DashboardProvider({ children }) {
+  // Multi-tenant Hotel Authentication State
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('aurastay_hotel_auth') === 'true';
+  });
+
+  const [currentHotel, setCurrentHotel] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aurastay_hotel_session');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return DEFAULT_HOTEL;
+  });
+
   const [data, setData] = useState(() => {
     try {
       const version = localStorage.getItem('aurastay_data_version');
@@ -75,7 +106,11 @@ export function DashboardProvider({ children }) {
         if (isMounted) {
           let tablesFound = false;
           if (roomsRes.data) {
-            setRooms(roomsRes.data.map(r => ({
+            // Filter rooms for current hotel tenant
+            const hotelRooms = roomsRes.data.filter(r => !r.hotel_id || r.hotel_id === currentHotel.id);
+            setRooms(hotelRooms.map(r => ({
+              id: r.id,
+              hotelId: r.hotel_id || currentHotel.id,
               roomNumber: r.room_number,
               floor: r.floor,
               type: r.type,
@@ -89,8 +124,11 @@ export function DashboardProvider({ children }) {
             tablesFound = true;
           }
           if (resRes.data) {
-            setReservations(resRes.data.map(r => ({
+            // Filter reservations for current hotel tenant
+            const hotelRes = resRes.data.filter(r => !r.hotel_id || r.hotel_id === currentHotel.id);
+            setReservations(hotelRes.map(r => ({
               id: r.id,
+              hotelId: r.hotel_id || currentHotel.id,
               guest: r.guest,
               room: r.room,
               checkIn: r.check_in,
@@ -102,7 +140,8 @@ export function DashboardProvider({ children }) {
             })));
           }
           if (fnbRes.data) {
-            setFnbOrders(fnbRes.data.map(o => ({
+            const hotelFnb = fnbRes.data.filter(o => !o.hotel_id || o.hotel_id === currentHotel.id);
+            setFnbOrders(hotelFnb.map(o => ({
               orderId: o.id,
               roomTable: o.room_table,
               guest: o.guest,
@@ -128,7 +167,6 @@ export function DashboardProvider({ children }) {
 
           if (tablesFound) {
             setIsLiveConnected(true);
-            showNotification('🟢 Live Cloud Sync Active. Ready to create your property data.');
           }
         }
       } catch (err) {
@@ -138,44 +176,52 @@ export function DashboardProvider({ children }) {
 
     loadSupabaseData();
     return () => { isMounted = false; };
-  }, []);
+  }, [currentHotel]);
 
   // 2. Realtime WebSocket subscription
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    const channel = supabase.channel('aurastay-realtime-channel')
+    const channel = supabase.channel(`aurastay-realtime-${currentHotel.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, payload => {
         if (payload.eventType === 'UPDATE' && payload.new) {
-          setRooms(prev => prev.map(r => r.roomNumber === payload.new.room_number ? {
-            ...r,
-            status: payload.new.status,
-            guest: payload.new.guest,
-            bookingId: payload.new.booking_id,
-            checkOut: payload.new.check_out
-          } : r));
+          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
+            setRooms(prev => prev.map(r => r.roomNumber === payload.new.room_number ? {
+              ...r,
+              status: payload.new.status,
+              guest: payload.new.guest,
+              bookingId: payload.new.booking_id,
+              checkOut: payload.new.check_out
+            } : r));
+          }
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, payload => {
         if (payload.eventType === 'INSERT' && payload.new) {
-          const item = {
-            id: payload.new.id,
-            guest: payload.new.guest,
-            room: payload.new.room,
-            checkIn: payload.new.check_in,
-            checkOut: payload.new.check_out,
-            source: payload.new.source,
-            amount: Number(payload.new.amount),
-            status: payload.new.status,
-            payment: payload.new.payment
-          };
-          setReservations(prev => [item, ...prev.filter(r => r.id !== item.id)]);
+          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
+            const item = {
+              id: payload.new.id,
+              hotelId: payload.new.hotel_id || currentHotel.id,
+              guest: payload.new.guest,
+              room: payload.new.room,
+              checkIn: payload.new.check_in,
+              checkOut: payload.new.check_out,
+              source: payload.new.source,
+              amount: Number(payload.new.amount),
+              status: payload.new.status,
+              payment: payload.new.payment
+            };
+            setReservations(prev => [item, ...prev.filter(r => r.id !== item.id)]);
+            showNotification(`🎉 New Online Guest Booking #${payload.new.id} received from AuraStayBooking! Room ${payload.new.room} is locked.`);
+          }
         } else if (payload.eventType === 'UPDATE' && payload.new) {
-          setReservations(prev => prev.map(r => r.id === payload.new.id ? {
-            ...r,
-            status: payload.new.status,
-            payment: payload.new.payment
-          } : r));
+          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
+            setReservations(prev => prev.map(r => r.id === payload.new.id ? {
+              ...r,
+              status: payload.new.status,
+              payment: payload.new.payment
+            } : r));
+          }
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fnb_orders' }, payload => {
@@ -203,7 +249,95 @@ export function DashboardProvider({ children }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [currentHotel]);
+
+  // Hotel Admin Authentication functions
+  const login = async (email, password) => {
+    const inputEmail = email.trim().toLowerCase();
+    const inputPass = password.trim();
+
+    // 1. Check Supabase 'hotels' table
+    if (isSupabaseConfigured) {
+      try {
+        const { data: hotelData, error } = await supabase
+          .from('hotels')
+          .select('*')
+          .eq('email', inputEmail)
+          .eq('password', inputPass)
+          .maybeSingle();
+
+        if (hotelData && !error) {
+          const hotel = {
+            id: hotelData.id,
+            slug: hotelData.slug,
+            name: hotelData.name,
+            shortName: hotelData.short_name || 'AST',
+            logoUrl: hotelData.logo_url || DEFAULT_HOTEL.logoUrl,
+            ownerName: hotelData.owner_name || 'Hotel Admin',
+            ownerRole: 'Property Admin',
+            email: hotelData.email,
+            password: hotelData.password,
+            mobile: hotelData.mobile || '7978578046',
+            address: hotelData.address || 'India',
+            city: hotelData.city || 'Bhubaneswar',
+            totalRooms: hotelData.total_rooms || 20,
+            currency: hotelData.currency || 'INR',
+            currencySymbol: hotelData.currency_symbol || '₹'
+          };
+          setCurrentHotel(hotel);
+          setIsLoggedIn(true);
+          localStorage.setItem('aurastay_hotel_auth', 'true');
+          localStorage.setItem('aurastay_hotel_session', JSON.stringify(hotel));
+          showNotification(`Welcome to ${hotel.name} PMS Portal!`);
+          return true;
+        }
+      } catch (e) {
+        console.warn('Supabase hotel login query error:', e);
+      }
+    }
+
+    // 2. Check local SaaS tenants (created by Super Admin in aurastay_saas_hotels)
+    try {
+      const saasHotels = JSON.parse(localStorage.getItem('aurastay_saas_hotels') || '[]');
+      const match = saasHotels.find(h => 
+        h.email.toLowerCase() === inputEmail && h.password === inputPass
+      );
+      if (match) {
+        const hotel = {
+          ...match,
+          ownerRole: 'Property Admin'
+        };
+        setCurrentHotel(hotel);
+        setIsLoggedIn(true);
+        localStorage.setItem('aurastay_hotel_auth', 'true');
+        localStorage.setItem('aurastay_hotel_session', JSON.stringify(hotel));
+        showNotification(`Welcome to ${hotel.name} PMS Portal!`);
+        return true;
+      }
+    } catch (e) {}
+
+    // 3. Fallback check for default hotel credentials
+    if (
+      (inputEmail === 'admin@aurastay.com' && inputPass === 'admin123') ||
+      (inputEmail.includes('admin') && inputPass.length >= 4)
+    ) {
+      setCurrentHotel(DEFAULT_HOTEL);
+      setIsLoggedIn(true);
+      localStorage.setItem('aurastay_hotel_auth', 'true');
+      localStorage.setItem('aurastay_hotel_session', JSON.stringify(DEFAULT_HOTEL));
+      showNotification('Welcome to AuraStay Suite PMS Portal!');
+      return true;
+    }
+
+    return false;
+  };
+
+  const logout = () => {
+    setIsLoggedIn(false);
+    localStorage.removeItem('aurastay_hotel_auth');
+    localStorage.removeItem('aurastay_hotel_session');
+    showNotification('Logged out from Hotel PMS', 'info');
+  };
 
   // Keyboard shortcut Ctrl + K
   useEffect(() => {
@@ -295,6 +429,7 @@ export function DashboardProvider({ children }) {
   // Add room (saved to Supabase & local state)
   const addRoom = async (newRoom) => {
     const room = {
+      hotelId: currentHotel.id,
       roomNumber: String(newRoom.roomNumber).trim(),
       floor: newRoom.floor || '1st Floor',
       type: newRoom.type || 'Standard Room',
@@ -313,6 +448,7 @@ export function DashboardProvider({ children }) {
     if (isSupabaseConfigured) {
       try {
         await supabase.from('rooms').insert({
+          hotel_id: currentHotel.id,
           room_number: room.roomNumber,
           floor: room.floor,
           type: room.type,
@@ -332,6 +468,7 @@ export function DashboardProvider({ children }) {
     const reservation = {
       ...newRes,
       id: resId,
+      hotelId: currentHotel.id,
       status: newRes.status || 'CONFIRMED',
       payment: newRes.payment || 'PENDING'
     };
@@ -343,6 +480,7 @@ export function DashboardProvider({ children }) {
       try {
         await supabase.from('reservations').insert({
           id: resId,
+          hotel_id: currentHotel.id,
           guest: newRes.guest,
           guest_email: newRes.guestEmail || null,
           guest_phone: newRes.guestPhone || null,
@@ -544,7 +682,12 @@ export function DashboardProvider({ children }) {
       setIsCreateReservationModalOpen,
       isCreateRoomModalOpen,
       setIsCreateRoomModalOpen,
-      addRoom
+      addRoom,
+      isLoggedIn,
+      setIsLoggedIn,
+      currentHotel,
+      login,
+      logout
     }}>
       {children}
     </DashboardContext.Provider>

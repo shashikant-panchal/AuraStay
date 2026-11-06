@@ -17,7 +17,8 @@ import {
   SlidersHorizontal,
   BookOpen,
   ChevronRight,
-  LayoutGrid
+  LayoutGrid,
+  LogOut
 } from 'lucide-react';
 
 export default function Header() {
@@ -31,7 +32,9 @@ export default function Header() {
     setIsSearchOpen,
     resetToDefaults,
     subModuleTitle,
-    isLiveConnected
+    isLiveConnected,
+    currentHotel,
+    logout
   } = useDashboard();
 
   const { property } = data;
@@ -74,7 +77,7 @@ export default function Header() {
                   {greeting.text}
                 </div>
                 <div className="text-sm font-bold text-slate-800 leading-tight flex items-center space-x-1.5">
-                  <span>{property.managerName}</span>
+                  <span>{currentHotel?.ownerName || property.managerName}</span>
                   <span className="text-slate-400 text-xs font-normal">({property.managerRole})</span>
                 </div>
               </div>
@@ -106,41 +109,26 @@ export default function Header() {
 
           {/* Property Selector */}
           <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200/90 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-slate-100 transition shadow-xs">
-            <Building2 className="w-4 h-4 text-slate-700" />
-            <span className="text-xs font-bold text-slate-800">AuraStay Suite</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            <Building2 className="w-4 h-4 text-[#0e4860]" />
+            <span className="text-xs font-bold text-slate-800">{currentHotel?.name || 'AuraStay Suite'}</span>
           </div>
 
-          {/* Mini Search Icon */}
-          <button
-            onClick={() => setIsSearchOpen(true)}
-            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
-            title="Search"
-          >
-            <Search className="w-4 h-4" />
-          </button>
+          {/* User Profile Avatar & Logout */}
+          <div className="flex items-center space-x-1.5 pl-2 border-l border-slate-200">
+            <div 
+              className="w-8 h-8 rounded-full bg-[#0b2b48] text-white flex items-center justify-center font-bold text-xs shadow-xs cursor-pointer ring-2 ring-indigo-100"
+              title={`${currentHotel?.ownerName || 'Admin'} (${currentHotel?.name || 'AuraStay'})`}
+            >
+              <User className="w-4 h-4" />
+            </div>
 
-          {/* Language Switcher */}
-          <button
-            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition text-xs font-bold font-serif"
-            title="Language: English"
-          >
-            文A
-          </button>
-
-          {/* Notification Bell */}
-          <div className="relative cursor-pointer p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition">
-            <Bell className="w-4 h-4" />
-            {property.notificationCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">
-                {property.notificationCount}
-              </span>
-            )}
-          </div>
-
-          {/* User Profile Avatar */}
-          <div className="w-8 h-8 rounded-full bg-[#0b2b48] text-white flex items-center justify-center font-bold text-xs shadow-xs cursor-pointer ring-2 ring-indigo-100">
-            <User className="w-4 h-4" />
+            <button
+              onClick={logout}
+              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+              title="Sign Out from Hotel PMS"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>

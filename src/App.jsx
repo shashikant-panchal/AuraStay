@@ -40,10 +40,20 @@ import CreateReservationModal from './components/modals/CreateReservationModal';
 import CreateRoomModal from './components/modals/CreateRoomModal';
 import NotificationToast from './components/NotificationToast';
 import ErrorBoundary from './components/ErrorBoundary';
+import HotelAdminLogin from './components/HotelAdminLogin';
 import { LogOut } from 'lucide-react';
 
 export default function App() {
-  const { currentView, activeTab, showNotification } = useDashboard();
+  const { currentView, activeTab, showNotification, isLoggedIn } = useDashboard();
+
+  if (!isLoggedIn) {
+    return (
+      <ErrorBoundary>
+        <HotelAdminLogin />
+        <NotificationToast />
+      </ErrorBoundary>
+    );
+  }
 
   const renderContent = () => {
     switch (currentView) {
