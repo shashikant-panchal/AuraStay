@@ -248,11 +248,11 @@ export default function ReservationManagementView({ isSubTab = false }) {
             </span>
           </div>
           <div className="text-2xl font-black text-rose-500">
-            0
+            {contextReservations.filter(r => r.status === 'PENDING').length}
           </div>
           <div className="flex items-center space-x-1 text-xs font-semibold text-slate-500 mt-2">
             <Bed className="w-3.5 h-3.5 text-slate-400" />
-            <span>0 Rooms</span>
+            <span>{contextReservations.filter(r => r.status === 'PENDING').length} Rooms</span>
           </div>
         </div>
 
@@ -267,11 +267,11 @@ export default function ReservationManagementView({ isSubTab = false }) {
             </div>
           </div>
           <div className="text-2xl font-black text-slate-900">
-            1
+            {contextReservations.filter(r => r.status === 'CONFIRMED').length}
           </div>
           <div className="flex items-center space-x-1 text-xs font-semibold text-slate-500 mt-2">
             <Bed className="w-3.5 h-3.5 text-slate-400" />
-            <span>1 Rooms</span>
+            <span>{contextReservations.filter(r => r.status === 'CONFIRMED').length} Rooms</span>
           </div>
         </div>
 
@@ -286,11 +286,11 @@ export default function ReservationManagementView({ isSubTab = false }) {
             </div>
           </div>
           <div className="text-2xl font-black text-slate-900">
-            238
+            {rooms.filter(r => r.status === 'OCCUPIED').length}
           </div>
           <div className="flex items-center space-x-1 text-xs font-semibold text-slate-500 mt-2">
             <Bed className="w-3.5 h-3.5 text-slate-400" />
-            <span>262 Rooms</span>
+            <span>{rooms.filter(r => r.status === 'OCCUPIED').length} Rooms</span>
           </div>
         </div>
 
@@ -305,11 +305,11 @@ export default function ReservationManagementView({ isSubTab = false }) {
             </div>
           </div>
           <div className="text-2xl font-black text-slate-900">
-            0
+            {rooms.filter(r => r.status === 'DIRTY').length}
           </div>
           <div className="flex items-center space-x-1 text-xs font-semibold text-slate-500 mt-2">
             <Bed className="w-3.5 h-3.5 text-slate-400" />
-            <span>0 Rooms</span>
+            <span>{rooms.filter(r => r.status === 'DIRTY').length} Rooms</span>
           </div>
         </div>
 
@@ -324,11 +324,11 @@ export default function ReservationManagementView({ isSubTab = false }) {
             </div>
           </div>
           <div className="text-2xl font-black text-slate-900">
-            6
+            {rooms.filter(r => r.checkOut && r.checkOut <= new Date().toISOString().split('T')[0]).length}
           </div>
           <div className="flex items-center space-x-1 text-xs font-semibold text-slate-500 mt-2">
             <Bed className="w-3.5 h-3.5 text-slate-400" />
-            <span>6 Rooms</span>
+            <span>{rooms.filter(r => r.checkOut && r.checkOut <= new Date().toISOString().split('T')[0]).length} Rooms</span>
           </div>
         </div>
 

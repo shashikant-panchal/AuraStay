@@ -184,7 +184,24 @@ export function DashboardProvider({ children }) {
 
     const channel = supabase.channel(`aurastay-realtime-${currentHotel.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, payload => {
-        if (payload.eventType === 'UPDATE' && payload.new) {
+        if (payload.eventType === 'INSERT' && payload.new) {
+          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
+            const newRm = {
+              id: payload.new.id,
+              hotelId: payload.new.hotel_id || currentHotel.id,
+              roomNumber: payload.new.room_number,
+              floor: payload.new.floor,
+              type: payload.new.type,
+              bed: payload.new.bed,
+              status: payload.new.status,
+              price: Number(payload.new.price),
+              guest: payload.new.guest,
+              bookingId: payload.new.booking_id,
+              checkOut: payload.new.check_out
+            };
+            setRooms(prev => [newRm, ...prev.filter(r => r.roomNumber !== newRm.roomNumber)]);
+          }
+        } else if (payload.eventType === 'UPDATE' && payload.new) {
           if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
             setRooms(prev => prev.map(r => r.roomNumber === payload.new.room_number ? {
               ...r,
@@ -194,6 +211,8 @@ export function DashboardProvider({ children }) {
               checkOut: payload.new.check_out
             } : r));
           }
+        } else if (payload.eventType === 'DELETE' && payload.old) {
+          setRooms(prev => prev.filter(r => r.id !== payload.old.id && r.roomNumber !== payload.old.room_number));
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, payload => {
@@ -447,15 +466,22 @@ export function DashboardProvider({ children }) {
 
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('rooms').insert({
-          hotel_id: currentHotel.id,
+        const payload = {
           room_number: room.roomNumber,
           floor: room.floor,
           type: room.type,
           bed: room.bed,
           status: 'VACANT_READY',
           price: room.price
+        };
+        const { error } = await supabase.from('rooms').insert({
+          ...payload,
+          hotel_id: currentHotel.id
         });
+        if (error && (error.code === 'PGRST204' || error.message?.includes('hotel_id'))) {
+          // Schema does not have hotel_id yet, fallback insert without hotel_id
+          await supabase.from('rooms').insert(payload);
+        }
       } catch (err) {
         console.warn('Supabase room insert error:', err);
       }
@@ -478,9 +504,8 @@ export function DashboardProvider({ children }) {
 
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('reservations').insert({
+        const payload = {
           id: resId,
-          hotel_id: currentHotel.id,
           guest: newRes.guest,
           guest_email: newRes.guestEmail || null,
           guest_phone: newRes.guestPhone || null,
@@ -489,9 +514,16 @@ export function DashboardProvider({ children }) {
           check_out: newRes.checkOut,
           source: newRes.source || 'Direct Website',
           amount: newRes.amount || 4000,
-          status: 'CONFIRMED',
-          payment: 'PENDING'
+          status: newRes.status || 'CONFIRMED',
+          payment: newRes.payment || 'PENDING'
+        };
+        const { error } = await supabase.from('reservations').insert({
+          ...payload,
+          hotel_id: currentHotel.id
         });
+        if (error && (error.code === 'PGRST204' || error.message?.includes('hotel_id'))) {
+          await supabase.from('reservations').insert(payload);
+        }
       } catch (err) {
         console.warn('Supabase reservation insert sync pending table setup', err);
       }

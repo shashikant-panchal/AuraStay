@@ -143,8 +143,8 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">TOTAL ROOMS</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">28</div>
-            <div className="text-[11px] font-medium text-slate-500 mt-0.5">1 Booked</div>
+            <div className="text-2xl font-black text-slate-900">{contextRooms.length}</div>
+            <div className="text-[11px] font-medium text-slate-500 mt-0.5">{contextRooms.filter(r => r.status === 'OCCUPIED').length} Booked</div>
           </div>
         </div>
 
