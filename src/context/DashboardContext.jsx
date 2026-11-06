@@ -488,6 +488,21 @@ export function DashboardProvider({ children }) {
     }
   };
 
+  // Delete room
+  const deleteRoom = async (roomNumber) => {
+    const num = String(roomNumber).trim();
+    setRooms(prev => prev.filter(r => String(r.roomNumber) !== num));
+    showNotification(`Room ${num} removed from inventory.`);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('rooms').delete().eq('room_number', num);
+      } catch (err) {
+        console.warn('Supabase room delete error:', err);
+      }
+    }
+  };
+
   // Add reservation
   const addReservation = async (newRes) => {
     const resId = newRes.id || `AST-B-${(reservations?.length || 0) + 101}`;
@@ -715,6 +730,7 @@ export function DashboardProvider({ children }) {
       isCreateRoomModalOpen,
       setIsCreateRoomModalOpen,
       addRoom,
+      deleteRoom,
       isLoggedIn,
       setIsLoggedIn,
       currentHotel,

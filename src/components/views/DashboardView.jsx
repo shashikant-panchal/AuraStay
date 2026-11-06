@@ -30,32 +30,22 @@ import {
   Receipt
 } from 'lucide-react';
 
-// 17 Luxury Suites
-const INITIAL_SUITES = [
-  { id: '101', number: '101', floor: 'Floor 1', category: 'Standard Garden Villa', tariff: 14500, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '102', number: '102', floor: 'Floor 1', category: 'Standard Garden Villa', tariff: 14500, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '103', number: '103', floor: 'Floor 1', category: 'Standard Garden Villa', tariff: 14500, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '104', number: '104', floor: 'Floor 1', category: 'Standard Garden Villa', tariff: 14500, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '105', number: '105', floor: 'Floor 1', category: 'Standard Garden Villa', tariff: 14500, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '201', number: '201', floor: 'Floor 2', category: 'Superior Pool Suite', tariff: 18500, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '202', number: '202', floor: 'Floor 2', category: 'Superior Pool Suite', tariff: 18500, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '203', number: '203', floor: 'Floor 2', category: 'Superior Pool Suite', tariff: 18500, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '204', number: '204', floor: 'Floor 2', category: 'Superior Pool Suite', tariff: 18500, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '301', number: '301', floor: 'Floor 3', category: 'Deluxe Ocean Villa', tariff: 24000, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '302', number: '302', floor: 'Floor 3', category: 'Deluxe Ocean Villa', tariff: 24000, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '303', number: '303', floor: 'Floor 3', category: 'Deluxe Ocean Villa', tariff: 24000, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '304', number: '304', floor: 'Floor 3', category: 'Deluxe Ocean Villa', tariff: 24000, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '401', number: '401', floor: 'Floor 4', category: 'Royal Penthouse Suite', tariff: 38000, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '402', number: '402', floor: 'Floor 4', category: 'Royal Penthouse Suite', tariff: 38000, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '501', number: '501', floor: 'Floor 5', category: 'Presidential Villa', tariff: 55000, status: 'Available', housekeeping: 'Clean', bookings: [] },
-  { id: '502', number: '502', floor: 'Floor 5', category: 'Presidential Villa', tariff: 55000, status: 'Available', housekeeping: 'Clean', bookings: [] },
-];
-
 export default function DashboardView() {
-  const { showNotification, reservations = [] } = useDashboard();
+  const { showNotification, reservations = [], rooms = [], addReservation, updateRoomStatus, setIsCreateRoomModalOpen } = useDashboard();
 
-  // Suites state
-  const [suites, setSuites] = useState(INITIAL_SUITES);
+  // Dynamic suites mapped directly from real rooms in Supabase / Context
+  const suites = useMemo(() => {
+    return rooms.map(r => ({
+      id: String(r.id || r.room_number || r.roomNumber),
+      number: String(r.room_number || r.roomNumber || r.id),
+      floor: r.floor ? (String(r.floor).startsWith('Floor') ? r.floor : `Floor ${r.floor}`) : 'Floor 1',
+      category: r.type || r.category || 'Standard Room',
+      tariff: Number(r.price || r.tariff) || 2000,
+      status: r.status === 'OCCUPIED' ? 'Occupied' : r.status === 'MAINTENANCE' ? 'Maintenance' : 'Available',
+      housekeeping: r.housekeeping || (r.status === 'DIRTY' ? 'Maintenance' : 'Clean'),
+      bookings: []
+    }));
+  }, [rooms]);
 
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,6 +53,18 @@ export default function DashboardView() {
   // Category filter
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+
+  // Dynamic categories list from real rooms
+  const categoryOptions = useMemo(() => {
+    const cats = Array.from(new Set(suites.map(s => s.category).filter(Boolean)));
+    return [
+      { id: 'ALL', label: `All Categories (${suites.length} Rooms)` },
+      ...cats.map(c => ({
+        id: c,
+        label: `${c} (${suites.filter(s => s.category === c).length})`
+      }))
+    ];
+  }, [suites]);
 
   // Date Navigator state (Base anchored at 04 Nov 2026)
   const [baseDate, setBaseDate] = useState(new Date(2026, 10, 4)); // Nov 4, 2026
@@ -137,22 +139,11 @@ export default function DashboardView() {
     showNotification('Navigated to Today (06 Nov 2026)');
   };
 
-  // Categories list
-  const categoryOptions = [
-    { id: 'ALL', label: 'All Categories (17 Suites)' },
-    { id: 'Standard Garden Villa', label: 'Standard Garden Villa (5)' },
-    { id: 'Superior Pool Suite', label: 'Superior Pool Suite (4)' },
-    { id: 'Deluxe Ocean Villa', label: 'Deluxe Ocean Villa (4)' },
-    { id: 'Royal Penthouse Suite', label: 'Royal Penthouse Suite (2)' },
-    { id: 'Presidential Villa', label: 'Presidential Villa (2)' },
-  ];
-
   // Combined suites with live reservations from context (if any)
   const combinedSuites = useMemo(() => {
     return suites.map(suite => {
       const contextBookings = (reservations || [])
         .filter(r => (String(r.room) === suite.number || String(r.roomNumber) === suite.number))
-        .filter(r => !suite.bookings.some(b => b.id === r.id))
         .map(r => ({
           id: r.id ? (String(r.id).startsWith('AURA-') ? r.id : `AURA-${r.id}`) : `AURA-${Math.floor(1000 + Math.random() * 9000)}`,
           guest: r.guest || r.guestName || 'Guest',
@@ -204,18 +195,19 @@ export default function DashboardView() {
 
   // Quick Housekeeping toggle
   const cycleHousekeeping = (suiteId) => {
+    const s = suites.find(item => item.id === suiteId);
+    if (!s) return;
     const flow = ['Clean', 'Inspected', 'Turn-Down', 'Maintenance'];
-    setSuites(prev => prev.map(s => {
-      if (s.id !== suiteId) return s;
-      const curIdx = flow.indexOf(s.housekeeping);
-      const nextHk = flow[(curIdx + 1) % flow.length];
-      showNotification(`Suite ${s.number} status updated to ${nextHk}`);
-      return { ...s, housekeeping: nextHk };
-    }));
+    const curIdx = flow.indexOf(s.housekeeping);
+    const nextHk = flow[(curIdx + 1) % flow.length];
+    if (updateRoomStatus) {
+      updateRoomStatus(s.number, nextHk === 'Clean' ? 'VACANT_READY' : nextHk === 'Maintenance' ? 'MAINTENANCE' : 'DIRTY');
+    }
+    showNotification(`Suite ${s.number} status updated to ${nextHk}`);
   };
 
   // Quick Booking Submission
-  const handleConfirmQuickBooking = (e) => {
+  const handleConfirmQuickBooking = async (e) => {
     e.preventDefault();
     if (!quickBookingSlot || !quickGuestName.trim()) {
       showNotification('Please enter a valid guest name.');
@@ -232,36 +224,26 @@ export default function DashboardView() {
     const dd = String(checkOutDate.getDate()).padStart(2, '0');
     const checkOutStr = `${yyyy}-${mm}-${dd}`;
 
-    const newBookingId = `AURA-${Math.floor(1000 + Math.random() * 9000)}`;
     const totalAmount = suite.tariff * Number(quickNights) * 1.18;
 
-    const newBooking = {
-      id: newBookingId,
-      guest: quickGuestName.trim(),
-      nights: Number(quickNights),
-      checkIn: date.dateStr,
-      checkOut: checkOutStr,
-      source: quickSource,
-      channelDots: ['#10b981', '#8b5cf6'],
-      status: 'Reserved',
-      vip: false,
-      totalAmount: Math.round(totalAmount),
-      paidAmount: Math.round(totalAmount),
-      phone: quickPhone || '+91 98000 00000',
-      email: `${quickGuestName.toLowerCase().replace(/\s+/g, '.')}@guest.com`,
-      idType: 'Aadhaar / ID Card'
-    };
+    if (addReservation) {
+      await addReservation({
+        guest: quickGuestName.trim(),
+        room: suite.number,
+        roomNumber: suite.number,
+        nights: Number(quickNights),
+        checkIn: date.dateStr,
+        checkOut: checkOutStr,
+        source: quickSource,
+        status: 'CONFIRMED',
+        payment: 'PAID',
+        amount: Math.round(totalAmount),
+        phone: quickPhone || '+91 98000 00000',
+        email: `${quickGuestName.toLowerCase().replace(/\s+/g, '.')}@guest.com`
+      });
+    }
 
-    setSuites(prev => prev.map(s => {
-      if (s.id !== suite.id) return s;
-      return {
-        ...s,
-        status: 'Reserved',
-        bookings: [...s.bookings, newBooking]
-      };
-    }));
-
-    showNotification(`Suite ${suite.number} booked for ${newBooking.guest} (${newBooking.id})!`);
+    showNotification(`Suite ${suite.number} booked for ${quickGuestName.trim()}!`);
     setQuickBookingSlot(null);
     setQuickGuestName('');
     setQuickPhone('');
@@ -467,11 +449,24 @@ export default function DashboardView() {
               </div>
             </div>
 
-            {/* TABLE BODY (17 SUITE ROWS) */}
+            {/* TABLE BODY */}
             <div className="divide-y divide-slate-200/80">
               {filteredSuites.length === 0 ? (
-                <div className="p-12 text-center text-slate-400 text-xs">
-                  No suites match the applied search query or category filter.
+                <div className="p-16 text-center text-slate-500 text-xs flex flex-col items-center justify-center space-y-3">
+                  <BedDouble className="w-8 h-8 text-slate-300" />
+                  <p className="font-semibold text-slate-700">
+                    {suites.length === 0
+                      ? 'No rooms created yet. Add rooms to view them on the Stayview timeline.'
+                      : 'No suites match the applied search query or category filter.'}
+                  </p>
+                  {suites.length === 0 && (
+                    <button
+                      onClick={() => setIsCreateRoomModalOpen && setIsCreateRoomModalOpen(true)}
+                      className="px-4 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white text-xs font-bold rounded-xl shadow-xs transition"
+                    >
+                      + Add First Room
+                    </button>
+                  )}
                 </div>
               ) : (
                 filteredSuites.map((suite) => {
