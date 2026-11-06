@@ -30,453 +30,29 @@ import {
   Receipt
 } from 'lucide-react';
 
-// Exact 17 Luxury Suites matching the screenshot & concept
+// 17 Luxury Suites
 const INITIAL_SUITES = [
-  {
-    id: '101',
-    number: '101',
-    floor: 'Floor 1',
-    category: 'Standard Garden Villa',
-    tariff: 14500,
-    status: 'Occupied',
-    housekeeping: 'Clean',
-    bookings: [
-      {
-        id: 'AURA-3921',
-        guest: 'Dr. Rajesh Mehra',
-        nights: 4,
-        checkIn: '2026-11-04',
-        checkOut: '2026-11-08',
-        source: 'MakeMyTrip',
-        channelDots: ['#ef4444', '#10b981', '#3b82f6'],
-        status: 'Occupied',
-        vip: false,
-        totalAmount: 68440,
-        paidAmount: 68440,
-        phone: '+91 98201 34921',
-        email: 'r.mehra@aiims.edu',
-        idType: 'Aadhaar Card'
-      }
-    ]
-  },
-  {
-    id: '102',
-    number: '102',
-    floor: 'Floor 1',
-    category: 'Standard Garden Villa',
-    tariff: 14500,
-    status: 'Reserved',
-    housekeeping: 'Clean',
-    bookings: [
-      {
-        id: 'AURA-4105',
-        guest: 'Ananya Roy',
-        nights: 3,
-        checkIn: '2026-11-07',
-        checkOut: '2026-11-10',
-        source: 'Booking.com',
-        channelDots: ['#8b5cf6', '#06b6d4'],
-        status: 'Reserved',
-        vip: false,
-        totalAmount: 51330,
-        paidAmount: 25000,
-        phone: '+91 97112 88201',
-        email: 'ananya.roy@gmail.com',
-        idType: 'Passport'
-      }
-    ]
-  },
-  {
-    id: '103',
-    number: '103',
-    floor: 'Floor 1',
-    category: 'Standard Garden Villa',
-    tariff: 14500,
-    status: 'Reserved',
-    housekeeping: 'Inspected',
-    bookings: [
-      {
-        id: 'AURA-7160',
-        guest: 'Nitin',
-        nights: 3,
-        checkIn: '2026-11-03',
-        checkOut: '2026-11-06',
-        source: 'Direct VIP',
-        channelDots: ['#f59e0b', '#10b981'],
-        status: 'Occupied',
-        vip: true,
-        totalAmount: 51330,
-        paidAmount: 51330,
-        phone: '+91 79785 78046',
-        email: 'nitin@aurastay.com',
-        idType: 'Aadhaar Card (KYC Verified)'
-      },
-      {
-        id: 'AURA-2611',
-        guest: 'Arjun Singhal',
-        nights: 3,
-        checkIn: '2026-11-06',
-        checkOut: '2026-11-09',
-        source: 'Agoda VIP',
-        channelDots: ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#8b5cf6'],
-        status: 'Reserved',
-        vip: false,
-        totalAmount: 51330,
-        paidAmount: 51330,
-        phone: '+91 98102 33490',
-        email: 'arjun.singhal@singhalgroup.in',
-        idType: 'Driving License'
-      }
-    ]
-  },
-  {
-    id: '104',
-    number: '104',
-    floor: 'Floor 1',
-    category: 'Standard Garden Villa',
-    tariff: 14500,
-    status: 'Available',
-    housekeeping: 'Clean',
-    bookings: [
-      {
-        id: 'AURA-8812',
-        guest: 'Pooja Sharma',
-        nights: 2,
-        checkIn: '2026-11-08',
-        checkOut: '2026-11-10',
-        source: 'Direct Web',
-        channelDots: ['#10b981', '#3b82f6'],
-        status: 'Reserved',
-        vip: false,
-        totalAmount: 34220,
-        paidAmount: 34220,
-        phone: '+91 99201 44820',
-        email: 'pooja.sharma@tcs.com',
-        idType: 'Aadhaar Card'
-      }
-    ]
-  },
-  {
-    id: '105',
-    number: '105',
-    floor: 'Floor 1',
-    category: 'Standard Garden Villa',
-    tariff: 14500,
-    status: 'Cleaning',
-    housekeeping: 'Turn-Down',
-    bookings: [
-      {
-        id: 'AURA-5519',
-        guest: 'Siddharth Rao',
-        nights: 3,
-        checkIn: '2026-11-10',
-        checkOut: '2026-11-13',
-        source: 'Expedia',
-        channelDots: ['#f59e0b', '#8b5cf6'],
-        status: 'Reserved',
-        vip: false,
-        totalAmount: 51330,
-        paidAmount: 51330,
-        phone: '+91 98450 12099',
-        email: 'siddharth.rao@wipro.com',
-        idType: 'Passport'
-      }
-    ]
-  },
-  {
-    id: '201',
-    number: '201',
-    floor: 'Floor 2',
-    category: 'Superior Pool Suite',
-    tariff: 18500,
-    status: 'Occupied',
-    housekeeping: 'Clean',
-    bookings: [
-      {
-        id: 'AURA-9011',
-        guest: 'Vikramaditya Oberoi',
-        nights: 5,
-        checkIn: '2026-11-04',
-        checkOut: '2026-11-09',
-        source: 'Luxury Escapes',
-        channelDots: ['#f59e0b', '#10b981', '#8b5cf6'],
-        status: 'Occupied',
-        vip: true,
-        totalAmount: 109150,
-        paidAmount: 109150,
-        phone: '+91 98210 99011',
-        email: 'voberoi@oberoiholdings.com',
-        idType: 'Passport'
-      }
-    ]
-  },
-  {
-    id: '202',
-    number: '202',
-    floor: 'Floor 2',
-    category: 'Superior Pool Suite',
-    tariff: 18500,
-    status: 'Reserved',
-    housekeeping: 'Inspected',
-    bookings: [
-      {
-        id: 'AURA-1244',
-        guest: 'Meera Nair',
-        nights: 2,
-        checkIn: '2026-11-06',
-        checkOut: '2026-11-08',
-        source: 'Booking.com',
-        channelDots: ['#06b6d4', '#8b5cf6'],
-        status: 'Reserved',
-        vip: false,
-        totalAmount: 43660,
-        paidAmount: 43660,
-        phone: '+91 97401 22844',
-        email: 'meera.nair@infosys.com',
-        idType: 'Aadhaar Card'
-      }
-    ]
-  },
-  {
-    id: '203',
-    number: '203',
-    floor: 'Floor 2',
-    category: 'Superior Pool Suite',
-    tariff: 18500,
-    status: 'Available',
-    housekeeping: 'Clean',
-    bookings: [
-      {
-        id: 'AURA-7733',
-        guest: 'Karan Johar',
-        nights: 4,
-        checkIn: '2026-11-09',
-        checkOut: '2026-11-13',
-        source: 'Direct VIP',
-        channelDots: ['#f59e0b', '#10b981'],
-        status: 'Reserved',
-        vip: true,
-        totalAmount: 87320,
-        paidAmount: 87320,
-        phone: '+91 98200 77330',
-        email: 'karan@dharma.com',
-        idType: 'Passport'
-      }
-    ]
-  },
-  {
-    id: '204',
-    number: '204',
-    floor: 'Floor 2',
-    category: 'Superior Pool Suite',
-    tariff: 18500,
-    status: 'Maintenance',
-    housekeeping: 'Maintenance',
-    bookings: []
-  },
-  {
-    id: '301',
-    number: '301',
-    floor: 'Floor 3',
-    category: 'Deluxe Ocean Villa',
-    tariff: 24000,
-    status: 'Occupied',
-    housekeeping: 'Clean',
-    bookings: [
-      {
-        id: 'AURA-6022',
-        guest: 'Rohan Gupta',
-        nights: 4,
-        checkIn: '2026-11-05',
-        checkOut: '2026-11-09',
-        source: 'MakeMyTrip Black',
-        channelDots: ['#ef4444', '#10b981', '#06b6d4'],
-        status: 'Occupied',
-        vip: false,
-        totalAmount: 113280,
-        paidAmount: 113280,
-        phone: '+91 98110 60220',
-        email: 'rohan.gupta@zomato.com',
-        idType: 'Aadhaar Card'
-      }
-    ]
-  },
-  {
-    id: '302',
-    number: '302',
-    floor: 'Floor 3',
-    category: 'Deluxe Ocean Villa',
-    tariff: 24000,
-    status: 'Reserved',
-    housekeeping: 'Clean',
-    bookings: [
-      {
-        id: 'AURA-3310',
-        guest: 'Sneha Kulkarni',
-        nights: 3,
-        checkIn: '2026-11-06',
-        checkOut: '2026-11-09',
-        source: 'Direct Web',
-        channelDots: ['#10b981', '#8b5cf6'],
-        status: 'Reserved',
-        vip: true,
-        totalAmount: 84960,
-        paidAmount: 84960,
-        phone: '+91 98220 33100',
-        email: 'sneha.kulkarni@bajaj.com',
-        idType: 'Driving License'
-      }
-    ]
-  },
-  {
-    id: '303',
-    number: '303',
-    floor: 'Floor 3',
-    category: 'Deluxe Ocean Villa',
-    tariff: 24000,
-    status: 'Available',
-    housekeeping: 'Clean',
-    bookings: [
-      {
-        id: 'AURA-9801',
-        guest: 'David Miller',
-        nights: 5,
-        checkIn: '2026-11-10',
-        checkOut: '2026-11-15',
-        source: 'Expedia Global',
-        channelDots: ['#f59e0b', '#3b82f6', '#8b5cf6'],
-        status: 'Reserved',
-        vip: false,
-        totalAmount: 141600,
-        paidAmount: 141600,
-        phone: '+44 7911 129801',
-        email: 'd.miller@londonbridge.co.uk',
-        idType: 'Passport (UK)'
-      }
-    ]
-  },
-  {
-    id: '304',
-    number: '304',
-    floor: 'Floor 3',
-    category: 'Deluxe Ocean Villa',
-    tariff: 24000,
-    status: 'Reserved',
-    housekeeping: 'Inspected',
-    bookings: [
-      {
-        id: 'AURA-4490',
-        guest: 'Tanvi Deshmukh',
-        nights: 2,
-        checkIn: '2026-11-07',
-        checkOut: '2026-11-09',
-        source: 'Agoda',
-        channelDots: ['#06b6d4', '#10b981'],
-        status: 'Reserved',
-        vip: false,
-        totalAmount: 56640,
-        paidAmount: 56640,
-        phone: '+91 98200 44900',
-        email: 'tanvi@deshmukh.in',
-        idType: 'Aadhaar Card'
-      }
-    ]
-  },
-  {
-    id: '401',
-    number: '401',
-    floor: 'Floor 4',
-    category: 'Royal Penthouse Suite',
-    tariff: 38000,
-    status: 'Occupied',
-    housekeeping: 'Inspected',
-    bookings: [
-      {
-        id: 'AURA-1002',
-        guest: 'Aditya Birla Group',
-        nights: 7,
-        checkIn: '2026-11-03',
-        checkOut: '2026-11-10',
-        source: 'Corporate Direct',
-        channelDots: ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'],
-        status: 'Occupied',
-        vip: true,
-        totalAmount: 314260,
-        paidAmount: 314260,
-        phone: '+91 98200 10022',
-        email: 'executive.travel@adityabirla.com',
-        idType: 'Corporate GSTIN'
-      }
-    ]
-  },
-  {
-    id: '402',
-    number: '402',
-    floor: 'Floor 4',
-    category: 'Royal Penthouse Suite',
-    tariff: 38000,
-    status: 'Available',
-    housekeeping: 'Clean',
-    bookings: [
-      {
-        id: 'AURA-5211',
-        guest: 'Kavita Krishnan',
-        nights: 3,
-        checkIn: '2026-11-08',
-        checkOut: '2026-11-11',
-        source: 'Direct Web',
-        channelDots: ['#10b981', '#06b6d4'],
-        status: 'Reserved',
-        vip: false,
-        totalAmount: 134520,
-        paidAmount: 134520,
-        phone: '+91 98440 52110',
-        email: 'kavita.krishnan@swiggy.in',
-        idType: 'Aadhaar Card'
-      }
-    ]
-  },
-  {
-    id: '501',
-    number: '501',
-    floor: 'Floor 5',
-    category: 'Presidential Villa',
-    tariff: 55000,
-    status: 'Reserved',
-    housekeeping: 'Inspected',
-    bookings: [
-      {
-        id: 'AURA-0001',
-        guest: 'Prince Al-Sabah',
-        nights: 5,
-        checkIn: '2026-11-06',
-        checkOut: '2026-11-11',
-        source: 'Diplomatic Channel',
-        channelDots: ['#f59e0b', '#10b981', '#8b5cf6', '#06b6d4', '#ef4444'],
-        status: 'Reserved',
-        vip: true,
-        totalAmount: 324500,
-        paidAmount: 324500,
-        phone: '+965 9912 0001',
-        email: 'protocol@alsabah.gov.kw',
-        idType: 'Diplomatic Passport'
-      }
-    ]
-  },
-  {
-    id: '502',
-    number: '502',
-    floor: 'Floor 5',
-    category: 'Presidential Villa',
-    tariff: 55000,
-    status: 'Available',
-    housekeeping: 'Clean',
-    bookings: []
-  }
+  { id: '101', number: '101', floor: 'Floor 1', category: 'Standard Garden Villa', tariff: 14500, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '102', number: '102', floor: 'Floor 1', category: 'Standard Garden Villa', tariff: 14500, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '103', number: '103', floor: 'Floor 1', category: 'Standard Garden Villa', tariff: 14500, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '104', number: '104', floor: 'Floor 1', category: 'Standard Garden Villa', tariff: 14500, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '105', number: '105', floor: 'Floor 1', category: 'Standard Garden Villa', tariff: 14500, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '201', number: '201', floor: 'Floor 2', category: 'Superior Pool Suite', tariff: 18500, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '202', number: '202', floor: 'Floor 2', category: 'Superior Pool Suite', tariff: 18500, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '203', number: '203', floor: 'Floor 2', category: 'Superior Pool Suite', tariff: 18500, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '204', number: '204', floor: 'Floor 2', category: 'Superior Pool Suite', tariff: 18500, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '301', number: '301', floor: 'Floor 3', category: 'Deluxe Ocean Villa', tariff: 24000, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '302', number: '302', floor: 'Floor 3', category: 'Deluxe Ocean Villa', tariff: 24000, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '303', number: '303', floor: 'Floor 3', category: 'Deluxe Ocean Villa', tariff: 24000, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '304', number: '304', floor: 'Floor 3', category: 'Deluxe Ocean Villa', tariff: 24000, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '401', number: '401', floor: 'Floor 4', category: 'Royal Penthouse Suite', tariff: 38000, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '402', number: '402', floor: 'Floor 4', category: 'Royal Penthouse Suite', tariff: 38000, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '501', number: '501', floor: 'Floor 5', category: 'Presidential Villa', tariff: 55000, status: 'Available', housekeeping: 'Clean', bookings: [] },
+  { id: '502', number: '502', floor: 'Floor 5', category: 'Presidential Villa', tariff: 55000, status: 'Available', housekeeping: 'Clean', bookings: [] },
 ];
 
 export default function DashboardView() {
-  const { showNotification } = useDashboard();
+  const { showNotification, reservations = [] } = useDashboard();
 
   // Suites state
   const [suites, setSuites] = useState(INITIAL_SUITES);
@@ -571,25 +147,60 @@ export default function DashboardView() {
     { id: 'Presidential Villa', label: 'Presidential Villa (2)' },
   ];
 
+  // Combined suites with live reservations from context (if any)
+  const combinedSuites = useMemo(() => {
+    return suites.map(suite => {
+      const contextBookings = (reservations || [])
+        .filter(r => (String(r.room) === suite.number || String(r.roomNumber) === suite.number))
+        .filter(r => !suite.bookings.some(b => b.id === r.id))
+        .map(r => ({
+          id: r.id ? (String(r.id).startsWith('AURA-') ? r.id : `AURA-${r.id}`) : `AURA-${Math.floor(1000 + Math.random() * 9000)}`,
+          guest: r.guest || r.guestName || 'Guest',
+          nights: Number(r.nights) || 1,
+          checkIn: r.checkIn || r.check_in,
+          checkOut: r.checkOut || r.check_out,
+          source: r.source || 'Direct Web',
+          channelDots: ['#10b981', '#3b82f6'],
+          status: r.status === 'CHECKEDIN' ? 'Occupied' : 'Reserved',
+          vip: false,
+          totalAmount: Number(r.amount) || suite.tariff,
+          paidAmount: Number(r.amount) || suite.tariff,
+          phone: r.phone || r.guestPhone || '',
+          email: r.email || '',
+          idType: 'Aadhaar / ID Card'
+        }));
+
+      const allBookings = [...suite.bookings, ...contextBookings];
+      const hasOccupied = allBookings.some(b => b.status === 'Occupied');
+      const hasReserved = allBookings.some(b => b.status === 'Reserved');
+
+      return {
+        ...suite,
+        status: hasOccupied ? 'Occupied' : hasReserved ? 'Reserved' : suite.status,
+        bookings: allBookings
+      };
+    });
+  }, [suites, reservations]);
+
   // Filtered suites
   const filteredSuites = useMemo(() => {
-    return suites.filter(s => {
-      const matchCategory = selectedCategory === 'ALL' || s.category === selectedCategory;
-      if (!matchCategory) return false;
+      return combinedSuites.filter(s => {
+        const matchCategory = selectedCategory === 'ALL' || s.category === selectedCategory;
+        if (!matchCategory) return false;
 
-      if (!searchQuery.trim()) return true;
+        if (!searchQuery.trim()) return true;
 
-      const q = searchQuery.toLowerCase();
-      const matchSuite = s.number.toLowerCase().includes(q) || s.category.toLowerCase().includes(q);
-      const matchBooking = s.bookings.some(b =>
-        b.guest.toLowerCase().includes(q) ||
-        b.id.toLowerCase().includes(q) ||
-        (b.phone && b.phone.includes(q))
-      );
+        const q = searchQuery.toLowerCase();
+        const matchSuite = s.number.toLowerCase().includes(q) || s.category.toLowerCase().includes(q);
+        const matchBooking = s.bookings.some(b =>
+          b.guest.toLowerCase().includes(q) ||
+          b.id.toLowerCase().includes(q) ||
+          (b.phone && b.phone.includes(q))
+        );
 
-      return matchSuite || matchBooking;
-    });
-  }, [suites, selectedCategory, searchQuery]);
+        return matchSuite || matchBooking;
+      });
+  }, [combinedSuites, selectedCategory, searchQuery]);
 
   // Quick Housekeeping toggle
   const cycleHousekeeping = (suiteId) => {
@@ -745,8 +356,8 @@ export default function DashboardView() {
                     showNotification(`Filtered by ${cat.label}`);
                   }}
                   className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-between transition ${selectedCategory === cat.id
-                      ? 'bg-amber-50 text-amber-900 font-bold'
-                      : 'text-slate-700 hover:bg-slate-50'
+                    ? 'bg-amber-50 text-amber-900 font-bold'
+                    : 'text-slate-700 hover:bg-slate-50'
                     }`}
                 >
                   <span>{cat.label}</span>
@@ -831,10 +442,10 @@ export default function DashboardView() {
                   <div
                     key={day.dateStr}
                     className={`w-[110px] shrink-0 py-2.5 px-1 flex flex-col items-center justify-center text-center transition relative ${day.isToday
-                        ? 'bg-[#fbf7ee] border-b-2 border-amber-600'
-                        : day.isWeekend
-                          ? 'bg-slate-50/70'
-                          : 'bg-[#fbfaf8]'
+                      ? 'bg-[#fbf7ee] border-b-2 border-amber-600'
+                      : day.isWeekend
+                        ? 'bg-slate-50/70'
+                        : 'bg-[#fbfaf8]'
                       }`}
                   >
                     <span className="text-[10px] font-extrabold tracking-wider text-slate-500 uppercase leading-none">
@@ -926,8 +537,8 @@ export default function DashboardView() {
                             title="Click to toggle Housekeeping status"
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${suite.housekeeping === 'Clean' ? 'bg-emerald-500' :
-                                suite.housekeeping === 'Inspected' ? 'bg-teal-500' :
-                                  suite.housekeeping === 'Turn-Down' ? 'bg-amber-500' : 'bg-slate-400'
+                              suite.housekeeping === 'Inspected' ? 'bg-teal-500' :
+                                suite.housekeeping === 'Turn-Down' ? 'bg-amber-500' : 'bg-slate-400'
                               }`} />
                             <span>{suite.housekeeping}</span>
                           </button>
@@ -947,10 +558,10 @@ export default function DashboardView() {
                               setQuickNights(2);
                             }}
                             className={`w-[110px] shrink-0 h-full transition relative group/cell cursor-pointer ${day.isToday
-                                ? 'bg-[#fbf7ee]/40 hover:bg-amber-100/30'
-                                : day.isWeekend
-                                  ? 'bg-slate-50/40 hover:bg-sky-50/50'
-                                  : 'hover:bg-sky-50/40'
+                              ? 'bg-[#fbf7ee]/40 hover:bg-amber-100/30'
+                              : day.isWeekend
+                                ? 'bg-slate-50/40 hover:bg-sky-50/50'
+                                : 'hover:bg-sky-50/40'
                               }`}
                             title={`Click to book Suite ${suite.number} on ${day.dayNum} ${day.monthName}`}
                           >
@@ -1004,10 +615,10 @@ export default function DashboardView() {
                                 bottom: '10px'
                               }}
                               className={`absolute z-10 rounded-2xl border-2 px-3 flex items-center justify-between shadow-xs transition-all duration-200 cursor-pointer overflow-hidden ${isSearchHit
-                                  ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-400 shadow-md'
-                                  : booking.vip
-                                    ? 'bg-linear-to-r from-purple-50 via-white to-purple-50/50 border-purple-400 text-purple-950 hover:shadow-md hover:border-purple-600'
-                                    : 'bg-white border-purple-300 hover:border-purple-500 hover:shadow-md'
+                                ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-400 shadow-md'
+                                : booking.vip
+                                  ? 'bg-linear-to-r from-purple-50 via-white to-purple-50/50 border-purple-400 text-purple-950 hover:shadow-md hover:border-purple-600'
+                                  : 'bg-white border-purple-300 hover:border-purple-500 hover:shadow-md'
                                 }`}
                               title={`Click to view Guest Folio for ${booking.guest} (${booking.id})`}
                             >
@@ -1028,7 +639,7 @@ export default function DashboardView() {
                                 </div>
                               </div>
 
-                              {/* Right Channel Dots (like in screenshot for Arjun Singhal) */}
+                              {/* Right Channel Dots */}
                               {booking.channelDots && booking.channelDots.length > 0 && (
                                 <div className="flex items-center space-x-0.5 shrink-0 bg-slate-50/80 px-1.5 py-1 rounded-full border border-slate-200/80">
                                   {booking.channelDots.map((color, idx) => (
