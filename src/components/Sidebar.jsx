@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDashboard } from '../context/DashboardContext';
 import {
   Building2,
@@ -37,16 +37,40 @@ export default function Sidebar() {
   } = useDashboard();
 
   const [isHovered, setIsHovered] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
-
-  // Sections open/collapsed state (all collapsed initially matching overview)
-  const [openSections, setOpenSections] = useState({
-    pms: false,
-    channelManager: false,
-    restaurantPos: false,
-    operations: false,
-    admin: false,
+  const [isPinned, setIsPinned] = useState(() => {
+    try {
+      return localStorage.getItem('aurastay_sidebar_pinned') === 'true';
+    } catch (e) {
+      return false;
+    }
   });
+
+    // Sections open/collapsed state
+    const [openSections, setOpenSections] = useState(() => {
+      try {
+        const saved = localStorage.getItem('aurastay_sidebar_sections');
+        if (saved) return JSON.parse(saved);
+      } catch (e) { }
+      return {
+        pms: false,
+        channelManager: false,
+        restaurantPos: false,
+        operations: false,
+        admin: false,
+      };
+    });
+
+    useEffect(() => {
+    try {
+      localStorage.setItem('aurastay_sidebar_pinned', String(isPinned));
+    } catch (e) { }
+  }, [isPinned]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aurastay_sidebar_sections', JSON.stringify(openSections));
+    } catch (e) { }
+  }, [openSections]);
 
   const isExpanded = isHovered || isPinned;
 
@@ -183,8 +207,8 @@ export default function Sidebar() {
             <button
               onClick={() => handleNav('dashboard')}
               className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition text-left group ${currentView === 'dashboard'
-                  ? 'bg-sky-500/15 text-sky-400 font-semibold border-l-2 border-sky-400'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
+                ? 'bg-sky-500/15 text-sky-400 font-semibold border-l-2 border-sky-400'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
                 }`}
             >
               <LayoutDashboard className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-white" />
@@ -228,28 +252,27 @@ export default function Sidebar() {
                 </div>
               </button>
             ) : (
-          <button
-            onClick={() => {
-              setOpenSections(prev => ({ ...prev, pms: true }));
-              setIsHovered(true);
-            }}
-            className={`w-full py-2 rounded-xl flex flex-col items-center justify-center transition group relative cursor-pointer ${
-              pmsItems.some(item => item.id === currentView)
-                ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
-                : 'hover:bg-slate-800/60 text-slate-400'
-            }`}
-            title="PMS (Core)"
-          >
-            <span className="w-2 h-2 rounded-full bg-cyan-400 mb-1 shadow-xs shadow-cyan-400/50 group-hover:scale-110 transition" />
-            <span className="text-[8.5px] font-black text-cyan-400 tracking-wider">PMS</span>
-            <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
-              PMS (Core)
-            </span>
-          </button>
-        )}
+              <button
+                onClick={() => {
+                  setOpenSections(prev => ({ ...prev, pms: true }));
+                  setIsHovered(true);
+                }}
+                className={`w-full py-2 rounded-xl flex flex-col items-center justify-center transition group relative cursor-pointer ${pmsItems.some(item => item.id === currentView)
+                    ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
+                    : 'hover:bg-slate-800/60 text-slate-400'
+                  }`}
+                title="PMS (Core)"
+              >
+                <span className="w-2 h-2 rounded-full bg-cyan-400 mb-1 shadow-xs shadow-cyan-400/50 group-hover:scale-110 transition" />
+                <span className="text-[8.5px] font-black text-cyan-400 tracking-wider">PMS</span>
+                <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
+                  PMS (Core)
+                </span>
+              </button>
+            )}
 
-          {/* PMS Sub-Items */}
-            { isExpanded && openSections.pms && (
+            {/* PMS Sub-Items */}
+            {isExpanded && openSections.pms && (
               <div className="space-y-0.5 pl-1">
                 {pmsItems.map(item => {
                   const Icon = item.icon;
@@ -259,7 +282,7 @@ export default function Sidebar() {
                     <button
                       key={item.id}
                       onClick={() => handleNav(item.id)}
-                  className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl transition text-left group cursor-pointer ${isActive
+                      className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl transition text-left group cursor-pointer ${isActive
                         ? 'bg-sky-500/15 text-sky-400 font-semibold border-l-2 border-sky-400'
                         : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
                         }`}
@@ -272,355 +295,353 @@ export default function Sidebar() {
                 })}
               </div>
             )}
-        </div>
+          </div>
 
-        {/* SECTION 2: CHANNEL MANAGER - EXACT MATCH WITH SCREENSHOT */}
-        <div className="space-y-1 pt-2 border-t border-slate-800/50">
-          {isExpanded ? (
-            <button
-              onClick={(e) => toggleSection('channelManager', e)}
-              className="w-full flex items-center justify-between px-3 py-2 text-left rounded-lg hover:bg-slate-800/40 transition group cursor-pointer"
-            >
-              <div className="flex items-center space-x-2.5 min-w-0">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0 shadow-xs shadow-cyan-400/50" />
-                <span className="font-bold text-white text-xs tracking-wider uppercase truncate">
-                  CHANNEL MANAGER
-                </span>
-              </div>
-              <div className="flex items-center space-x-2 shrink-0">
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleNav('channel-manager');
-                    showNotification('Opening Channel Manager...');
-                  }}
-                  className="bg-[#00a8cc] hover:bg-[#00bcd4] text-white text-[10.5px] font-bold px-2.5 py-0.5 rounded-md shadow-xs transition cursor-pointer"
-                >
-                  Connect
-                </span>
-                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openSections.channelManager ? 'rotate-180' : ''}`} />
-              </div>
-            </button>
-          ) : (
-          <button
-            onClick={() => {
-              setOpenSections(prev => ({ ...prev, channelManager: true }));
-              setIsHovered(true);
-            }}
-            className={`w-full py-2 rounded-xl flex flex-col items-center justify-center transition group relative cursor-pointer ${
-              channelManagerItems.some(item => item.id === currentView)
-                ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
-                : 'hover:bg-slate-800/60 text-slate-400'
-            }`}
-            title="CHANNEL MANAGER (Connect)"
-          >
-            <span className="w-2 h-2 rounded-full bg-cyan-400 mb-1 shadow-xs shadow-cyan-400/50 group-hover:scale-110 transition" />
-            <span className="text-[8px] font-black text-cyan-400 tracking-wider">CM</span>
-            <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
-              Channel Manager (Connect)
-            </span>
-          </button>
-        )}
-
-        {/* Channel Manager Sub-Items */}
-          { isExpanded && openSections.channelManager && (
-            <div className="space-y-0.5 pl-1">
-              {channelManagerItems.map(item => {
-                const Icon = item.icon;
-                const isActive = currentView === item.id;
-
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNav(item.id)}
-                  className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl transition text-left group cursor-pointer ${isActive
-                      ? 'bg-sky-500/15 text-sky-400 font-semibold border-l-2 border-sky-400'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
-                      }`}
-                  >
-                    <Icon className={`w-4 h-4 shrink-0 transition group-hover:scale-110 ${isActive ? 'text-sky-400' : 'text-slate-400 group-hover:text-slate-200'
-                      }`} />
-                    <span className="text-xs font-medium truncate">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-      </div>
-
-      {/* SECTION 3: RESTAURANT & POS - EXACT MATCH WITH SCREENSHOT */}
-      <div className="space-y-1 pt-2 border-t border-slate-800/50">
-        {isExpanded ? (
-          <button
-            onClick={(e) => toggleSection('restaurantPos', e)}
-            className="w-full flex items-center justify-between px-3 py-2 text-left rounded-lg hover:bg-slate-800/40 transition group cursor-pointer"
-          >
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 shadow-xs shadow-orange-500/50" />
-              <span className="font-bold text-white text-xs tracking-wider uppercase truncate">
-                RESTAURANT & POS
-              </span>
-            </div>
-            <div className="flex items-center space-x-2 shrink-0">
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleNav('restaurant-pos');
-                  showNotification('Opening Restaurant POS...');
-                }}
-                className="bg-[#ff6d00] hover:bg-[#ff7a1a] text-white text-[10.5px] font-bold px-2.5 py-0.5 rounded-lg shadow-xs transition cursor-pointer"
+          {/* SECTION 2: CHANNEL MANAGER - EXACT MATCH WITH SCREENSHOT */}
+          <div className="space-y-1 pt-2 border-t border-slate-800/50">
+            {isExpanded ? (
+              <button
+                onClick={(e) => toggleSection('channelManager', e)}
+                className="w-full flex items-center justify-between px-3 py-2 text-left rounded-lg hover:bg-slate-800/40 transition group cursor-pointer"
               >
-                POS
-              </span>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openSections.restaurantPos ? 'rotate-180' : ''}`} />
-            </div>
-          </button>
-        ) : (
-          <button
-            onClick={() => {
-              setOpenSections(prev => ({ ...prev, restaurantPos: true }));
-              setIsHovered(true);
-            }}
-            className={`w-full py-2 rounded-xl flex flex-col items-center justify-center transition group relative cursor-pointer ${
-              restaurantPosItems.some(item => item.id === currentView)
-                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40'
-                : 'hover:bg-slate-800/60 text-slate-400'
-            }`}
-            title="RESTAURANT & POS"
-          >
-            <span className="w-2 h-2 rounded-full bg-orange-500 mb-1 shadow-xs shadow-orange-500/50 group-hover:scale-110 transition" />
-            <span className="text-[8px] font-black text-orange-400 tracking-wider">POS</span>
-            <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
-              Restaurant & POS
-            </span>
-          </button>
-        )}
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0 shadow-xs shadow-cyan-400/50" />
+                  <span className="font-bold text-white text-xs tracking-wider uppercase truncate">
+                    CHANNEL MANAGER
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2 shrink-0">
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNav('channel-manager');
+                      showNotification('Opening Channel Manager...');
+                    }}
+                    className="bg-[#00a8cc] hover:bg-[#00bcd4] text-white text-[10.5px] font-bold px-2.5 py-0.5 rounded-md shadow-xs transition cursor-pointer"
+                  >
+                    Connect
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openSections.channelManager ? 'rotate-180' : ''}`} />
+                </div>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setOpenSections(prev => ({ ...prev, channelManager: true }));
+                  setIsHovered(true);
+                }}
+                className={`w-full py-2 rounded-xl flex flex-col items-center justify-center transition group relative cursor-pointer ${channelManagerItems.some(item => item.id === currentView)
+                    ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
+                    : 'hover:bg-slate-800/60 text-slate-400'
+                  }`}
+                title="CHANNEL MANAGER (Connect)"
+              >
+                <span className="w-2 h-2 rounded-full bg-cyan-400 mb-1 shadow-xs shadow-cyan-400/50 group-hover:scale-110 transition" />
+                <span className="text-[8px] font-black text-cyan-400 tracking-wider">CM</span>
+                <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
+                  Channel Manager (Connect)
+                </span>
+              </button>
+            )}
 
-      {/* RESTAURANT & POS Sub-Items */}
-        { isExpanded && openSections.restaurantPos && (
-          <div className="space-y-0.5 pl-1">
-            {restaurantPosItems.map(item => {
-              const Icon = item.icon;
-              const isActive = currentView === item.id;
+            {/* Channel Manager Sub-Items */}
+            {isExpanded && openSections.channelManager && (
+              <div className="space-y-0.5 pl-1">
+                {channelManagerItems.map(item => {
+                  const Icon = item.icon;
+                  const isActive = currentView === item.id;
 
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleNav(item.id)}
-                  className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl transition text-left group cursor-pointer ${isActive
-                    ? 'bg-orange-500/15 text-orange-400 font-semibold border-l-2 border-orange-400'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
-                    }`}
-                >
-                  <Icon className={`w-4 h-4 shrink-0 transition group-hover:scale-110 ${isActive ? 'text-orange-400' : 'text-slate-400 group-hover:text-slate-200'
-                    }`} />
-                  <span className="text-xs font-medium truncate">{item.label}</span>
-                </button>
-              );
-            })}
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNav(item.id)}
+                      className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl transition text-left group cursor-pointer ${isActive
+                        ? 'bg-sky-500/15 text-sky-400 font-semibold border-l-2 border-sky-400'
+                        : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
+                        }`}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 transition group-hover:scale-110 ${isActive ? 'text-sky-400' : 'text-slate-400 group-hover:text-slate-200'
+                        }`} />
+                      <span className="text-xs font-medium truncate">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-    </div >
 
-      {/* SECTION 4: OPERATIONS & OUTLETS */ }
-      < div className = "space-y-1 pt-2 border-t border-slate-800/50" >
-        {
-          isExpanded?(
-          <button
-            onClick = {(e) => toggleSection('operations', e)
-}
-className = "w-full flex items-center justify-between px-3 py-2 text-left rounded-lg hover:bg-slate-800/40 transition group cursor-pointer"
-  >
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-              <span className="font-bold text-white text-sm tracking-wide">Operations</span>
-            </div>
-            <div className="flex items-center space-x-2 shrink-0">
-              <span className="bg-emerald-600 text-white text-[10.5px] font-bold px-2 py-0.5 rounded shadow-xs">
-                Outlets
-              </span>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openSections.operations ? 'rotate-180' : ''}`} />
-            </div>
-          </button >
-        ) : (
-  <button
-    onClick={() => {
-      setOpenSections(prev => ({ ...prev, operations: true }));
-      setIsHovered(true);
-    }}
-    className={`w-full py-2 rounded-xl flex flex-col items-center justify-center transition group relative cursor-pointer ${operationItems.some(item => item.id === currentView)
-        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-        : 'hover:bg-slate-800/60 text-slate-400'
-      }`}
-    title="Operations (Outlets)"
-  >
-    <span className="w-2 h-2 rounded-full bg-emerald-400 mb-1 shadow-xs shadow-emerald-400/50 group-hover:scale-110 transition" />
-    <span className="text-[8px] font-black text-emerald-400 tracking-wider">OPS</span>
-    <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
-      Operations (Outlets)
-    </span>
-  </button>
-)}
+          {/* SECTION 3: RESTAURANT & POS - EXACT MATCH WITH SCREENSHOT */}
+          <div className="space-y-1 pt-2 border-t border-slate-800/50">
+            {isExpanded ? (
+              <button
+                onClick={(e) => toggleSection('restaurantPos', e)}
+                className="w-full flex items-center justify-between px-3 py-2 text-left rounded-lg hover:bg-slate-800/40 transition group cursor-pointer"
+              >
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 shadow-xs shadow-orange-500/50" />
+                  <span className="font-bold text-white text-xs tracking-wider uppercase truncate">
+                    RESTAURANT & POS
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2 shrink-0">
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNav('restaurant-pos');
+                      showNotification('Opening Restaurant POS...');
+                    }}
+                    className="bg-[#ff6d00] hover:bg-[#ff7a1a] text-white text-[10.5px] font-bold px-2.5 py-0.5 rounded-lg shadow-xs transition cursor-pointer"
+                  >
+                    POS
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openSections.restaurantPos ? 'rotate-180' : ''}`} />
+                </div>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setOpenSections(prev => ({ ...prev, restaurantPos: true }));
+                  setIsHovered(true);
+                }}
+                className={`w-full py-2 rounded-xl flex flex-col items-center justify-center transition group relative cursor-pointer ${restaurantPosItems.some(item => item.id === currentView)
+                    ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40'
+                    : 'hover:bg-slate-800/60 text-slate-400'
+                  }`}
+                title="RESTAURANT & POS"
+              >
+                <span className="w-2 h-2 rounded-full bg-orange-500 mb-1 shadow-xs shadow-orange-500/50 group-hover:scale-110 transition" />
+                <span className="text-[8px] font-black text-orange-400 tracking-wider">POS</span>
+                <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
+                  Restaurant & POS
+                </span>
+              </button>
+            )}
 
-{
-  isExpanded && openSections.operations && (
-    <div className="space-y-0.5 pl-1">
-      {operationItems.map(item => {
-        const Icon = item.icon;
-        const isActive = currentView === item.id;
-        return (
-          <button
-            key={item.id}
-            onClick={() => handleNav(item.id)}
-                  className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl transition text-left group cursor-pointer ${isActive
-              ? 'bg-emerald-500/15 text-emerald-400 font-semibold border-l-2 border-emerald-400'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
-              }`}
-          >
-            <Icon className={`w-4 h-4 shrink-0 transition group-hover:scale-110 ${isActive ? 'text-emerald-400' : 'text-slate-400 group-hover:text-slate-200'
-              }`} />
-            <span className="text-xs font-medium truncate">{item.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  )
-}
-      </div >
+            {/* RESTAURANT & POS Sub-Items */}
+            {isExpanded && openSections.restaurantPos && (
+              <div className="space-y-0.5 pl-1">
+                {restaurantPosItems.map(item => {
+                  const Icon = item.icon;
+                  const isActive = currentView === item.id;
 
-  {/* SECTION 5: ADMIN & FINANCE */ }
-  < div className = "space-y-1 pt-2 border-t border-slate-800/50" >
-    {
-      isExpanded?(
-          <button
-            onClick = {(e) => toggleSection('admin', e)}
-className = "w-full flex items-center justify-between px-3 py-2 text-left rounded-lg hover:bg-slate-800/40 transition group cursor-pointer"
-  >
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
-              <span className="font-bold text-white text-sm tracking-wide">Administration</span>
-            </div>
-            <div className="flex items-center space-x-2 shrink-0">
-              <span className="bg-slate-700 text-white text-[10.5px] font-bold px-2 py-0.5 rounded shadow-xs">
-                Admin
-              </span>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openSections.admin ? 'rotate-180' : ''}`} />
-            </div>
-          </button >
-        ) : (
-  <button
-    onClick={() => {
-      setOpenSections(prev => ({ ...prev, admin: true }));
-      setIsHovered(true);
-    }}
-    className={`w-full py-2 rounded-xl flex flex-col items-center justify-center transition group relative cursor-pointer ${adminItems.some(item => item.id === currentView)
-        ? 'bg-slate-500/20 text-slate-300 border border-slate-500/40'
-        : 'hover:bg-slate-800/60 text-slate-400'
-      }`}
-    title="Administration"
-  >
-    <span className="w-2 h-2 rounded-full bg-slate-400 mb-1 shadow-xs shadow-slate-400/50 group-hover:scale-110 transition" />
-    <span className="text-[7.5px] font-black text-slate-400 tracking-wider">ADMIN</span>
-    <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
-      Administration (Admin)
-    </span>
-  </button>
-)}
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNav(item.id)}
+                      className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl transition text-left group cursor-pointer ${isActive
+                        ? 'bg-orange-500/15 text-orange-400 font-semibold border-l-2 border-orange-400'
+                        : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
+                        }`}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 transition group-hover:scale-110 ${isActive ? 'text-orange-400' : 'text-slate-400 group-hover:text-slate-200'
+                        }`} />
+                      <span className="text-xs font-medium truncate">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div >
 
-{
-  isExpanded && openSections.admin && (
-    <div className="space-y-0.5 pl-1">
-      {adminItems.map(item => {
-        const Icon = item.icon;
-        const isActive = currentView === item.id;
-        return (
-          <button
-            key={item.id}
-            onClick={() => item.action ? item.action() : handleNav(item.id)}
-                  className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl transition text-left group cursor-pointer ${isActive
-              ? 'bg-slate-500/20 text-slate-200 font-semibold border-l-2 border-slate-400'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
-              }`}
-          >
-            <Icon className={`w-4 h-4 shrink-0 transition group-hover:scale-110 ${isActive ? 'text-slate-200' : 'text-slate-400 group-hover:text-slate-200'
-              }`} />
-            <span className="text-xs font-medium truncate">{item.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  )
-}
-      </div >
-    </div >
-
-            {/* BOTTOM USER PROFILE CARD (EXACT SCREENSHOT MATCH) */ }
-            < div className = "mt-auto pt-2 pb-3 px-2 shrink-0" >
+          {/* SECTION 4: OPERATIONS & OUTLETS */}
+          < div className="space-y-1 pt-2 border-t border-slate-800/50" >
             {
-              isExpanded?(
-          <div className = "bg-[#060c1d] border border-slate-800/80 rounded-2xl p-2.5 flex items-center justify-between shadow-lg" >
-                  {/* Photo / Avatar & Info */ }
-                  < div className = "flex items-center space-x-3 min-w-0" >
-                    {/* Image Squircle Graphic */ }
-                    < div className = "w-11 h-11 rounded-xl bg-slate-900 border border-slate-700/80 p-0.5 relative overflow-hidden flex items-center justify-center shrink-0 shadow-sm" >
-                      <div className="w-full h-full bg-linear-to-b from-sky-400 to-emerald-600 rounded-lg relative overflow-hidden flex items-center justify-center">
-                        {/* Golden Sun */}
-                        <div className="w-2.5 h-2.5 rounded-full bg-amber-300 absolute top-1 left-1.5 shadow-xs" />
-                        {/* Mountain Hills */}
-                        <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-800" />
-                        <div className="absolute -bottom-1 -left-1 w-5 h-5 rounded-full bg-emerald-700" />
-                      </div>
-              </div>
+              isExpanded ? (
+                <button
+                  onClick={(e) => toggleSection('operations', e)
+                  }
+                  className="w-full flex items-center justify-between px-3 py-2 text-left rounded-lg hover:bg-slate-800/40 transition group cursor-pointer"
+                >
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                    <span className="font-bold text-white text-sm tracking-wide">Operations</span>
+                  </div>
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <span className="bg-emerald-600 text-white text-[10.5px] font-bold px-2 py-0.5 rounded shadow-xs">
+                      Outlets
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openSections.operations ? 'rotate-180' : ''}`} />
+                  </div>
+                </button >
+              ) : (
+                <button
+                  onClick={() => {
+                    setOpenSections(prev => ({ ...prev, operations: true }));
+                    setIsHovered(true);
+                  }}
+                  className={`w-full py-2 rounded-xl flex flex-col items-center justify-center transition group relative cursor-pointer ${operationItems.some(item => item.id === currentView)
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                    : 'hover:bg-slate-800/60 text-slate-400'
+                    }`}
+                  title="Operations (Outlets)"
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 mb-1 shadow-xs shadow-emerald-400/50 group-hover:scale-110 transition" />
+                  <span className="text-[8px] font-black text-emerald-400 tracking-wider">OPS</span>
+                  <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
+                    Operations (Outlets)
+                  </span>
+                </button>
+              )}
 
-              <div className="min-w-0">
-                <div className="text-sm font-bold text-white tracking-wide truncate">
-                  {currentHotel?.ownerName || data?.property?.managerName || 'AuraStay Admin'}
+            {
+              isExpanded && openSections.operations && (
+                <div className="space-y-0.5 pl-1">
+                  {operationItems.map(item => {
+                    const Icon = item.icon;
+                    const isActive = currentView === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleNav(item.id)}
+                        className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl transition text-left group cursor-pointer ${isActive
+                          ? 'bg-emerald-500/15 text-emerald-400 font-semibold border-l-2 border-emerald-400'
+                          : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
+                          }`}
+                      >
+                        <Icon className={`w-4 h-4 shrink-0 transition group-hover:scale-110 ${isActive ? 'text-emerald-400' : 'text-slate-400 group-hover:text-slate-200'
+                          }`} />
+                        <span className="text-xs font-medium truncate">{item.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="text-[9.5px] font-semibold text-slate-400 tracking-wider uppercase truncate mt-0.5">
-                  {currentHotel?.name || 'AuraStay Suite'}
+              )
+            }
+          </div >
+
+          {/* SECTION 5: ADMIN & FINANCE */}
+          < div className="space-y-1 pt-2 border-t border-slate-800/50" >
+            {
+              isExpanded ? (
+                <button
+                  onClick={(e) => toggleSection('admin', e)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-left rounded-lg hover:bg-slate-800/40 transition group cursor-pointer"
+                >
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
+                    <span className="font-bold text-white text-sm tracking-wide">Administration</span>
+                  </div>
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <span className="bg-slate-700 text-white text-[10.5px] font-bold px-2 py-0.5 rounded shadow-xs">
+                      Admin
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openSections.admin ? 'rotate-180' : ''}`} />
+                  </div>
+                </button >
+              ) : (
+                <button
+                  onClick={() => {
+                    setOpenSections(prev => ({ ...prev, admin: true }));
+                    setIsHovered(true);
+                  }}
+                  className={`w-full py-2 rounded-xl flex flex-col items-center justify-center transition group relative cursor-pointer ${adminItems.some(item => item.id === currentView)
+                    ? 'bg-slate-500/20 text-slate-300 border border-slate-500/40'
+                    : 'hover:bg-slate-800/60 text-slate-400'
+                    }`}
+                  title="Administration"
+                >
+                  <span className="w-2 h-2 rounded-full bg-slate-400 mb-1 shadow-xs shadow-slate-400/50 group-hover:scale-110 transition" />
+                  <span className="text-[7.5px] font-black text-slate-400 tracking-wider">ADMIN</span>
+                  <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
+                    Administration (Admin)
+                  </span>
+                </button>
+              )}
+
+            {
+              isExpanded && openSections.admin && (
+                <div className="space-y-0.5 pl-1">
+                  {adminItems.map(item => {
+                    const Icon = item.icon;
+                    const isActive = currentView === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => item.action ? item.action() : handleNav(item.id)}
+                        className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl transition text-left group cursor-pointer ${isActive
+                          ? 'bg-slate-500/20 text-slate-200 font-semibold border-l-2 border-slate-400'
+                          : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
+                          }`}
+                      >
+                        <Icon className={`w-4 h-4 shrink-0 transition group-hover:scale-110 ${isActive ? 'text-slate-200' : 'text-slate-400 group-hover:text-slate-200'
+                          }`} />
+                        <span className="text-xs font-medium truncate">{item.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
-            </div>
+              )
+            }
+          </div >
+        </div >
 
-            {/* Reddish Logout Button */}
-            <button
-              onClick={logout}
-              className="w-9 h-9 rounded-xl bg-[#200e18] hover:bg-[#341123] border border-rose-900/60 text-rose-400 hover:text-rose-300 flex items-center justify-center transition shadow-xs shrink-0 cursor-pointer group"
-              title="Sign Out from Hotel PMS"
-            >
-              <LogOut className="w-4 h-4 transition group-hover:scale-110" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center space-y-2 py-1">
-            {/* Collapsed Avatar */}
-            <div
-              className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 p-0.5 relative overflow-hidden flex items-center justify-center cursor-pointer shadow-sm group"
-              title={`${currentHotel?.ownerName || 'AuraStay Admin'} (${currentHotel?.name || 'AuraStay Suite'})`}
-              onClick={() => setIsHovered(true)}
-            >
-              <div className="w-full h-full bg-linear-to-b from-sky-400 to-emerald-600 rounded-lg relative overflow-hidden flex items-center justify-center">
-                <div className="w-2 h-2 rounded-full bg-amber-300 absolute top-0.5 left-1 shadow-xs" />
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-800" />
-                <div className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full bg-emerald-700" />
-              </div>
-            </div>
+        {/* BOTTOM USER PROFILE CARD (EXACT SCREENSHOT MATCH) */}
+        < div className="mt-auto pt-2 pb-3 px-2 shrink-0" >
+          {
+            isExpanded ? (
+              <div className="bg-[#060c1d] border border-slate-800/80 rounded-2xl p-2.5 flex items-center justify-between shadow-lg" >
+                {/* Photo / Avatar & Info */}
+                < div className="flex items-center space-x-3 min-w-0" >
+                  {/* Image Squircle Graphic */}
+                  < div className="w-11 h-11 rounded-xl bg-slate-900 border border-slate-700/80 p-0.5 relative overflow-hidden flex items-center justify-center shrink-0 shadow-sm" >
+                    <div className="w-full h-full bg-linear-to-b from-sky-400 to-emerald-600 rounded-lg relative overflow-hidden flex items-center justify-center">
+                      {/* Golden Sun */}
+                      <div className="w-2.5 h-2.5 rounded-full bg-amber-300 absolute top-1 left-1.5 shadow-xs" />
+                      {/* Mountain Hills */}
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-800" />
+                      <div className="absolute -bottom-1 -left-1 w-5 h-5 rounded-full bg-emerald-700" />
+                    </div>
+                  </div>
 
-            {/* Collapsed Logout */}
-            <button
-              onClick={logout}
-              className="w-8 h-8 rounded-lg bg-[#200e18] hover:bg-[#341123] border border-rose-900/60 text-rose-400 hover:text-rose-300 flex items-center justify-center transition group relative cursor-pointer"
-              title="Sign Out"
-            >
-              <LogOut className="w-3.5 h-3.5 transition group-hover:scale-110" />
-              <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
-                Sign Out ({currentHotel?.name || 'AuraStay Suite'})
-              </span>
-            </button>
-          </div>
-        )}
-      </div>
-    </aside >
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-white tracking-wide truncate">
+                      {currentHotel?.ownerName || data?.property?.managerName || 'AuraStay Admin'}
+                    </div>
+                    <div className="text-[9.5px] font-semibold text-slate-400 tracking-wider uppercase truncate mt-0.5">
+                      {currentHotel?.name || 'AuraStay Suite'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reddish Logout Button */}
+                <button
+                  onClick={logout}
+                  className="w-9 h-9 rounded-xl bg-[#200e18] hover:bg-[#341123] border border-rose-900/60 text-rose-400 hover:text-rose-300 flex items-center justify-center transition shadow-xs shrink-0 cursor-pointer group"
+                  title="Sign Out from Hotel PMS"
+                >
+                  <LogOut className="w-4 h-4 transition group-hover:scale-110" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center space-y-2 py-1">
+                {/* Collapsed Avatar */}
+                <div
+                  className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 p-0.5 relative overflow-hidden flex items-center justify-center cursor-pointer shadow-sm group"
+                  title={`${currentHotel?.ownerName || 'AuraStay Admin'} (${currentHotel?.name || 'AuraStay Suite'})`}
+                  onClick={() => setIsHovered(true)}
+                >
+                  <div className="w-full h-full bg-linear-to-b from-sky-400 to-emerald-600 rounded-lg relative overflow-hidden flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-amber-300 absolute top-0.5 left-1 shadow-xs" />
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-800" />
+                    <div className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full bg-emerald-700" />
+                  </div>
+                </div>
+
+                {/* Collapsed Logout */}
+                <button
+                  onClick={logout}
+                  className="w-8 h-8 rounded-lg bg-[#200e18] hover:bg-[#341123] border border-rose-900/60 text-rose-400 hover:text-rose-300 flex items-center justify-center transition group relative cursor-pointer"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3.5 h-3.5 transition group-hover:scale-110" />
+                  <span className="absolute left-16 bg-slate-900 border border-slate-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition duration-150 z-50">
+                    Sign Out ({currentHotel?.name || 'AuraStay Suite'})
+                  </span>
+                </button>
+              </div>
+            )}
+        </div>
+      </aside >
     </>
   );
 }

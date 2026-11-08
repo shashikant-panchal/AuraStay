@@ -23,6 +23,33 @@ const DEFAULT_HOTEL = {
 
 const DashboardContext = createContext(null);
 
+const VALID_VIEWS = new Set([
+  'dashboard',
+  'master-service-home',
+  'revenue-dashboard',
+  'front-office',
+  'reservation-management',
+  'food-beverages',
+  'restaurant-pos',
+  'product-setup',
+  'housekeeping',
+  'channel-manager',
+  'revenue-insights',
+  'audit-logs',
+  'reports',
+  'rate-plans',
+  'promotions',
+  'ari-grid',
+  'guests',
+  'guest-crm',
+  'reputation-management',
+  'stock-management',
+  'services',
+  'account-finance',
+  'staff-admin',
+  'hr-payroll'
+]);
+
 export function DashboardProvider({ children }) {
   // Multi-tenant Hotel Authentication State
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -33,7 +60,7 @@ export function DashboardProvider({ children }) {
     try {
       const saved = localStorage.getItem('aurastay_hotel_session');
       if (saved) return JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) { }
     return DEFAULT_HOTEL;
   });
 
@@ -53,13 +80,38 @@ export function DashboardProvider({ children }) {
     return initialMockData;
   });
 
-  // Current view: 'dashboard' as initial route
-  const [currentView, setCurrentView] = useState('dashboard');
+  // Current view: restore from URL hash or localStorage, fallback to 'dashboard'
+  const [currentView, setCurrentView] = useState(() => {
+    try {
+      const rawHash = window.location.hash.replace(/^#[/]?/, '').trim();
+      if (rawHash) {
+        const [viewPart] = rawHash.split('?');
+        if (VALID_VIEWS.has(viewPart)) return viewPart;
+      }
+      const savedView = localStorage.getItem('aurastay_current_view');
+      if (savedView && VALID_VIEWS.has(savedView)) return savedView;
+    } catch (e) {
+      console.warn('Could not read saved navigation state', e);
+    }
+    return 'dashboard';
+  });
   const [subModuleTitle, setSubModuleTitle] = useState('');
 
   // Revenue Dashboard active tab
-  const [activeTab, setActiveTab] = useState('overview');
-  const [frontOfficeSubTab, setFrontOfficeSubTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aurastay_active_tab');
+      if (saved) return saved;
+    } catch (e) { }
+    return 'overview';
+  });
+  const [frontOfficeSubTab, setFrontOfficeSubTab] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aurastay_front_office_subtab');
+      if (saved) return saved;
+    } catch (e) { }
+    return 'dashboard';
+  });
 
   // Rooms & Operations state
   const [rooms, setRooms] = useState(mockRooms);
@@ -318,7 +370,7 @@ export function DashboardProvider({ children }) {
     // 2. Check local SaaS tenants (created by Super Admin in aurastay_saas_hotels)
     try {
       const saasHotels = JSON.parse(localStorage.getItem('aurastay_saas_hotels') || '[]');
-      const match = saasHotels.find(h => 
+      const match = saasHotels.find(h =>
         h.email.toLowerCase() === inputEmail && h.password === inputPass
       );
       if (match) {
@@ -333,7 +385,7 @@ export function DashboardProvider({ children }) {
         showNotification(`Welcome to ${hotel.name} PMS Portal!`);
         return true;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // 3. Fallback check for default hotel credentials
     if (
@@ -379,6 +431,54 @@ export function DashboardProvider({ children }) {
     }
   }, [data]);
 
+  // Sync currentView to localStorage and URL hash
+  useEffect(() => {
+    try {
+      if (currentView && VALID_VIEWS.has(currentView)) {
+        localStorage.setItem('aurastay_current_view', currentView);
+        const currentHash = window.location.hash.replace(/^#[/]?/, '').trim();
+        if (currentHash !== currentView) {
+          window.location.hash = currentView;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not save current view', e);
+    }
+  }, [currentView]);
+
+  // Listen to hash changes (browser back/forward buttons)
+  useEffect(() => {
+    const handleHashChange = () => {
+      try {
+        const rawHash = window.location.hash.replace(/^#[/]?/, '').trim();
+        if (rawHash) {
+          const [viewPart] = rawHash.split('?');
+          if (VALID_VIEWS.has(viewPart) && viewPart !== currentView) {
+            setCurrentView(viewPart);
+          }
+        }
+      } catch (e) {
+        console.warn('Error handling hashchange', e);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [currentView]);
+
+  // Persist activeTab to localStorage
+  useEffect(() => {
+    try {
+      if (activeTab) localStorage.setItem('aurastay_active_tab', activeTab);
+    } catch (e) { }
+  }, [activeTab]);
+
+  // Persist frontOfficeSubTab to localStorage
+  useEffect(() => {
+    try {
+      if (frontOfficeSubTab) localStorage.setItem('aurastay_front_office_subtab', frontOfficeSubTab);
+    } catch (e) { }
+  }, [frontOfficeSubTab]);
+
   const showNotification = (msg) => {
     setNotificationMessage(msg);
     setTimeout(() => setNotificationMessage(null), 4000);
@@ -418,6 +518,12 @@ export function DashboardProvider({ children }) {
     setFnbOrders(mockFnbOrders);
     setCurrentView('dashboard');
     localStorage.removeItem('aurastay_suite_data');
+    localStorage.removeItem('aurastay_current_view');
+    localStorage.removeItem('aurastay_active_tab');
+    localStorage.removeItem('aurastay_front_office_subtab');
+    try {
+      window.location.hash = 'dashboard';
+    } catch (e) { }
     showNotification('Suite reset to official AuraStay demo state.');
   };
 
@@ -425,6 +531,12 @@ export function DashboardProvider({ children }) {
     setCurrentView(view);
     setSubModuleTitle(subItem);
     setActivePopoverModule(null);
+    try {
+      if (VALID_VIEWS.has(view)) {
+        localStorage.setItem('aurastay_current_view', view);
+        window.location.hash = view;
+      }
+    } catch (e) { }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
