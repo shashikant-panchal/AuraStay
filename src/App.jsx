@@ -134,13 +134,6 @@ export default function App() {
 
           {/* Bottom Dark Blue Footer Bar (Matching Screenshot) */}
           <footer className="bg-[#0b1a30] text-white px-6 py-2.5 flex items-center justify-between border-t border-slate-800 shrink-0 select-none">
-            <button
-              onClick={() => showNotification('Connected to AuraStay Local Node & Cloud Sync')}
-              className="flex items-center space-x-2 px-3.5 py-1.5 bg-[#132644] hover:bg-[#1a335c] text-white text-xs font-semibold rounded-lg border border-slate-700/80 transition"
-            >
-              <LogOut className="w-3.5 h-3.5 text-slate-300 rotate-180" />
-              <span>Go AuraStay local</span>
-            </button>
 
             <div className="flex items-center space-x-2 text-xs">
               <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-[#0b1a30] font-black text-xs shadow-xs">

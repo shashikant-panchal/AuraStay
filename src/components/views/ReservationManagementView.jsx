@@ -1,22 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
-import { 
-  Building2, 
-  Search, 
-  Plus, 
-  RotateCcw, 
-  Filter, 
-  CreditCard, 
-  Calendar, 
-  Bed, 
-  Moon, 
-  LogOut, 
-  Info, 
-  Play, 
-  Trophy, 
-  User, 
-  ChevronDown, 
-  FileText, 
+import {
+  Building2,
+  Search,
+  Plus,
+  RotateCcw,
+  Filter,
+  CreditCard,
+  Calendar,
+  Bed,
+  Moon,
+  LogOut,
+  Info,
+  Play,
+  Trophy,
+  User,
+  ChevronDown,
+  FileText,
   ExternalLink,
   ChevronLeft,
   ChevronRight,
@@ -35,7 +35,7 @@ import BookingPaymentsModal from '../modals/BookingPaymentsModal';
 import BookARoomView from './BookARoomView';
 
 export default function ReservationManagementView({ isSubTab = false }) {
-  const { 
+  const {
     setIsTourOpen,
     showNotification,
     navigateTo,
@@ -146,7 +146,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
       if (searchType === 'BOOKING_ID') return r.id.toLowerCase().includes(q);
       if (searchType === 'GUEST_NAME') return r.guest.toLowerCase().includes(q);
       if (searchType === 'ROOM') return r.rooms.some(rm => rm.includes(q)) || r.roomType.toLowerCase().includes(q);
-      
+
       return (
         r.id.toLowerCase().includes(q) ||
         r.guest.toLowerCase().includes(q) ||
@@ -160,9 +160,9 @@ export default function ReservationManagementView({ isSubTab = false }) {
   // If in Book A Room mode (Screenshots 2, 3, 4, 5)
   if (viewMode === 'book-a-room') {
     return (
-      <BookARoomView 
-        onBack={() => setViewMode('list')} 
-        onSaveReservation={handleSaveNewReservation} 
+      <BookARoomView
+        onBack={() => setViewMode('list')}
+        onSaveReservation={handleSaveNewReservation}
       />
     );
   }
@@ -170,11 +170,11 @@ export default function ReservationManagementView({ isSubTab = false }) {
   // LIST VIEW (Screenshot 1)
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
-      
+
       {/* 1. Top Breadcrumb (Exact match with Screenshot 1) */}
       {!isSubTab && (
         <div className="flex items-center space-x-1.5 text-xs text-slate-500 pb-1 border-b border-slate-200">
-          <span 
+          <span
             onClick={() => navigateTo('master-service-home')}
             className="hover:text-slate-900 cursor-pointer transition flex items-center gap-1"
           >
@@ -225,7 +225,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Reset</span>
           </button>
-          
+
           {/* Create Reservation button (Exact Screenshot 1: Calendar/Plus Icon) */}
           <button
             onClick={() => setViewMode('book-a-room')}
@@ -239,7 +239,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
 
       {/* 3. Five Top Metric Cards (Exact Screenshot 1) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-        
+
         {/* Card 1: TODAY'S UNALLOCATED */}
         <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-2xs">
           <div className="flex items-center justify-between text-slate-500 mb-1">
@@ -355,10 +355,10 @@ export default function ReservationManagementView({ isSubTab = false }) {
 
       {/* 5. Main Reservation Table Card (Screenshots 1, 2, 3) */}
       <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
-        
+
         {/* Table Search & Tab Filter Bar */}
         <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          
+
           {/* Keyword Search Input */}
           <div className="relative w-full md:w-72">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -377,11 +377,10 @@ export default function ReservationManagementView({ isSubTab = false }) {
               <button
                 key={cat}
                 onClick={() => setFilterCategory(cat)}
-                className={`px-3 py-1.5 rounded-lg transition ${
-                  filterCategory === cat
+                className={`px-3 py-1.5 rounded-lg transition ${filterCategory === cat
                     ? 'bg-[#0e4860] text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
+                  }`}
               >
                 {cat}
               </button>
@@ -465,17 +464,16 @@ export default function ReservationManagementView({ isSubTab = false }) {
                 const isHighlight = res.highlight;
 
                 return (
-                  <tr 
+                  <tr
                     key={res.id}
-                    className={`transition ${
-                      isHighlight 
-                        ? 'bg-rose-50/40 border-l-4 border-l-rose-500 hover:bg-rose-50/70' 
+                    className={`transition ${isHighlight
+                        ? 'bg-rose-50/40 border-l-4 border-l-rose-500 hover:bg-rose-50/70'
                         : 'hover:bg-slate-50/80'
-                    }`}
+                      }`}
                   >
                     {/* 1. BOOKING ID */}
                     <td className="py-3.5 px-4 align-top">
-                      <div 
+                      <div
                         onClick={() => setInspectedReservation(res)}
                         className="font-bold text-sky-800 hover:text-sky-950 cursor-pointer hover:underline"
                       >
@@ -495,7 +493,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
                           <User className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <span 
+                          <span
                             onClick={() => setInspectedReservation(res)}
                             className="font-bold text-slate-900 hover:text-sky-800 cursor-pointer"
                           >
@@ -542,8 +540,8 @@ export default function ReservationManagementView({ isSubTab = false }) {
                             {res.ratePlan}
                           </span>
                           {res.rooms.map(rm => (
-                            <span 
-                              key={rm} 
+                            <span
+                              key={rm}
                               className="bg-[#0e4860] text-white px-2 py-0.5 rounded text-[10px] font-bold flex items-center space-x-0.5"
                             >
                               <span className="text-[9px] text-sky-200">R</span>
@@ -584,7 +582,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
 
                         {/* Invoice Link for AST-B-001 */}
                         {res.invoiceNumber && (
-                          <div 
+                          <div
                             onClick={() => setInvoiceModalData(res)}
                             className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
                           >
@@ -660,12 +658,6 @@ export default function ReservationManagementView({ isSubTab = false }) {
 
       {/* 6. Bottom Bar (Screenshot 3 & 4) */}
       <div className="rounded-xl bg-[#091b29] text-white p-3.5 flex items-center justify-between shadow-xs">
-        <button
-          onClick={() => showNotification('Connected to AuraStay Local PMS Sync Agent')}
-          className="px-3.5 py-1.5 bg-[#132c3f] hover:bg-[#1a3c56] text-white text-xs font-semibold rounded-lg border border-slate-700 transition"
-        >
-          Go AuraStay local
-        </button>
 
         <div className="flex items-center space-x-2 text-xs">
           <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-[#091b29] font-black text-[10px]">
@@ -694,7 +686,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
                 <h3 className="font-bold text-base">Reservation Details</h3>
                 <p className="text-xs text-sky-200 font-mono">#{inspectedReservation.id}</p>
               </div>
-              <button 
+              <button
                 onClick={() => setInspectedReservation(null)}
                 className="text-white/80 hover:text-white p-1 rounded-lg"
               >
@@ -719,8 +711,8 @@ export default function ReservationManagementView({ isSubTab = false }) {
                 <div>
                   <span className="text-slate-400 font-medium block">Room Assigned</span>
                   <span className="font-bold text-slate-800">
-                    {inspectedReservation.rooms.length > 0 
-                      ? inspectedReservation.rooms.join(', ') 
+                    {inspectedReservation.rooms.length > 0
+                      ? inspectedReservation.rooms.join(', ')
                       : 'Unassigned'} ({inspectedReservation.roomType})
                   </span>
                 </div>
@@ -764,7 +756,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
                 <h3 className="font-bold text-sm">Tax Invoice</h3>
                 <p className="text-xs text-slate-400 font-mono">{invoiceModalData.invoiceNumber}</p>
               </div>
-              <button 
+              <button
                 onClick={() => setInvoiceModalData(null)}
                 className="text-white/80 hover:text-white p-1 rounded-lg"
               >

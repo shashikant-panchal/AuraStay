@@ -1,27 +1,27 @@
 import React, { useState, useMemo } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
-import { 
-  Search, 
-  ArrowUpRight, 
-  BarChart3, 
-  Contact, 
-  LogIn, 
-  LogOut, 
-  Wallet, 
-  Calendar, 
-  Home, 
-  TrendingUp, 
-  Percent, 
-  Package, 
-  PlusCircle, 
-  Users, 
-  CreditCard, 
-  BarChart2, 
-  ShoppingCart, 
-  Tag, 
-  Shield, 
-  Download, 
-  Printer, 
+import {
+  Search,
+  ArrowUpRight,
+  BarChart3,
+  Contact,
+  LogIn,
+  LogOut,
+  Wallet,
+  Calendar,
+  Home,
+  TrendingUp,
+  Percent,
+  Package,
+  PlusCircle,
+  Users,
+  CreditCard,
+  BarChart2,
+  ShoppingCart,
+  Tag,
+  Shield,
+  Download,
+  Printer,
   X,
   FileText,
   Filter,
@@ -345,10 +345,10 @@ export default function ReportsView() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
-      
+
       {/* 1. Breadcrumb (Screenshot 1: Home / Manage Report) */}
       <div className="flex items-center space-x-1.5 text-xs text-slate-500 pb-1 border-b border-slate-200">
-        <span 
+        <span
           onClick={() => navigateTo('master-service-home')}
           className="hover:text-slate-900 cursor-pointer transition flex items-center gap-1"
         >
@@ -386,7 +386,7 @@ export default function ReportsView() {
 
       {/* 3. Available Reports Count Card & Department Filter Pills (Screenshot 1) */}
       <div className="flex flex-col md:flex-row items-stretch gap-3">
-        
+
         {/* Left: Available Reports Count Card */}
         <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-2xs w-full md:w-44 shrink-0 flex flex-col justify-center">
           <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -406,11 +406,10 @@ export default function ReportsView() {
               <button
                 key={dept.name}
                 onClick={() => handleToggleDepartment(dept.name)}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition ${
-                  isSelected 
-                    ? 'ring-2 ring-slate-800 shadow-xs' 
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition ${isSelected
+                    ? 'ring-2 ring-slate-800 shadow-xs'
                     : 'hover:opacity-90'
-                } ${dept.bg}`}
+                  } ${dept.bg}`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${dept.dot}`} />
                 <span>{dept.name}</span>
@@ -451,7 +450,7 @@ export default function ReportsView() {
                 const IconComponent = rep.icon;
 
                 return (
-                  <tr 
+                  <tr
                     key={rep.id}
                     className="hover:bg-slate-50/70 transition group cursor-pointer"
                     onClick={() => setActiveReportModal(rep)}
@@ -484,7 +483,7 @@ export default function ReportsView() {
                         {rep.departments.map(dName => {
                           const pillConfig = DEPARTMENT_PILLS.find(p => p.name === dName);
                           return (
-                            <span 
+                            <span
                               key={dName}
                               className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold border ${pillConfig?.bg || 'bg-slate-100 text-slate-700'}`}
                             >
@@ -520,12 +519,6 @@ export default function ReportsView() {
 
       {/* 5. Bottom Local Bar (Screenshot 3) */}
       <div className="rounded-xl bg-[#091b29] text-white p-3.5 flex items-center justify-between shadow-xs">
-        <button
-          onClick={() => showNotification('Connected to AuraStay Local PMS Sync Agent')}
-          className="px-3.5 py-1.5 bg-[#132c3f] hover:bg-[#1a3c56] text-white text-xs font-semibold rounded-lg border border-slate-700 transition"
-        >
-          Go AuraStay local
-        </button>
 
         <div className="flex items-center space-x-2 text-xs">
           <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-[#091b29] font-black text-[10px]">
@@ -541,7 +534,7 @@ export default function ReportsView() {
       {activeReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
-            
+
             {/* Modal Header */}
             <div className="px-6 py-4 bg-[#0e4860] text-white flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -564,7 +557,7 @@ export default function ReportsView() {
 
             {/* Modal Body */}
             <div className="p-6 space-y-4 overflow-y-auto text-xs">
-              
+
               {/* Date Filter Bar */}
               <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
                 <div>
