@@ -42,33 +42,42 @@ export default function ReservationManagementView({ isSubTab = false }) {
     reservations: contextReservations = [],
     setReservations,
     addReservation,
+    updateReservationPayment,
     rooms = []
   } = useDashboard();
 
   // Mode: 'list' or 'book-a-room'
   const [viewMode, setViewMode] = useState('list');
 
-  const reservations = (contextReservations || []).map(r => ({
-    id: r.id,
-    hash: r.hash || `AST-B-${r.id || Date.now()}`,
-    guest: r.guest,
-    guestType: r.source || 'WALKIN',
-    phone: r.guestPhone || r.phone || '—',
-    createdAt: r.checkIn || 'Today',
-    createdTime: '10:00 AM',
-    stayPeriod: `${r.checkIn || 'Today'} — ${r.checkOut || 'Tomorrow'}`,
-    checkInOut: `${r.checkIn || 'Today'} — ${r.checkOut || 'Tomorrow'}`,
-    roomType: r.room || 'Standard Room',
-    ratePlan: 'EP PLAN',
-    rooms: [r.room || '101'],
-    status: r.status || 'CONFIRMED',
-    total: Number(r.amount) || 0,
-    paid: r.payment === 'PAID' ? Number(r.amount) : 0,
-    due: r.payment === 'PAID' ? 0 : Number(r.amount),
-    note: null,
-    highlight: false,
-    invoiceNumber: null
-  }));
+  const reservations = (contextReservations || []).map(r => {
+    const totalAmount = Number(r.amount) || 2000;
+    const isPaid = r.payment === 'PAID';
+    const paidVal = r.paid !== undefined ? Number(r.paid) : (isPaid ? totalAmount : 0);
+    const dueVal = r.due !== undefined ? Number(r.due) : Math.max(0, totalAmount - paidVal);
+
+    return {
+      id: r.id,
+      hash: r.hash || `AST-B-${r.id || Date.now()}`,
+      guest: r.guest,
+      guestType: r.source || 'WALKIN',
+      phone: r.guestPhone || r.phone || '—',
+      createdAt: r.checkIn || 'Today',
+      createdTime: '10:00 AM',
+      stayPeriod: `${r.checkIn || 'Today'} — ${r.checkOut || 'Tomorrow'}`,
+      checkInOut: `${r.checkIn || 'Today'} — ${r.checkOut || 'Tomorrow'}`,
+      roomType: r.room || 'Standard Room',
+      ratePlan: 'EP PLAN',
+      rooms: [r.room || '101'],
+      status: r.status || 'CONFIRMED',
+      payment: isPaid ? 'PAID' : (paidVal > 0 ? 'PARTIAL' : 'PENDING'),
+      total: totalAmount,
+      paid: paidVal,
+      due: dueVal,
+      note: null,
+      highlight: false,
+      invoiceNumber: null
+    };
+  });
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchType, setSearchType] = useState('ALL');
   const [filterCategory, setFilterCategory] = useState('Recent');
@@ -89,20 +98,26 @@ export default function ReservationManagementView({ isSubTab = false }) {
   };
 
   const handleUpdatePayment = (resId, newPaid, newDue) => {
-    if (setReservations) {
+    if (updateReservationPayment) {
+      updateReservationPayment(resId, {
+        paid: newPaid,
+        due: newDue,
+        paymentStatus: newDue <= 0 ? 'PAID' : 'PENDING'
+      });
+    } else if (setReservations) {
       setReservations(prev => prev.map(r => {
         if (r.id === resId) {
           return {
             ...r,
             paid: newPaid,
             due: newDue,
+            payment: newDue <= 0 ? 'PAID' : 'PENDING',
             status: newDue === 0 && r.status === 'CONFIRMED' ? 'CONFIRMED' : r.status
           };
         }
         return r;
       }));
     }
-    showNotification(`Payment updated for booking ${resId}.`);
   };
 
   const handleResetFilters = () => {

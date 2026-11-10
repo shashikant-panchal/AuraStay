@@ -290,9 +290,12 @@ export function DashboardProvider({ children }) {
             setReservations(prev => prev.map(r => r.id === payload.new.id ? {
               ...r,
               status: payload.new.status,
-              payment: payload.new.payment
+              payment: payload.new.payment,
+              amount: Number(payload.new.amount) || r.amount
             } : r));
           }
+        } else if (payload.eventType === 'DELETE' && payload.old) {
+          setReservations(prev => prev.filter(r => r.id !== payload.old.id));
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fnb_orders' }, payload => {
@@ -541,16 +544,29 @@ export function DashboardProvider({ children }) {
   };
 
   // Change room status (Housekeeping)
-  const updateRoomStatus = async (roomNumber, newStatus) => {
-    setRooms(prev => prev.map(r => r.roomNumber === roomNumber ? { ...r, status: newStatus } : r));
-    showNotification(`Room ${roomNumber} status set to ${newStatus}`);
+  const updateRoomStatus = async (roomIdentifier, newStatus) => {
+    const cleanNum = String(roomIdentifier).replace(/\D/g, '') || String(roomIdentifier);
+    setRooms(prev => prev.map(r => 
+      (String(r.roomNumber) === cleanNum || String(r.id) === String(roomIdentifier) || String(r.name) === String(roomIdentifier))
+        ? { ...r, status: newStatus }
+        : r
+    ));
+    showNotification(`Room ${cleanNum} status set to ${newStatus}`);
 
     if (isSupabaseConfigured) {
       try {
-        await supabase
+        // Try updating by room_number first, or by id
+        const { error } = await supabase
           .from('rooms')
           .update({ status: newStatus, updated_at: new Date().toISOString() })
-          .eq('room_number', roomNumber);
+          .eq('room_number', cleanNum);
+
+        if (error) {
+          await supabase
+            .from('rooms')
+            .update({ status: newStatus, updated_at: new Date().toISOString() })
+            .eq('id', roomIdentifier);
+        }
       } catch (err) {
         console.warn('Supabase room update sync pending table setup', err);
       }
@@ -634,6 +650,35 @@ export function DashboardProvider({ children }) {
     setDeleteConfirmRoom(null);
   };
 
+  // Update reservation payment (Collect Payment & Settle Folio)
+  const updateReservationPayment = async (reservationId, { paid, due, paymentStatus }) => {
+    const newPayment = paymentStatus || (due <= 0 ? 'PAID' : 'PENDING');
+    setReservations(prev => prev.map(r => {
+      if (r.id === reservationId) {
+        return {
+          ...r,
+          payment: newPayment,
+          paid: paid,
+          due: due
+        };
+      }
+      return r;
+    }));
+    showNotification(`Payment recorded for booking #${reservationId}. Status: ${newPayment}`);
+
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase
+          .from('reservations')
+          .update({ payment: newPayment })
+          .eq('id', reservationId);
+        if (error) console.warn('Supabase payment update error:', error);
+      } catch (err) {
+        console.warn('Supabase payment sync error:', err);
+      }
+    }
+  };
+
   // Add reservation
   const addReservation = async (newRes) => {
     const resId = newRes.id || `AST-B-${(reservations?.length || 0) + 101}`;
@@ -648,18 +693,27 @@ export function DashboardProvider({ children }) {
     showNotification(`Reservation ${resId} created for ${newRes.guest}`);
     setIsCreateReservationModalOpen(false);
 
+    // If check-in is today or ongoing, mark room status as OCCUPIED
+    const todayStr = new Date().toISOString().split('T')[0];
+    const roomNumMatch = String(newRes.room).match(/\b(\d+)\b/);
+    const roomNum = roomNumMatch ? roomNumMatch[1] : null;
+
+    if (roomNum && (newRes.checkIn || newRes.check_in) <= todayStr && (newRes.checkOut || newRes.check_out) >= todayStr) {
+      updateRoomStatus(roomNum, 'OCCUPIED');
+    }
+
     if (isSupabaseConfigured) {
       try {
         const payload = {
           id: resId,
           guest: newRes.guest,
-          guest_email: newRes.guestEmail || null,
-          guest_phone: newRes.guestPhone || null,
+          guest_email: newRes.guestEmail || newRes.guest_email || null,
+          guest_phone: newRes.guestPhone || newRes.guest_phone || null,
           room: newRes.room,
-          check_in: newRes.checkIn,
-          check_out: newRes.checkOut,
+          check_in: newRes.checkIn || newRes.check_in,
+          check_out: newRes.checkOut || newRes.check_out,
           source: newRes.source || 'Direct Website',
-          amount: newRes.amount || 4000,
+          amount: Number(newRes.amount) || 2000,
           status: newRes.status || 'CONFIRMED',
           payment: newRes.payment || 'PENDING'
         };
@@ -842,6 +896,7 @@ export function DashboardProvider({ children }) {
       resetToDefaults,
       updateRoomStatus,
       addReservation,
+      updateReservationPayment,
       handleReviewAction,
       updateMonthlyBudget,
       addForecastOverride,

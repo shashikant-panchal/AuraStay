@@ -18,9 +18,10 @@ export default function BookingPaymentsModal({ isOpen, onClose, reservation, onU
 
   if (!isOpen || !reservation) return null;
 
-  const totalTariff = reservation.total || 11000.00;
-  const initialPaid = reservation.paid !== undefined ? reservation.paid : (reservation.status === 'CHECKEDOUT' ? totalTariff : 5000.00);
-  const initialDue = reservation.due !== undefined ? reservation.due : Math.max(0, totalTariff - initialPaid);
+  const totalTariff = Number(reservation.total || reservation.amount || 2000.00);
+  const isPaid = reservation.payment === 'PAID';
+  const initialPaid = reservation.paid !== undefined ? Number(reservation.paid) : (isPaid ? totalTariff : 0.00);
+  const initialDue = reservation.due !== undefined ? Number(reservation.due) : Math.max(0, totalTariff - initialPaid);
 
   const [paidAmount, setPaidAmount] = useState(initialPaid);
   const [dueAmount, setDueAmount] = useState(initialDue);

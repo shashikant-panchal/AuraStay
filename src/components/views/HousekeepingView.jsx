@@ -303,30 +303,39 @@ export default function HousekeepingView() {
           </div>
         </div>
 
-        {/* 4. 7-Day Week Columns Header Strip (Screenshot 1 & 2) */}
+        {/* 4. 7-Day Week Columns Header Strip */}
         <div className="grid grid-cols-7 gap-2 text-center select-none pt-1">
-          {WEEK_DAYS.map((dayItem) => (
-            <div
-              key={dayItem.date}
-              className={`rounded-xl border p-2.5 shadow-2xs transition ${
-                dayItem.isToday 
-                  ? 'bg-white border-slate-300 ring-1 ring-sky-300' 
-                  : 'bg-white border-slate-200'
-              }`}
-            >
-              <div className="text-[11px] font-semibold text-slate-500">
-                {dayItem.date}
+          {WEEK_DAYS.map((dayItem) => {
+            const isSelected = selectedDate === dayItem.date;
+            return (
+              <div
+                key={dayItem.date}
+                onClick={() => {
+                  setSelectedDate(dayItem.date);
+                  showNotification(`Housekeeping schedule view for ${dayItem.date} (${dayItem.day})`);
+                }}
+                className={`rounded-xl border p-2.5 shadow-2xs transition cursor-pointer ${
+                  isSelected 
+                    ? 'bg-sky-50 border-sky-400 ring-2 ring-sky-400/40' 
+                    : dayItem.isToday
+                    ? 'bg-white border-slate-300 ring-1 ring-sky-300 hover:bg-slate-50'
+                    : 'bg-white border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <div className={`text-[11px] font-bold ${isSelected ? 'text-sky-700' : 'text-slate-500'}`}>
+                  {dayItem.date}
+                </div>
+                <div className={`text-xs font-black mt-0.5 tracking-wider ${isSelected ? 'text-[#0e4860]' : 'text-slate-900'}`}>
+                  {dayItem.day} {dayItem.isToday && <span className="text-[10px] text-sky-600">(Today)</span>}
+                </div>
               </div>
-              <div className="text-xs font-black text-slate-900 mt-0.5 tracking-wider">
-                {dayItem.day}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
       </div>
 
-      {/* 5. Floors Accordion List (Screenshot 1, 2, 3) */}
+      {/* 5. Floors Accordion List */}
       <div className="space-y-3">
         {filteredFloors.length === 0 ? (
           <div className="bg-white rounded-xl border border-slate-200/90 p-12 text-center shadow-2xs">
@@ -347,13 +356,17 @@ export default function HousekeepingView() {
         ) : (
           filteredFloors.map((floor) => {
           const isOpen = openFloors[floor.floorId];
+          const cleanCount = floor.rooms.filter(r => r.status === 'VACANT READY' || r.status === 'CLEAN' || r.status === 'AVAILABLE').length;
+          const occCount = floor.rooms.filter(r => r.status === 'OCCUPIED').length;
+          const dirtyCount = floor.rooms.filter(r => r.status === 'DIRTY').length;
+          const maintCount = floor.rooms.filter(r => r.status === 'MAINTENANCE').length;
 
           return (
             <div 
               key={floor.floorId}
               className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden"
             >
-              {/* Floor Header Bar (Screenshot 1) */}
+              {/* Floor Header Bar */}
               <div 
                 onClick={() => toggleFloor(floor.floorId)}
                 className="px-4 py-3 bg-slate-50/60 hover:bg-slate-100/70 border-b border-slate-200/80 flex items-center justify-between cursor-pointer transition select-none"
@@ -364,22 +377,37 @@ export default function HousekeepingView() {
                   </div>
                   <Building className="w-4 h-4 text-slate-600" />
                   <span className="font-extrabold text-slate-900">
-                    Floor no: {floor.floorId}
+                    Floor: {floor.floorId}
                   </span>
                   <span className="text-slate-300">|</span>
                   <span className="text-slate-600 font-medium">
-                    Floor Name: {floor.floorName}
+                    {floor.floorName}
                   </span>
                 </div>
 
-                <div className="flex items-center space-x-2.5" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                   <span className="bg-sky-100 text-sky-800 font-bold px-2.5 py-0.5 rounded-lg text-xs">
-                    {floor.rooms.length} Rooms
+                    {floor.rooms.length} {floor.rooms.length === 1 ? 'Room' : 'Rooms'}
                   </span>
+                  {cleanCount > 0 && (
+                    <span className="hidden sm:inline bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-md text-[11px]">
+                      {cleanCount} Clean
+                    </span>
+                  )}
+                  {dirtyCount > 0 && (
+                    <span className="hidden sm:inline bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-md text-[11px]">
+                      {dirtyCount} Dirty
+                    </span>
+                  )}
+                  {occCount > 0 && (
+                    <span className="hidden sm:inline bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-md text-[11px]">
+                      {occCount} Occupied
+                    </span>
+                  )}
 
                   <button
                     onClick={() => setSelectedFloorDetail(floor)}
-                    className="flex items-center space-x-1 px-3 py-1 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold transition shadow-2xs"
+                    className="flex items-center space-x-1 px-3 py-1 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold transition shadow-2xs ml-1"
                   >
                     <span>Floor Detail</span>
                     <ChevronDown className="w-3.5 h-3.5" />
@@ -387,77 +415,109 @@ export default function HousekeepingView() {
                 </div>
               </div>
 
-              {/* Room Grid across the 7 Days when open (Screenshot 1 & 2) */}
+              {/* Dynamic Room Grid (Each Physical Room Displayed Exactly Once) */}
               {isOpen && (
-                <div className="p-4 space-y-3 overflow-x-auto">
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5">
                   {floor.rooms.map((room) => {
-                    const isVacantReady = room.status === 'VACANT READY';
+                    const isVacantReady = room.status === 'VACANT READY' || room.status === 'AVAILABLE' || room.status === 'CLEAN';
                     const isOccupied = room.status === 'OCCUPIED';
                     const isDirty = room.status === 'DIRTY';
+                    const isMaintenance = room.status === 'MAINTENANCE';
 
                     return (
-                      <div key={room.id} className="grid grid-cols-7 gap-2 min-w-[700px]">
-                        {WEEK_DAYS.map((dayItem, dIdx) => (
-                          <div
-                            key={dIdx}
-                            onClick={() => handleOpenRoomProfile(room)}
-                            className={`rounded-xl p-3 text-center space-y-2 cursor-pointer transition transform hover:-translate-y-0.5 hover:shadow-md ${
-                              isVacantReady 
-                                ? 'border-2 border-emerald-600 bg-white hover:bg-emerald-50/20' 
-                                : isOccupied
-                                ? 'border-2 border-rose-500 bg-white hover:bg-rose-50/20'
-                                : isDirty
-                                ? 'border-2 border-amber-500 bg-white hover:bg-amber-50/20'
-                                : 'border-2 border-slate-400 bg-white hover:bg-slate-50'
-                            }`}
-                          >
-                            {/* Category Header */}
-                            <div className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
-                              {room.category}
-                            </div>
+                      <div
+                        key={room.id}
+                        onClick={() => handleOpenRoomProfile(room)}
+                        className={`rounded-2xl p-4 text-center space-y-3 cursor-pointer transition transform hover:-translate-y-1 hover:shadow-lg border-2 ${
+                          isVacantReady 
+                            ? 'border-emerald-500 bg-white hover:bg-emerald-50/20 shadow-xs' 
+                            : isOccupied
+                            ? 'border-rose-500 bg-white hover:bg-rose-50/20 shadow-xs'
+                            : isDirty
+                            ? 'border-amber-500 bg-white hover:bg-amber-50/20 shadow-xs'
+                            : 'border-slate-400 bg-white hover:bg-slate-50 shadow-xs'
+                        }`}
+                      >
+                        {/* Category Header & Sequence */}
+                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 border-b border-slate-100 pb-2">
+                          <span className="uppercase tracking-wider text-slate-600 truncate max-w-[130px]" title={room.category}>
+                            {room.category}
+                          </span>
+                          <span className="text-slate-400 font-mono">
+                            Seq: {room.seq}
+                          </span>
+                        </div>
 
-                            {/* Sequence subtext */}
-                            <div className="text-[9.5px] text-slate-400 font-medium -mt-1">
-                              Seq: {room.seq}
-                            </div>
-
-                            {/* Room Badge Pill with Bed icon */}
-                            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full border border-slate-200 bg-white shadow-2xs font-bold text-xs text-slate-800">
-                              <span>{room.name}</span>
-                              <Bed className="w-3.5 h-3.5 text-slate-500" />
-                              <span className="text-[11px]">{room.bedCount}</span>
-                            </div>
-
-                            {/* Status Pill */}
-                            <div>
-                              <span className={`inline-block font-extrabold text-[9.5px] px-2.5 py-0.5 rounded-full uppercase tracking-wider text-white ${
-                                isVacantReady 
-                                  ? 'bg-[#388e3c]' 
-                                  : isOccupied
-                                  ? 'bg-rose-600'
-                                  : isDirty
-                                  ? 'bg-amber-600'
-                                  : 'bg-slate-600'
-                              }`}>
-                                {room.status}
-                              </span>
-                            </div>
-
-                            {/* ACTIONS Button (Screenshot 1 & 2) */}
-                            <div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenRoomProfile(room);
-                                }}
-                                className="px-3 py-0.5 bg-white hover:bg-slate-50 border border-slate-300 rounded text-[9.5px] font-bold text-slate-700 shadow-2xs transition"
-                              >
-                                ACTIONS
-                              </button>
-                            </div>
-
+                        {/* Room Badge Pill with Bed icon */}
+                        <div className="py-1">
+                          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full border border-slate-200 bg-slate-50 shadow-2xs font-extrabold text-sm text-slate-800">
+                            <span>{room.name}</span>
+                            <span className="text-slate-300">|</span>
+                            <Bed className="w-3.5 h-3.5 text-slate-500" />
+                            <span className="text-xs font-semibold text-slate-600">{room.bed}</span>
                           </div>
-                        ))}
+                        </div>
+
+                        {/* Status Pill */}
+                        <div>
+                          <span className={`inline-block font-extrabold text-[10px] px-3 py-1 rounded-full uppercase tracking-wider text-white shadow-2xs ${
+                            isVacantReady 
+                              ? 'bg-emerald-600' 
+                              : isOccupied
+                              ? 'bg-rose-600'
+                              : isDirty
+                              ? 'bg-amber-600'
+                              : 'bg-slate-600'
+                          }`}>
+                            ● {room.status}
+                          </span>
+                        </div>
+
+                        {/* Quick Status Buttons & Actions */}
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1">
+                            <button
+                              title="Mark Clean / Ready"
+                              onClick={() => updateRoomStatus(room.id, 'VACANT READY')}
+                              className={`p-1.5 rounded-md border text-[10px] font-bold transition ${
+                                isVacantReady
+                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                                  : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                              }`}
+                            >
+                              Ready
+                            </button>
+                            <button
+                              title="Mark Dirty / In-Service"
+                              onClick={() => updateRoomStatus(room.id, 'DIRTY')}
+                              className={`p-1.5 rounded-md border text-[10px] font-bold transition ${
+                                isDirty
+                                  ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                                  : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
+                              }`}
+                            >
+                              Dirty
+                            </button>
+                            <button
+                              title="Mark Occupied"
+                              onClick={() => updateRoomStatus(room.id, 'OCCUPIED')}
+                              className={`p-1.5 rounded-md border text-[10px] font-bold transition ${
+                                isOccupied
+                                  ? 'bg-rose-600 text-white border-rose-600 shadow-2xs'
+                                  : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50'
+                              }`}
+                            >
+                              Occ
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => handleOpenRoomProfile(room)}
+                            className="px-2.5 py-1.5 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-md text-[10.5px] font-bold shadow-2xs transition"
+                          >
+                            ACTIONS
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
