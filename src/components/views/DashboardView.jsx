@@ -257,7 +257,7 @@ export default function DashboardView() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      
+
       {/* 1. Header Toolbar */}
       <div className="bg-white rounded-3xl p-5 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.05)] border border-slate-200/80 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
@@ -310,13 +310,12 @@ export default function DashboardView() {
 
       {/* 2. Top KPI Stat Counters (Modern Light 3D Theme Cards) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        
+
         {/* Total Rooms */}
         <div
           onClick={() => setStatusFilter('ALL')}
-          className={`cursor-pointer bg-white rounded-3xl p-4 border transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-8px_rgba(0,0,0,0.08)] ${
-            statusFilter === 'ALL' ? 'ring-2 ring-indigo-900 border-indigo-900' : 'border-slate-200/80 hover:border-slate-300'
-          }`}
+          className={`cursor-pointer bg-white rounded-3xl p-4 border transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-8px_rgba(0,0,0,0.08)] ${statusFilter === 'ALL' ? 'ring-2 ring-indigo-900 border-indigo-900' : 'border-slate-200/80 hover:border-slate-300'
+            }`}
         >
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-[10px] font-black uppercase tracking-wider">Total Rooms</span>
@@ -334,9 +333,8 @@ export default function DashboardView() {
         {/* Occupied Rooms (Soft Indigo Glow) */}
         <div
           onClick={() => setStatusFilter('OCCUPIED')}
-          className={`cursor-pointer bg-white rounded-3xl p-4 border transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(99,102,241,0.08)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-8px_rgba(99,102,241,0.15)] ${
-            statusFilter === 'OCCUPIED' ? 'ring-2 ring-indigo-600 border-indigo-600' : 'border-indigo-100 hover:border-indigo-300'
-          }`}
+          className={`cursor-pointer bg-white rounded-3xl p-4 border transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(99,102,241,0.08)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-8px_rgba(99,102,241,0.15)] ${statusFilter === 'OCCUPIED' ? 'ring-2 ring-indigo-600 border-indigo-600' : 'border-indigo-100 hover:border-indigo-300'
+            }`}
         >
           <div className="flex items-center justify-between text-indigo-500">
             <span className="text-[10px] font-black uppercase tracking-wider">Occupied</span>
@@ -352,9 +350,8 @@ export default function DashboardView() {
         {/* Vacant Rooms (Soft Emerald Mint Glow) */}
         <div
           onClick={() => setStatusFilter('VACANT')}
-          className={`cursor-pointer bg-white rounded-3xl p-4 border transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(16,185,129,0.08)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-8px_rgba(16,185,129,0.15)] ${
-            statusFilter === 'VACANT' ? 'ring-2 ring-emerald-600 border-emerald-600' : 'border-emerald-100 hover:border-emerald-300'
-          }`}
+          className={`cursor-pointer bg-white rounded-3xl p-4 border transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(16,185,129,0.08)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-8px_rgba(16,185,129,0.15)] ${statusFilter === 'VACANT' ? 'ring-2 ring-emerald-600 border-emerald-600' : 'border-emerald-100 hover:border-emerald-300'
+            }`}
         >
           <div className="flex items-center justify-between text-emerald-600">
             <span className="text-[10px] font-black uppercase tracking-wider">Vacant Clean</span>
@@ -370,9 +367,8 @@ export default function DashboardView() {
         {/* Dirty / Turnover (Soft Amber Honey Glow) */}
         <div
           onClick={() => setStatusFilter('DIRTY')}
-          className={`cursor-pointer bg-white rounded-3xl p-4 border transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(245,158,11,0.08)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-8px_rgba(245,158,11,0.15)] ${
-            statusFilter === 'DIRTY' ? 'ring-2 ring-amber-600 border-amber-600' : 'border-amber-100 hover:border-amber-300'
-          }`}
+          className={`cursor-pointer bg-white rounded-3xl p-4 border transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(245,158,11,0.08)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-8px_rgba(245,158,11,0.15)] ${statusFilter === 'DIRTY' ? 'ring-2 ring-amber-600 border-amber-600' : 'border-amber-100 hover:border-amber-300'
+            }`}
         >
           <div className="flex items-center justify-between text-amber-600">
             <span className="text-[10px] font-black uppercase tracking-wider">Dirty Turnover</span>
@@ -388,9 +384,8 @@ export default function DashboardView() {
         {/* Blocked / Maintenance (Soft Rose Crimson Glow) */}
         <div
           onClick={() => setStatusFilter('BLOCKED')}
-          className={`cursor-pointer bg-white rounded-3xl p-4 border transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(244,63,94,0.08)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-8px_rgba(244,63,94,0.15)] ${
-            statusFilter === 'BLOCKED' ? 'ring-2 ring-rose-600 border-rose-600' : 'border-rose-100 hover:border-rose-300'
-          }`}
+          className={`cursor-pointer bg-white rounded-3xl p-4 border transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(244,63,94,0.08)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-8px_rgba(244,63,94,0.15)] ${statusFilter === 'BLOCKED' ? 'ring-2 ring-rose-600 border-rose-600' : 'border-rose-100 hover:border-rose-300'
+            }`}
         >
           <div className="flex items-center justify-between text-rose-600">
             <span className="text-[10px] font-black uppercase tracking-wider">Out of Order</span>
@@ -422,7 +417,7 @@ export default function DashboardView() {
 
       {/* 3. Filter & Control Bar */}
       <div className="bg-white rounded-3xl p-4 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.04)] border border-slate-200/80 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        
+
         {/* Left: Search input */}
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -445,7 +440,7 @@ export default function DashboardView() {
 
         {/* Right: Floor Selector, Category Selector, Density Toggle */}
         <div className="flex flex-wrap items-center gap-2">
-          
+
           {/* Floor selector */}
           <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-2xl px-3 py-1.5 text-xs">
             <span className="text-slate-400 font-bold text-[10px] uppercase">Floor:</span>
@@ -479,18 +474,16 @@ export default function DashboardView() {
             <button
               onClick={() => setViewDensity('3D')}
               title="3D Card View"
-              className={`p-1.5 rounded-xl transition-all ${
-                viewDensity === '3D' ? 'bg-white text-indigo-900 shadow-xs' : 'text-slate-400 hover:text-slate-700'
-              }`}
+              className={`p-1.5 rounded-xl transition-all ${viewDensity === '3D' ? 'bg-white text-indigo-900 shadow-xs' : 'text-slate-400 hover:text-slate-700'
+                }`}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewDensity('COMPACT')}
               title="Compact Matrix View"
-              className={`p-1.5 rounded-xl transition-all ${
-                viewDensity === 'COMPACT' ? 'bg-white text-indigo-900 shadow-xs' : 'text-slate-400 hover:text-slate-700'
-              }`}
+              className={`p-1.5 rounded-xl transition-all ${viewDensity === 'COMPACT' ? 'bg-white text-indigo-900 shadow-xs' : 'text-slate-400 hover:text-slate-700'
+                }`}
             >
               <List className="w-4 h-4" />
             </button>
@@ -583,15 +576,14 @@ export default function DashboardView() {
                           <div
                             key={room.roomNumber}
                             onClick={() => handleRoomAction(room, isOccupied ? 'folio' : isVacant ? 'book' : 'block')}
-                            className={`cursor-pointer rounded-2xl p-3 border transition-all text-center relative overflow-hidden group shadow-xs hover:shadow-md hover:-translate-y-0.5 ${
-                              isOccupied
+                            className={`cursor-pointer rounded-2xl p-3 border transition-all text-center relative overflow-hidden group shadow-xs hover:shadow-md hover:-translate-y-0.5 ${isOccupied
                                 ? 'bg-indigo-50/60 border-indigo-200 text-indigo-950'
                                 : isVacant
-                                ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
-                                : isDirty
-                                ? 'bg-amber-50/60 border-amber-200 text-amber-950'
-                                : 'bg-rose-50/60 border-rose-200 text-rose-950'
-                            }`}
+                                  ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
+                                  : isDirty
+                                    ? 'bg-amber-50/60 border-amber-200 text-amber-950'
+                                    : 'bg-rose-50/60 border-rose-200 text-rose-950'
+                              }`}
                           >
                             <p className="font-black text-lg font-mono">#{room.roomNumber}</p>
                             <p className="text-[10px] font-bold uppercase truncate mt-0.5">
@@ -605,26 +597,24 @@ export default function DashboardView() {
                       return (
                         <div
                           key={room.roomNumber}
-                          className={`group relative bg-white rounded-3xl border transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.06),0_8px_10px_-6px_rgba(0,0,0,0.04)] hover:-translate-y-1.5 hover:shadow-[0_20px_35px_-8px_rgba(0,0,0,0.12),0_10px_10px_-5px_rgba(0,0,0,0.04)] ${
-                            isOccupied
+                          className={`group relative bg-white rounded-3xl border transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.06),0_8px_10px_-6px_rgba(0,0,0,0.04)] hover:-translate-y-1.5 hover:shadow-[0_20px_35px_-8px_rgba(0,0,0,0.12),0_10px_10px_-5px_rgba(0,0,0,0.04)] ${isOccupied
                               ? 'border-indigo-100 hover:border-indigo-300'
                               : isVacant
-                              ? 'border-emerald-100 hover:border-emerald-300'
-                              : isDirty
-                              ? 'border-amber-100 hover:border-amber-300'
-                              : 'border-rose-100 hover:border-rose-300'
-                          }`}
+                                ? 'border-emerald-100 hover:border-emerald-300'
+                                : isDirty
+                                  ? 'border-amber-100 hover:border-amber-300'
+                                  : 'border-rose-100 hover:border-rose-300'
+                            }`}
                         >
                           {/* Top 3D Embossed Bar */}
-                          <div className={`p-4 border-b flex items-center justify-between ${
-                            isOccupied
+                          <div className={`p-4 border-b flex items-center justify-between ${isOccupied
                               ? 'bg-gradient-to-r from-indigo-50/90 to-purple-50/50 border-indigo-100/70'
                               : isVacant
-                              ? 'bg-gradient-to-r from-emerald-50/90 to-teal-50/50 border-emerald-100/70'
-                              : isDirty
-                              ? 'bg-gradient-to-r from-amber-50/90 to-orange-50/50 border-amber-100/70'
-                              : 'bg-gradient-to-r from-rose-50/90 to-red-50/50 border-rose-100/70'
-                          }`}>
+                                ? 'bg-gradient-to-r from-emerald-50/90 to-teal-50/50 border-emerald-100/70'
+                                : isDirty
+                                  ? 'bg-gradient-to-r from-amber-50/90 to-orange-50/50 border-amber-100/70'
+                                  : 'bg-gradient-to-r from-rose-50/90 to-red-50/50 border-rose-100/70'
+                            }`}>
                             <div className="flex items-center space-x-2">
                               {/* 3D Room Number Badge */}
                               <div className="w-10 h-10 rounded-2xl bg-white shadow-[0_4px_10px_rgba(0,0,0,0.06)] border border-slate-200/90 flex items-center justify-center font-black text-slate-900 font-mono text-base">
@@ -634,15 +624,14 @@ export default function DashboardView() {
                                 <span className="text-[10px] font-bold text-slate-400 block uppercase leading-none">
                                   {room.floor}
                                 </span>
-                                <span className={`text-[10px] font-black uppercase tracking-wider mt-0.5 inline-block px-1.5 py-0.2 rounded-md ${
-                                  isOccupied
+                                <span className={`text-[10px] font-black uppercase tracking-wider mt-0.5 inline-block px-1.5 py-0.2 rounded-md ${isOccupied
                                     ? 'text-indigo-800 bg-indigo-100/70'
                                     : isVacant
-                                    ? 'text-emerald-800 bg-emerald-100/70'
-                                    : isDirty
-                                    ? 'text-amber-800 bg-amber-100/70'
-                                    : 'text-rose-800 bg-rose-100/70'
-                                }`}>
+                                      ? 'text-emerald-800 bg-emerald-100/70'
+                                      : isDirty
+                                        ? 'text-amber-800 bg-amber-100/70'
+                                        : 'text-rose-800 bg-rose-100/70'
+                                  }`}>
                                   {isOccupied ? 'Occupied' : isVacant ? 'Ready' : isDirty ? 'Dirty' : 'Blocked'}
                                 </span>
                               </div>
@@ -789,9 +778,8 @@ export default function DashboardView() {
 
                                 <div className="flex items-center justify-between text-xs bg-slate-50 p-2 rounded-xl border border-slate-100">
                                   <span className="text-[10px] font-bold text-slate-500 uppercase">Folio:</span>
-                                  <span className={`font-mono font-black text-[11px] ${
-                                    room.balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'
-                                  }`}>
+                                  <span className={`font-mono font-black text-[11px] ${room.balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'
+                                    }`}>
                                     {room.balanceDue > 0 ? `Due ₹${room.balanceDue.toLocaleString('en-IN')}` : 'Settled ✓'}
                                   </span>
                                 </div>

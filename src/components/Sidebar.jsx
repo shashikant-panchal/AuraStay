@@ -37,6 +37,7 @@ export default function Sidebar() {
   const {
     currentView,
     navigateTo,
+    activeTab,
     setActiveTab,
     showNotification,
     currentHotel,
@@ -100,6 +101,17 @@ export default function Sidebar() {
     }
   };
 
+  const isSubItemActive = (item, group) => {
+    if (currentView !== item.id) return false;
+    if (item.subTab) {
+      if (!activeTab) {
+        return group.items[0]?.subTab === item.subTab;
+      }
+      return activeTab === item.subTab;
+    }
+    return true;
+  };
+
   // Section items configuration exactly matching Exceed Software
   const menuGroups = [
     {
@@ -122,7 +134,7 @@ export default function Sidebar() {
       tag: 'HK',
       tagColor: 'bg-amber-600',
       items: [
-        { id: 'housekeeping', label: 'Room Cleanliness & Turnover', icon: Paintbrush },
+        { id: 'housekeeping', label: 'Room Cleanliness & Turnover', icon: Paintbrush, subTab: 'turnover' },
         { id: 'housekeeping', label: 'Work Orders & Maintenance', icon: Wrench, subTab: 'maintenance' },
         { id: 'housekeeping', label: 'Lost & Found Registry', icon: Archive, subTab: 'lost-found' }
       ]
@@ -144,8 +156,9 @@ export default function Sidebar() {
       tag: 'MICE',
       tagColor: 'bg-purple-600',
       items: [
-        { id: 'banquet-events', label: 'Banquet Bookings & Calendar', icon: PartyPopper },
-        { id: 'banquet-events', label: 'Venues & Preset Catering Menus', icon: Building2 }
+        { id: 'banquet-events', label: 'Banquet Bookings & Calendar', icon: PartyPopper, subTab: 'bookings' },
+        { id: 'banquet-events', label: 'Venues & Halls Master', icon: Building2, subTab: 'venues' },
+        { id: 'banquet-events', label: 'Catering Menus & Event Invoicing', icon: Receipt, subTab: 'menus' }
       ]
     },
     {
@@ -154,9 +167,9 @@ export default function Sidebar() {
       tag: 'Stock',
       tagColor: 'bg-emerald-600',
       items: [
-        { id: 'stock-management', label: 'Stock Balance & Inventory', icon: Warehouse },
-        { id: 'stock-management', label: 'Purchase Orders & GRN', icon: Package },
-        { id: 'stock-management', label: 'Requisitions & Transfers', icon: Layers }
+        { id: 'stock-management', label: 'Stock Balance & Inventory', icon: Warehouse, subTab: 'inventory' },
+        { id: 'stock-management', label: 'Purchase Orders & GRN', icon: Package, subTab: 'po' },
+        { id: 'stock-management', label: 'Requisitions & Transfers', icon: Layers, subTab: 'transfers' }
       ]
     },
     {
@@ -165,9 +178,9 @@ export default function Sidebar() {
       tag: 'Ledger',
       tagColor: 'bg-teal-600',
       items: [
-        { id: 'account-finance', label: 'Cash Book & Bank Accounts', icon: Wallet },
-        { id: 'account-finance', label: 'General Ledger & Trial Balance', icon: FileText },
-        { id: 'account-finance', label: 'GST Tax Reports & Balance Sheet', icon: Receipt }
+        { id: 'account-finance', label: 'Cash Book & Bank Accounts', icon: Wallet, subTab: 'cash-book' },
+        { id: 'account-finance', label: 'General Ledger & Trial Balance', icon: FileText, subTab: 'ledger' },
+        { id: 'account-finance', label: 'GST Tax Reports & Balance Sheet', icon: Receipt, subTab: 'tax-reports' }
       ]
     },
     {
@@ -298,7 +311,7 @@ export default function Sidebar() {
           {/* Exceed Software Functional Modules Accordion */}
           {menuGroups.map(group => {
             const isOpen = openSections[group.key];
-            const hasActiveView = group.items.some(item => item.id === currentView);
+            const hasActiveView = group.items.some(item => isSubItemActive(item, group));
 
             return (
               <div key={group.key} className="space-y-1 pt-1 border-t border-slate-800/40">
@@ -343,7 +356,7 @@ export default function Sidebar() {
                   <div className="space-y-0.5 pl-1.5 animate-in fade-in duration-150">
                     {group.items.map((item, idx) => {
                       const Icon = item.icon;
-                      const isActive = currentView === item.id;
+                      const isActive = isSubItemActive(item, group);
 
                       return (
                         <button

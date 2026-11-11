@@ -28,6 +28,8 @@ const VALID_VIEWS = new Set([
   'master-service-home',
   'revenue-dashboard',
   'front-office',
+  'stay-view-calendar',
+  'banquet-events',
   'reservation-management',
   'food-beverages',
   'restaurant-pos',

@@ -1,38 +1,64 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useDashboard } from '../../context/DashboardContext';
 import {
-  Warehouse,
+  Package,
   Plus,
   Search,
-  Filter,
-  Download,
   AlertCircle,
-  CheckCircle2,
-  Package,
-  TrendingDown,
-  DollarSign,
-  X,
-  RefreshCw,
   Truck,
-  Trash2,
   ArrowDownRight,
   ArrowUpRight,
+  Layers,
+  Building2,
+  CheckCircle2,
+  Clock,
+  X,
+  Warehouse,
+  Receipt,
+  Trash2,
+  Send,
   Check
 } from 'lucide-react';
+import { useDashboard } from '../../context/DashboardContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 export default function StockManagementView() {
-  const { navigateTo, showNotification } = useDashboard();
+  const { 
+    showNotification,
+    activeTab: contextActiveTab,
+    setActiveTab: setContextActiveTab
+  } = useDashboard();
 
-  // Active Tab: 'inventory' | 'orders' | 'suppliers'
-  const [activeTab, setActiveTab] = useState('inventory');
+  // Resolve active tab from context
+  const resolveTab = (tab) => {
+    if (tab === 'po' || tab === 'orders') return 'orders';
+    if (tab === 'transfers') return 'transfers';
+    return 'inventory';
+  };
+
+  const [activeTab, setActiveTab] = useState(() => resolveTab(contextActiveTab));
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+
+  useEffect(() => {
+    if (contextActiveTab) {
+      setActiveTab(resolveTab(contextActiveTab));
+    }
+  }, [contextActiveTab]);
+
+  const handleTabChange = (t) => {
+    setActiveTab(t);
+    if (setContextActiveTab) {
+      if (t === 'orders') setContextActiveTab('po');
+      else setContextActiveTab(t);
+    }
+  };
 
   // Modals state
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [isPoModalOpen, setIsPoModalOpen] = useState(false);
   const [isAdjustStockModalOpen, setIsAdjustStockModalOpen] = useState(false);
+  const [isNewReqModalOpen, setIsNewReqModalOpen] = useState(false);
+
   const [selectedItemForAdjust, setSelectedItemForAdjust] = useState(null);
   const [adjustType, setAdjustType] = useState('IN'); // 'IN' (Receive) or 'OUT' (Issue)
   const [adjustQty, setAdjustQty] = useState('10');
@@ -56,225 +82,317 @@ export default function StockManagementView() {
     try {
       const saved = localStorage.getItem('aurastay_purchase_orders');
       if (saved) return JSON.parse(saved);
-    } catch(e){}
+    } catch (e) {}
     return [
-      { id: 'PO-2026-081', supplier: 'Amul Fresh Dairy', items: 'Milk (50L), Salted Butter (10kg)', amount: 6800, date: '11-11-2026', status: 'RECEIVED' },
-      { id: 'PO-2026-082', supplier: 'Blue Tokai Roasters', items: 'Arabica Coffee Beans (20kg)', amount: 17000, date: '11-11-2026', status: 'DISPATCHED' }
+      { id: 'PO-9021', supplier: 'Amul Fresh Dairy', items: 'Milk 100L, Butter 20Kg, Paneer 30Kg', totalAmount: 18400, orderDate: '09-11-2026', status: 'DISPATCHED' },
+      { id: 'PO-9022', supplier: 'Blue Tokai Roasters', items: 'Arabica Roasted Beans 25Kg', totalAmount: 21250, orderDate: '10-11-2026', status: 'RECEIVED' },
+      { id: 'PO-9023', supplier: 'Trident Hospitality', items: 'Bed Linen 50 sets, Pillows 40 pcs', totalAmount: 48000, orderDate: '11-11-2026', status: 'DISPATCHED' }
     ];
   });
 
-  // Sync to local storage
+  // Department Requisitions & Transfers State
+  const [requisitions, setRequisitions] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aurastay_dept_requisitions');
+      if (saved) return JSON.parse(saved);
+    } catch(e){}
+    return [
+      { id: 'REQ-501', department: 'Housekeeping', requestedBy: 'Sunita Devi', skuId: 'SKU-103', itemName: 'Luxury Cotton Bath Towels (650 GSM)', qty: 25, reqDate: '11-11-2026', status: 'PENDING', notes: 'Turnover linen for 2nd Floor suites' },
+      { id: 'REQ-502', department: 'F&B Restaurant Kitchen', requestedBy: 'Chef Sanjeev', skuId: 'SKU-101', itemName: 'Fresh Full Cream Milk', qty: 20, reqDate: '11-11-2026', status: 'APPROVED_ISSUED', notes: 'Breakfast buffet preparation' },
+      { id: 'REQ-503', department: 'Front Desk / Lobby', requestedBy: 'Aakash Verma', skuId: 'SKU-104', itemName: 'Eco Dental Kits & Wooden Comb Sets', qty: 50, reqDate: '10-11-2026', status: 'APPROVED_ISSUED', notes: 'VIP welcome gift bags' }
+    ];
+  });
+
+  // Form State: Add Item
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemCategory, setNewItemCategory] = useState('F&B Raw Materials');
+  const [newItemUnit, setNewItemUnit] = useState('Pieces');
+  const [newItemStock, setNewItemStock] = useState('50');
+  const [newItemThreshold, setNewItemThreshold] = useState('15');
+  const [newItemCost, setNewItemCost] = useState('100');
+  const [newItemSupplier, setNewItemSupplier] = useState('');
+
+  // Form State: PO
+  const [poSupplier, setPoSupplier] = useState('Amul Fresh Dairy');
+  const [poItems, setPoItems] = useState('');
+  const [poAmount, setPoAmount] = useState('15000');
+
+  // Form State: Requisition
+  const [reqDept, setReqDept] = useState('Housekeeping');
+  const [reqBy, setReqBy] = useState('Sunita Devi');
+  const [reqSkuId, setReqSkuId] = useState(stockList[0]?.id || 'SKU-101');
+  const [reqQty, setReqQty] = useState('10');
+  const [reqNotes, setReqNotes] = useState('');
+
+  // Persist State
   useEffect(() => {
     try {
       localStorage.setItem('aurastay_inventory_items', JSON.stringify(stockList));
-    } catch(e){}
+    } catch (e) {}
   }, [stockList]);
 
   useEffect(() => {
     try {
       localStorage.setItem('aurastay_purchase_orders', JSON.stringify(purchaseOrders));
-    } catch(e){}
+    } catch (e) {}
   }, [purchaseOrders]);
 
-  // Form state for adding new inventory item
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemCategory, setNewItemCategory] = useState('F&B Raw Materials');
-  const [newItemUnit, setNewItemUnit] = useState('Pieces');
-  const [newItemCost, setNewItemCost] = useState('100');
-  const [newItemStock, setNewItemStock] = useState('50');
-  const [newItemMin, setNewItemMin] = useState('15');
-  const [newItemSupplier, setNewItemSupplier] = useState('');
+  useEffect(() => {
+    try {
+      localStorage.setItem('aurastay_dept_requisitions', JSON.stringify(requisitions));
+    } catch(e){}
+  }, [requisitions]);
 
-  // Form state for new PO
-  const [poSupplier, setPoSupplier] = useState('Amul Fresh Dairy');
-  const [poItemDescription, setPoItemDescription] = useState('');
-  const [poAmount, setPoAmount] = useState('5000');
-
-  const categories = ['ALL', 'F&B Raw Materials', 'Beverage & Bar', 'Housekeeping Linens', 'Guest Amenities', 'Front Desk Supplies'];
-
-  // Add Item
+  // Handle Add Item
   const handleAddItem = (e) => {
     e.preventDefault();
-    if (!newItemName.trim()) return;
+    if (!newItemName) return;
 
-    const itemObj = {
+    const newItem = {
       id: `SKU-${Date.now().toString().slice(-4)}`,
-      name: newItemName.trim(),
+      name: newItemName,
       category: newItemCategory,
       unit: newItemUnit,
       currentStock: Number(newItemStock) || 0,
-      minThreshold: Number(newItemMin) || 10,
+      minThreshold: Number(newItemThreshold) || 10,
       costPerUnit: Number(newItemCost) || 0,
-      supplier: newItemSupplier.trim() || 'General Vendor',
-      status: Number(newItemStock) <= Number(newItemMin) ? 'LOW_STOCK' : 'IN_STOCK'
+      supplier: newItemSupplier || 'Local Wholesale Vendor',
+      status: Number(newItemStock) <= Number(newItemThreshold) ? 'LOW_STOCK' : 'IN_STOCK'
     };
 
-    setStockList(prev => [itemObj, ...prev]);
-    showNotification(`New SKU ${itemObj.name} added to inventory master.`);
+    setStockList(prev => [newItem, ...prev]);
     setIsAddItemModalOpen(false);
-
-    // Reset
+    showNotification(`Added item ${newItem.name} to inventory.`);
     setNewItemName('');
-    setNewItemSupplier('');
   };
 
-  // Adjust Stock (In / Out)
-  const handleApplyAdjustment = (e) => {
+  // Handle Create PO
+  const handleCreatePo = (e) => {
+    e.preventDefault();
+    if (!poSupplier || !poItems) return;
+
+    const newPo = {
+      id: `PO-${Date.now().toString().slice(-4)}`,
+      supplier: poSupplier,
+      items: poItems,
+      totalAmount: Number(poAmount) || 0,
+      orderDate: new Date().toLocaleDateString('en-GB'),
+      status: 'DISPATCHED'
+    };
+
+    setPurchaseOrders(prev => [newPo, ...prev]);
+    setIsPoModalOpen(false);
+    showNotification(`Purchase Order #${newPo.id} sent to ${poSupplier}.`);
+    setPoItems('');
+  };
+
+  // Handle Create Requisition
+  const handleCreateRequisition = (e) => {
+    e.preventDefault();
+    const selItem = stockList.find(s => s.id === reqSkuId);
+    const newReq = {
+      id: `REQ-${Date.now().toString().slice(-4)}`,
+      department: reqDept,
+      requestedBy: reqBy,
+      skuId: reqSkuId,
+      itemName: selItem?.name || 'Store Item',
+      qty: Number(reqQty) || 1,
+      reqDate: new Date().toLocaleDateString('en-GB'),
+      status: 'PENDING',
+      notes: reqNotes
+    };
+
+    setRequisitions(prev => [newReq, ...prev]);
+    setIsNewReqModalOpen(false);
+    showNotification(`Requisition #${newReq.id} created for ${reqDept}.`);
+    setReqNotes('');
+  };
+
+  // Approve Requisition & Deduct Stock
+  const handleApproveRequisition = (req) => {
+    // Deduct stock from item
+    setStockList(prev => prev.map(s => {
+      if (s.id === req.skuId) {
+        const updatedStock = Math.max(0, s.currentStock - req.qty);
+        return {
+          ...s,
+          currentStock: updatedStock,
+          status: updatedStock === 0 ? 'OUT_OF_STOCK' : updatedStock <= s.minThreshold ? 'LOW_STOCK' : 'IN_STOCK'
+        };
+      }
+      return s;
+    }));
+
+    setRequisitions(prev => prev.map(r => r.id === req.id ? { ...r, status: 'APPROVED_ISSUED' } : r));
+    showNotification(`Requisition #${req.id} approved & ${req.qty} units issued to ${req.department}.`);
+  };
+
+  // Adjust Stock (Receive / Issue)
+  const handleAdjustStockSubmit = (e) => {
     e.preventDefault();
     if (!selectedItemForAdjust) return;
-    const qty = Number(adjustQty) || 0;
-    if (qty <= 0) return;
 
+    const delta = Number(adjustQty) || 0;
     setStockList(prev => prev.map(item => {
       if (item.id === selectedItemForAdjust.id) {
-        let updatedStock = item.currentStock;
-        if (adjustType === 'IN') {
-          updatedStock += qty;
-        } else {
-          updatedStock = Math.max(0, updatedStock - qty);
-        }
+        const newStock = adjustType === 'IN' 
+          ? item.currentStock + delta 
+          : Math.max(0, item.currentStock - delta);
+        
+        let status = 'IN_STOCK';
+        if (newStock === 0) status = 'OUT_OF_STOCK';
+        else if (newStock <= item.minThreshold) status = 'LOW_STOCK';
 
-        const newStatus = updatedStock === 0 ? 'OUT_OF_STOCK' : updatedStock <= item.minThreshold ? 'LOW_STOCK' : 'IN_STOCK';
-        return { ...item, currentStock: updatedStock, status: newStatus };
+        return {
+          ...item,
+          currentStock: newStock,
+          status
+        };
       }
       return item;
     }));
 
-    showNotification(`${adjustType === 'IN' ? 'Received' : 'Issued'} ${qty} ${selectedItemForAdjust.unit} of ${selectedItemForAdjust.name}.`);
     setIsAdjustStockModalOpen(false);
+    showNotification(`Stock for ${selectedItemForAdjust.name} adjusted by ${adjustType === 'IN' ? '+' : '-'}${delta} ${selectedItemForAdjust.unit}.`);
   };
 
-  // Create PO
-  const handleCreatePo = (e) => {
-    e.preventDefault();
-    const poObj = {
-      id: `PO-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
-      supplier: poSupplier,
-      items: poItemDescription.trim() || 'Standard Inventory Replenishment',
-      amount: Number(poAmount) || 2000,
-      date: new Date().toLocaleDateString('en-GB'),
-      status: 'DISPATCHED'
-    };
-
-    setPurchaseOrders(prev => [poObj, ...prev]);
-    showNotification(`Purchase Order #${poObj.id} dispatched to ${poObj.supplier}!`);
-    setIsPoModalOpen(false);
-    setPoItemDescription('');
+  // Mark PO Received (GRN)
+  const handleMarkPoReceived = (po) => {
+    setPurchaseOrders(prev => prev.map(p => p.id === po.id ? { ...p, status: 'RECEIVED' } : p));
+    showNotification(`Purchase Order #${po.id} marked as Received (GRN recorded).`);
   };
 
-  // Mark PO Received
-  const handleReceivePo = (poId) => {
-    setPurchaseOrders(prev => prev.map(p => p.id === poId ? { ...p, status: 'RECEIVED' } : p));
-    showNotification(`PO #${poId} received and verified into inventory.`);
-  };
+  // Metrics
+  const totalValuation = stockList.reduce((sum, item) => sum + (item.currentStock * item.costPerUnit), 0);
+  const lowStockCount = stockList.filter(item => item.status === 'LOW_STOCK').length;
+  const outOfStockCount = stockList.filter(item => item.status === 'OUT_OF_STOCK').length;
 
-  // Filtered Stock
-  const filteredStock = useMemo(() => {
-    return stockList.filter(it => {
-      const matchesSearch = 
-        it.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        it.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        it.supplier.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCat = selectedCategory === 'ALL' || it.category === selectedCategory;
-      return matchesSearch && matchesCat;
+  const filteredItems = useMemo(() => {
+    return stockList.filter(item => {
+      const matchSearch = String(item.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          String(item.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          String(item.supplier || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchCategory = selectedCategory === 'ALL' || item.category === selectedCategory;
+      return matchSearch && matchCategory;
     });
   }, [stockList, searchTerm, selectedCategory]);
 
-  const totalAssetValue = stockList.reduce((acc, it) => acc + (it.currentStock * it.costPerUnit), 0);
-  const lowStockCount = stockList.filter(it => it.status === 'LOW_STOCK').length;
-  const outOfStockCount = stockList.filter(it => it.status === 'OUT_OF_STOCK').length;
-
   return (
-    <div className="space-y-6 animate-in fade-in duration-200 pb-16">
+    <div className="space-y-6 animate-in fade-in duration-200">
       
-      {/* 1. Header */}
-      <div className="bg-white rounded-3xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.05)] border border-slate-200/80 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* 1. Header Banner */}
+      <div className="bg-gradient-to-r from-[#1c322b] via-[#24433a] to-[#2d564b] rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center space-x-2.5">
-            <span className="text-[10px] font-black uppercase tracking-wider bg-orange-50 text-orange-800 border border-orange-300 px-2.5 py-0.5 rounded-full shadow-2xs">
-              STORES & INVENTORY ERP
+          <div className="flex items-center space-x-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              CENTRAL STORES & INVENTORY
             </span>
-            <span className="text-xs text-slate-400 font-semibold">• Real-time Material Valuation</span>
+            <span className="text-xs text-emerald-200/80 font-mono">• Exceed HMS Module</span>
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-1.5 flex items-center gap-2">
-            Stores, Stock & Purchase Orders
+          <h1 className="text-2xl sm:text-3xl font-serif font-black tracking-wide text-white mt-1">
+            Stock, Requisitions & Procurement
           </h1>
-          <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
-            Monitor kitchen raw materials, beverages, guest toiletries, linen stocks, and issue goods with automated PO reordering.
+          <p className="text-xs text-emerald-200 mt-1 max-w-xl">
+            Live SKU asset valuation, automated low-stock reorder thresholds, inter-department requisitions, and Purchase Order tracking.
           </p>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          <button
-            onClick={() => setIsPoModalOpen(true)}
-            className="px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 font-bold text-xs flex items-center space-x-1.5 transition shadow-xs"
-          >
-            <Truck className="w-4 h-4 text-orange-600" />
-            <span>New Purchase Order (PO)</span>
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {activeTab === 'inventory' && (
+            <button
+              onClick={() => setIsAddItemModalOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center space-x-2 transition shadow-md cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Stock Item (SKU)</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setIsAddItemModalOpen(true)}
-            className="px-4 py-2.5 rounded-2xl bg-[#ff6d00] hover:bg-[#e66200] text-white font-bold text-xs flex items-center space-x-1.5 transition shadow-md shadow-[#ff6d00]/20"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Stock Item (SKU)</span>
-          </button>
+          {activeTab === 'orders' && (
+            <button
+              onClick={() => setIsPoModalOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center space-x-2 transition shadow-md cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create Purchase Order</span>
+            </button>
+          )}
+
+          {activeTab === 'transfers' && (
+            <button
+              onClick={() => setIsNewReqModalOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center space-x-2 transition shadow-md cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Material Requisition</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* 2. Top Metric KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">TOTAL STOCK ASSET VALUE</span>
-          <div className="text-2xl font-black text-slate-900 font-mono mt-1">₹{totalAssetValue.toLocaleString()}</div>
-          <span className="text-[11px] font-bold text-emerald-600 mt-1 block">Across {stockList.length} SKUs</span>
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">TOTAL ASSET VALUATION</span>
+          <div className="text-2xl font-black text-slate-900 font-mono mt-1">₹{totalValuation.toLocaleString()}</div>
+          <span className="text-[11px] font-bold text-emerald-700 mt-1 block">Live warehouse inventory</span>
         </div>
 
         <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">LOW STOCK WARNINGS</span>
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">LOW STOCK ALERTS</span>
           <div className="text-2xl font-black text-amber-600 mt-1">{lowStockCount} Items</div>
           <span className="text-[11px] font-bold text-amber-700 mt-1 block">Below safety reorder level</span>
         </div>
 
         <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">CRITICAL OUT OF STOCK</span>
-          <div className="text-2xl font-black text-rose-600 mt-1">{outOfStockCount} Items</div>
-          <span className="text-[11px] font-bold text-rose-700 mt-1 block">Immediate PO required</span>
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">PENDING REQUISITIONS</span>
+          <div className="text-2xl font-black text-sky-700 mt-1">{requisitions.filter(r => r.status === 'PENDING').length} Requests</div>
+          <span className="text-[11px] font-bold text-sky-800 mt-1 block">Awaiting store approval</span>
         </div>
 
         <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">ACTIVE PURCHASE ORDERS</span>
-          <div className="text-2xl font-black text-sky-800 mt-1">{purchaseOrders.length}</div>
-          <span className="text-[11px] font-bold text-slate-500 mt-1 block">Suppliers: {new Set(stockList.map(s => s.supplier)).size}</span>
+          <div className="text-2xl font-black text-purple-700 mt-1">{purchaseOrders.length} POs</div>
+          <span className="text-[11px] font-bold text-slate-500 mt-1 block">Vendors: {new Set(stockList.map(s => s.supplier)).size}</span>
         </div>
       </div>
 
       {/* 3. Sub-Tabs */}
-      <div className="flex border-b border-slate-200 bg-white rounded-2xl p-1.5 shadow-2xs gap-1">
+      <div className="flex border-b border-slate-200 bg-white rounded-2xl p-1.5 shadow-2xs gap-1 overflow-x-auto">
         <button
-          onClick={() => setActiveTab('inventory')}
-          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 ${
+          onClick={() => handleTabChange('inventory')}
+          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'inventory'
-              ? 'bg-[#ff6d00] text-white shadow-sm'
+              ? 'bg-[#24433a] text-white shadow-sm'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <Package className="w-4 h-4" />
-          <span>Inventory Master ({stockList.length} SKUs)</span>
+          <span>Stock Balance & Inventory ({stockList.length} SKUs)</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('orders')}
-          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 ${
+          onClick={() => handleTabChange('orders')}
+          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'orders'
-              ? 'bg-[#ff6d00] text-white shadow-sm'
+              ? 'bg-[#24433a] text-white shadow-sm'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <Truck className="w-4 h-4" />
-          <span>Purchase Orders & Deliveries ({purchaseOrders.length})</span>
+          <span>Purchase Orders & GRN ({purchaseOrders.length})</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('transfers')}
+          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer ${
+            activeTab === 'transfers'
+              ? 'bg-[#24433a] text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Requisitions & Department Transfers ({requisitions.length})</span>
         </button>
       </div>
 
@@ -283,122 +401,101 @@ export default function StockManagementView() {
       {/* ========================================================================= */}
       {activeTab === 'inventory' && (
         <div className="space-y-4">
-          {/* Controls Bar */}
-          <div className="bg-white rounded-2xl p-4 border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3 shadow-2xs">
-            <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search SKU code, item name, or vendor..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-xs font-medium outline-none focus:border-orange-500"
-              />
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search item, SKU or supplier..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none"
+              >
+                <option value="ALL">All Categories</option>
+                <option value="F&B Raw Materials">F&B Raw Materials</option>
+                <option value="Beverage & Bar">Beverage & Bar</option>
+                <option value="Housekeeping Linens">Housekeeping Linens</option>
+                <option value="Guest Amenities">Guest Amenities</option>
+              </select>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto self-start md:self-auto">
-              {categories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-                    selectedCategory === cat 
-                      ? 'bg-slate-900 text-white' 
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+            <div className="text-xs font-semibold text-slate-500">
+              Showing {filteredItems.length} of {stockList.length} items
             </div>
           </div>
 
-          {/* Table */}
-          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50 text-slate-600 uppercase tracking-wider text-[10.5px] border-b border-slate-200">
-                    <th className="py-3 px-4 font-bold">SKU Code</th>
-                    <th className="py-3 px-4 font-bold">Item Description</th>
-                    <th className="py-3 px-4 font-bold">Category</th>
-                    <th className="py-3 px-4 font-bold text-center">Current Stock</th>
-                    <th className="py-3 px-4 font-bold">Safety Min</th>
-                    <th className="py-3 px-4 font-bold text-right">Unit Cost</th>
-                    <th className="py-3 px-4 font-bold text-right">Valuation</th>
-                    <th className="py-3 px-4 font-bold">Status</th>
-                    <th className="py-3 px-4 font-bold text-right">Stock Actions</th>
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="py-3.5 px-4">SKU Code</th>
+                    <th className="py-3.5 px-4">Item Name</th>
+                    <th className="py-3.5 px-4">Category</th>
+                    <th className="py-3.5 px-4">Current Stock</th>
+                    <th className="py-3.5 px-4">Min Threshold</th>
+                    <th className="py-3.5 px-4">Unit Cost</th>
+                    <th className="py-3.5 px-4">Total Value</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredStock.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="py-12 text-center text-slate-400">
-                        No inventory items matching filter. Click "+ Add Stock Item (SKU)" to create items.
+                  {filteredItems.map(item => (
+                    <tr key={item.id} className="hover:bg-slate-50/60 transition">
+                      <td className="py-3.5 px-4 font-mono font-bold text-emerald-900">{item.id}</td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                        {item.name}
+                        <span className="block text-[10px] text-slate-400 font-normal">{item.supplier}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600">{item.category}</td>
+                      <td className="py-3.5 px-4 font-mono font-black text-slate-900 text-sm">
+                        {item.currentStock} <span className="text-xs font-normal text-slate-400">{item.unit}</span>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-500">{item.minThreshold} {item.unit}</td>
+                      <td className="py-3.5 px-4 font-mono font-semibold text-slate-900">₹{item.costPerUnit}</td>
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900">₹{(item.currentStock * item.costPerUnit).toLocaleString()}</td>
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                          item.status === 'IN_STOCK' ? 'bg-emerald-100 text-emerald-800' :
+                          item.status === 'LOW_STOCK' ? 'bg-amber-100 text-amber-800 animate-pulse' :
+                          'bg-rose-100 text-rose-800'
+                        }`}>
+                          {item.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right space-x-1">
+                        <button
+                          onClick={() => {
+                            setSelectedItemForAdjust(item);
+                            setAdjustType('IN');
+                            setIsAdjustStockModalOpen(true);
+                          }}
+                          className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-200 text-xs transition cursor-pointer"
+                        >
+                          + Receive
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedItemForAdjust(item);
+                            setAdjustType('OUT');
+                            setIsAdjustStockModalOpen(true);
+                          }}
+                          className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg border border-amber-200 text-xs transition cursor-pointer"
+                        >
+                          - Issue
+                        </button>
                       </td>
                     </tr>
-                  ) : (
-                    filteredStock.map(it => {
-                      const valuation = it.currentStock * it.costPerUnit;
-                      const isLow = it.status === 'LOW_STOCK';
-                      const isOut = it.status === 'OUT_OF_STOCK';
-
-                      return (
-                        <tr key={it.id} className="hover:bg-slate-50">
-                          <td className="py-3.5 px-4 font-mono font-bold text-orange-700">{it.id}</td>
-                          <td className="py-3.5 px-4">
-                            <span className="font-bold text-slate-900 block">{it.name}</span>
-                            <span className="text-[11px] text-slate-500">{it.supplier}</span>
-                          </td>
-                          <td className="py-3.5 px-4 font-medium text-slate-600">{it.category}</td>
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="font-mono font-bold text-sm text-slate-900">{it.currentStock}</span>
-                            <span className="text-[10px] text-slate-400 block font-sans">{it.unit}</span>
-                          </td>
-                          <td className="py-3.5 px-4 text-slate-500 font-mono">{it.minThreshold} {it.unit}</td>
-                          <td className="py-3.5 px-4 text-right font-mono font-semibold">₹{it.costPerUnit}</td>
-                          <td className="py-3.5 px-4 text-right font-mono font-black text-slate-900">₹{valuation.toLocaleString()}</td>
-                          <td className="py-3.5 px-4">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              isOut 
-                                ? 'bg-rose-100 text-rose-800' 
-                                : isLow 
-                                ? 'bg-amber-100 text-amber-800' 
-                                : 'bg-emerald-100 text-emerald-800'
-                            }`}>
-                              {isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock'}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => {
-                                  setSelectedItemForAdjust(it);
-                                  setAdjustType('IN');
-                                  setIsAdjustStockModalOpen(true);
-                                }}
-                                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-bold text-[11px] border border-emerald-200 transition"
-                                title="Receive Goods / Stock In"
-                              >
-                                + In
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedItemForAdjust(it);
-                                  setAdjustType('OUT');
-                                  setIsAdjustStockModalOpen(true);
-                                }}
-                                className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg font-bold text-[11px] border border-amber-200 transition"
-                                title="Issue to Department / Stock Out"
-                              >
-                                - Issue
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -407,185 +504,260 @@ export default function StockManagementView() {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 2: PURCHASE ORDERS */}
+      {/* TAB 2: PURCHASE ORDERS & GRN */}
       {/* ========================================================================= */}
       {activeTab === 'orders' && (
-        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div className="space-y-4">
+          <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200">
             <div>
-              <h3 className="font-bold text-sm text-slate-900">Vendor Purchase Orders & Deliveries</h3>
-              <p className="text-xs text-slate-500">Track dispatched supplier orders and verify goods receipt.</p>
+              <h3 className="font-bold text-slate-900 text-sm">Purchase Orders & Goods Receipt Notes (GRN)</h3>
+              <p className="text-xs text-slate-500">Track vendor orders, scheduled deliveries, and receiving inspection.</p>
             </div>
             <button
               onClick={() => setIsPoModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-[#ff6d00] hover:bg-[#e66200] text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs"
+              className="px-3.5 py-2 bg-[#24433a] hover:bg-[#1c322b] text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 transition shadow-sm cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-4 h-4" />
               <span>Create Purchase Order</span>
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="bg-slate-50 text-slate-600 uppercase tracking-wider text-[10.5px] border-b border-slate-200">
-                  <th className="py-3 px-4 font-bold">PO Number</th>
-                  <th className="py-3 px-4 font-bold">Supplier / Vendor</th>
-                  <th className="py-3 px-4 font-bold">Items Dispatched</th>
-                  <th className="py-3 px-4 font-bold">PO Date</th>
-                  <th className="py-3 px-4 font-bold text-right">Valuation</th>
-                  <th className="py-3 px-4 font-bold">Delivery Status</th>
-                  <th className="py-3 px-4 font-bold text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {purchaseOrders.map(po => {
-                  const isReceived = po.status === 'RECEIVED';
-                  return (
-                    <tr key={po.id} className="hover:bg-slate-50">
-                      <td className="py-3.5 px-4 font-mono font-bold text-indigo-700">{po.id}</td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900">{po.supplier}</td>
-                      <td className="py-3.5 px-4 text-slate-700">{po.items}</td>
-                      <td className="py-3.5 px-4 text-slate-500 font-mono">{po.date}</td>
-                      <td className="py-3.5 px-4 text-right font-mono font-black text-slate-900">₹{po.amount.toLocaleString()}</td>
-                      <td className="py-3.5 px-4">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          isReceived ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                        }`}>
-                          {po.status}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        {!isReceived && (
-                          <button
-                            onClick={() => handleReceivePo(po.id)}
-                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg shadow-2xs"
-                          >
-                            Mark Received ✓
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {purchaseOrders.map(po => (
+              <div key={po.id} className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-2xs hover:shadow-md transition space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
+                        {po.id}
+                      </span>
+                      <h4 className="font-bold text-slate-900 text-sm mt-1">{po.supplier}</h4>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                      po.status === 'RECEIVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800'
+                    }`}>
+                      {po.status}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-2xl border border-slate-100 mt-2">
+                    {po.items}
+                  </p>
+
+                  <div className="flex justify-between items-center pt-2 text-xs">
+                    <span className="text-slate-400 font-mono">Date: {po.orderDate}</span>
+                    <span className="font-mono font-black text-slate-900 text-sm">₹{po.totalAmount.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  {po.status !== 'RECEIVED' ? (
+                    <button
+                      onClick={() => handleMarkPoReceived(po)}
+                      className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Mark Received (GRN) ✓</span>
+                    </button>
+                  ) : (
+                    <span className="text-emerald-700 font-bold text-xs flex items-center space-x-1">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Stock Inward Completed</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: ADD NEW STOCK ITEM */}
+      {/* TAB 3: REQUISITIONS & DEPARTMENT TRANSFERS */}
+      {/* ========================================================================= */}
+      {activeTab === 'transfers' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Department Material Requisitions</h3>
+              <p className="text-xs text-slate-500">Internal stock issues from Central Stores to Front Desk, Housekeeping, Kitchen, and Banquets.</p>
+            </div>
+            <button
+              onClick={() => setIsNewReqModalOpen(true)}
+              className="px-3.5 py-2 bg-[#24433a] hover:bg-[#1c322b] text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 transition shadow-sm cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Material Requisition</span>
+            </button>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="py-3.5 px-4">Req #</th>
+                    <th className="py-3.5 px-4">Requesting Department</th>
+                    <th className="py-3.5 px-4">Requested By</th>
+                    <th className="py-3.5 px-4">Item & SKU</th>
+                    <th className="py-3.5 px-4">Requested Qty</th>
+                    <th className="py-3.5 px-4">Date</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {requisitions.map(req => (
+                    <tr key={req.id} className="hover:bg-slate-50/60 transition">
+                      <td className="py-3.5 px-4 font-mono font-bold text-emerald-900">{req.id}</td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                        {req.department}
+                        {req.notes && <span className="block text-[10px] text-slate-400 font-normal italic">{req.notes}</span>}
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-700 font-medium">{req.requestedBy}</td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-800">
+                        {req.itemName}
+                        <span className="block text-[10px] text-slate-400 font-mono">{req.skuId}</span>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono font-black text-slate-900 text-sm">{req.qty} units</td>
+                      <td className="py-3.5 px-4 text-slate-500 font-mono">{req.reqDate}</td>
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                          req.status === 'APPROVED_ISSUED' ? 'bg-emerald-100 text-emerald-800' :
+                          'bg-amber-100 text-amber-800'
+                        }`}>
+                          {req.status === 'APPROVED_ISSUED' ? 'ISSUED ✓' : 'PENDING'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right space-x-1">
+                        {req.status === 'PENDING' ? (
+                          <button
+                            onClick={() => handleApproveRequisition(req)}
+                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition shadow-2xs cursor-pointer"
+                          >
+                            Approve & Issue ✓
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-emerald-700 font-semibold">Stock Issued</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: ADD SKU ITEM */}
       {/* ========================================================================= */}
       {isAddItemModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-serif text-lg font-bold text-slate-900">New Inventory Item (SKU)</h3>
-              <button onClick={() => setIsAddItemModalOpen(false)} className="text-slate-400 hover:text-slate-700">
-                <X className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-serif font-black text-lg text-slate-900">Add Stock Item (SKU)</h3>
+              <button onClick={() => setIsAddItemModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddItem} className="space-y-3.5">
+            <form onSubmit={handleAddItem} className="space-y-3 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Item Description / Name *</label>
+                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Item Description / Name</label>
                 <input
                   type="text"
-                  required
-                  placeholder="e.g. Basmati Biryani Rice (Daawat Gold)"
+                  placeholder="e.g. Single-Origin Arabica Coffee, Luxury Linens"
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold outline-none"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"
+                  required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
+                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Category</label>
                   <select
                     value={newItemCategory}
                     onChange={(e) => setNewItemCategory(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold bg-white outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
                   >
                     <option value="F&B Raw Materials">F&B Raw Materials</option>
                     <option value="Beverage & Bar">Beverage & Bar</option>
                     <option value="Housekeeping Linens">Housekeeping Linens</option>
                     <option value="Guest Amenities">Guest Amenities</option>
-                    <option value="Front Desk Supplies">Front Desk Supplies</option>
+                    <option value="Maintenance & Spares">Maintenance & Spares</option>
                   </select>
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Unit of Measure</label>
-                  <select
+                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Measurement Unit</label>
+                  <input
+                    type="text"
+                    placeholder="Pieces, Kg, Liters, Packs"
                     value={newItemUnit}
                     onChange={(e) => setNewItemUnit(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold bg-white outline-none"
-                  >
-                    <option value="Pieces">Pieces (pcs)</option>
-                    <option value="Kg">Kilograms (kg)</option>
-                    <option value="Liters">Liters (ltr)</option>
-                    <option value="Packs">Packs (box)</option>
-                    <option value="Bottles">Bottles</option>
-                  </select>
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300"
+                    required
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Cost/Unit (₹)</label>
-                  <input
-                    type="number"
-                    value={newItemCost}
-                    onChange={(e) => setNewItemCost(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold font-mono outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Initial Qty</label>
+                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Initial Qty</label>
                   <input
                     type="number"
                     value={newItemStock}
                     onChange={(e) => setNewItemStock(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold font-mono outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Safety Min</label>
+                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Min Safety Level</label>
                   <input
                     type="number"
-                    value={newItemMin}
-                    onChange={(e) => setNewItemMin(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold font-mono outline-none"
+                    value={newItemThreshold}
+                    onChange={(e) => setNewItemThreshold(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold text-amber-700"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Unit Cost (₹)</label>
+                  <input
+                    type="number"
+                    value={newItemCost}
+                    onChange={(e) => setNewItemCost(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold text-emerald-800"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Vendor / Supplier Name</label>
+                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Primary Vendor / Supplier</label>
                 <input
                   type="text"
-                  placeholder="e.g. Metro Cash & Carry"
+                  placeholder="e.g. Amul, Metro Cash & Carry, Local Distributor"
                   value={newItemSupplier}
                   onChange={(e) => setNewItemSupplier(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold outline-none"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300"
                 />
               </div>
 
-              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsAddItemModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold hover:bg-slate-50"
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#ff6d00] hover:bg-[#e66200] text-white font-bold text-xs shadow-md"
+                  className="px-4 py-2 rounded-xl bg-[#24433a] hover:bg-[#1c322b] text-white font-bold shadow-md cursor-pointer"
                 >
-                  Save Stock Item
+                  Add Item to Inventory
                 </button>
               </div>
             </form>
@@ -594,69 +766,53 @@ export default function StockManagementView() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: ADJUST STOCK (IN / OUT) */}
+      {/* MODAL: STOCK IN / STOCK OUT ADJUSTMENT */}
       {/* ========================================================================= */}
       {isAdjustStockModalOpen && selectedItemForAdjust && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <span className="text-[10px] font-bold text-orange-600 uppercase">Stock Adjustment</span>
-                <h3 className="font-serif text-base font-bold text-slate-900">{selectedItemForAdjust.name}</h3>
-              </div>
-              <button onClick={() => setIsAdjustStockModalOpen(false)} className="text-slate-400 hover:text-slate-700">
-                <X className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-serif font-black text-lg text-slate-900">
+                {adjustType === 'IN' ? '+ Receive Stock (Inward)' : '- Issue Stock (Department)'}
+              </h3>
+              <button onClick={() => setIsAdjustStockModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleApplyAdjustment} className="space-y-4">
-              <div className="flex rounded-xl bg-slate-100 p-1 font-bold text-xs">
-                <button
-                  type="button"
-                  onClick={() => setAdjustType('IN')}
-                  className={`flex-1 py-2 rounded-lg transition ${adjustType === 'IN' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600'}`}
-                >
-                  + Stock In (Receive)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAdjustType('OUT')}
-                  className={`flex-1 py-2 rounded-lg transition ${adjustType === 'OUT' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600'}`}
-                >
-                  - Stock Out (Issue)
-                </button>
-              </div>
+            <div className="p-3 bg-slate-50 rounded-2xl mb-4 border border-slate-100 text-xs">
+              <span className="font-bold text-slate-900">{selectedItemForAdjust.name}</span>
+              <span className="text-slate-500 block">Current Stock: {selectedItemForAdjust.currentStock} {selectedItemForAdjust.unit}</span>
+            </div>
 
+            <form onSubmit={handleAdjustStockSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Quantity to {adjustType === 'IN' ? 'Add' : 'Deduct'} ({selectedItemForAdjust.unit})
+                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">
+                  Quantity to {adjustType === 'IN' ? 'Receive' : 'Issue'} ({selectedItemForAdjust.unit})
                 </label>
                 <input
                   type="number"
                   min="1"
-                  required
                   value={adjustQty}
                   onChange={(e) => setAdjustQty(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold text-base outline-none text-center"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-black text-base"
+                  required
                 />
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-xl text-xs text-slate-600 flex justify-between">
-                <span>Current Stock:</span>
-                <span className="font-bold">{selectedItemForAdjust.currentStock} {selectedItemForAdjust.unit}</span>
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsAdjustStockModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold hover:bg-slate-50"
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs shadow-md"
+                  className={`px-4 py-2 rounded-xl text-white font-bold shadow-md cursor-pointer ${
+                    adjustType === 'IN' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'
+                  }`}
                 >
                   Confirm Adjustment
                 </button>
@@ -667,66 +823,166 @@ export default function StockManagementView() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: NEW PURCHASE ORDER */}
+      {/* MODAL: CREATE REQUISITION */}
       {/* ========================================================================= */}
-      {isPoModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-serif text-lg font-bold text-slate-900">New Purchase Order (PO)</h3>
-              <button onClick={() => setIsPoModalOpen(false)} className="text-slate-400 hover:text-slate-700">
-                <X className="w-4 h-4" />
+      {isNewReqModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-serif font-black text-lg text-slate-900">New Material Requisition</h3>
+              <button onClick={() => setIsNewReqModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreatePo} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Vendor / Supplier *</label>
-                <input
-                  type="text"
-                  required
-                  value={poSupplier}
-                  onChange={(e) => setPoSupplier(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold outline-none"
-                />
+            <form onSubmit={handleCreateRequisition} className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Department</label>
+                  <select
+                    value={reqDept}
+                    onChange={(e) => setReqDept(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold"
+                  >
+                    <option value="Housekeeping">Housekeeping</option>
+                    <option value="F&B Restaurant Kitchen">F&B Restaurant Kitchen</option>
+                    <option value="Front Desk / Lobby">Front Desk / Lobby</option>
+                    <option value="Banquets & Events">Banquets & Events</option>
+                    <option value="Maintenance / Engineering">Maintenance / Engineering</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Requested By</label>
+                  <input
+                    type="text"
+                    value={reqBy}
+                    onChange={(e) => setReqBy(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-semibold"
+                    required
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Items & Quantities</label>
-                <textarea
-                  rows="3"
-                  required
-                  placeholder="e.g. 50L Full Cream Milk, 10kg Butter, 25kg Basmati Rice"
-                  value={poItemDescription}
-                  onChange={(e) => setPoItemDescription(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs outline-none"
-                ></textarea>
+                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Select Store SKU Item</label>
+                <select
+                  value={reqSkuId}
+                  onChange={(e) => setReqSkuId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold"
+                >
+                  {stockList.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.id}) - In Stock: {s.currentStock} {s.unit}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Estimated Purchase Valuation (₹)</label>
+                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Quantity Required</label>
                 <input
                   type="number"
+                  min="1"
+                  value={reqQty}
+                  onChange={(e) => setReqQty(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
                   required
-                  value={poAmount}
-                  onChange={(e) => setPoAmount(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold text-xs outline-none"
                 />
               </div>
 
-              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Reason / Usage</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Replenish room amenities, dinner buffet ingredients..."
+                  value={reqNotes}
+                  onChange={(e) => setReqNotes(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setIsPoModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold hover:bg-slate-50"
+                  onClick={() => setIsNewReqModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#ff6d00] hover:bg-[#e66200] text-white font-bold text-xs shadow-md"
+                  className="px-4 py-2 rounded-xl bg-[#24433a] hover:bg-[#1c322b] text-white font-bold shadow-md cursor-pointer"
                 >
-                  Dispatch PO
+                  Submit Requisition
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: CREATE PO */}
+      {/* ========================================================================= */}
+      {isPoModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-serif font-black text-lg text-slate-900">Create Purchase Order (PO)</h3>
+              <button onClick={() => setIsPoModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePo} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Vendor / Supplier</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Amul Fresh, Trident Hospitality"
+                  value={poSupplier}
+                  onChange={(e) => setPoSupplier(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Items Description</label>
+                <textarea
+                  rows={3}
+                  placeholder="List of SKUs, quantities, and specifications..."
+                  value={poItems}
+                  onChange={(e) => setPoItems(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Estimated Total Value (₹)</label>
+                <input
+                  type="number"
+                  value={poAmount}
+                  onChange={(e) => setPoAmount(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold text-emerald-800"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsPoModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-[#24433a] hover:bg-[#1c322b] text-white font-bold shadow-md cursor-pointer"
+                >
+                  Dispatch Purchase Order
                 </button>
               </div>
             </form>

@@ -315,6 +315,40 @@ CREATE TABLE IF NOT EXISTS financial_invoices (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 13. Lost & Found Items Registry Table
+CREATE TABLE IF NOT EXISTS lost_and_found_items (
+    id TEXT PRIMARY KEY,
+    hotel_id TEXT NOT NULL DEFAULT 'hotel_aurastay_01',
+    item_name TEXT NOT NULL,
+    category TEXT DEFAULT 'Electronics',
+    room_number TEXT,
+    location TEXT,
+    found_by TEXT,
+    found_date TEXT,
+    status TEXT DEFAULT 'UNCLAIMED',
+    claimed_by TEXT,
+    claimant_phone TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 14. Department Material Requisitions Table
+CREATE TABLE IF NOT EXISTS material_requisitions (
+    id TEXT PRIMARY KEY,
+    hotel_id TEXT NOT NULL DEFAULT 'hotel_aurastay_01',
+    department TEXT NOT NULL,
+    requested_by TEXT,
+    sku_id TEXT,
+    item_name TEXT,
+    qty NUMERIC(10, 2) DEFAULT 1,
+    req_date TEXT,
+    status TEXT DEFAULT 'PENDING',
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 9. Enable Realtime Publications for all applications
 DO $$
 BEGIN
@@ -352,6 +386,8 @@ ALTER TABLE IF EXISTS housekeeping_tasks DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS inventory_items DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS purchase_orders DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS financial_invoices DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS lost_and_found_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS material_requisitions DISABLE ROW LEVEL SECURITY;
 
 -- 11. Clean Reset: Clear all old test reservations and reset room inventory
 DELETE FROM reservations;
