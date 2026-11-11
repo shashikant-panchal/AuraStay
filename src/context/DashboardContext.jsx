@@ -235,12 +235,13 @@ export function DashboardProvider({ children }) {
 
     async function loadSupabaseData() {
       try {
-        const [roomsRes, resRes, fnbRes, staffRes, chanRes] = await Promise.all([
+        const [roomsRes, resRes, fnbRes, staffRes, chanRes, roomTypesRes] = await Promise.all([
           supabase.from('rooms').select('*').order('room_number'),
           supabase.from('reservations').select('*').order('created_at', { ascending: false }),
           supabase.from('fnb_orders').select('*').order('created_at', { ascending: false }),
           supabase.from('staff_users').select('*').order('id'),
-          supabase.from('ota_channels').select('*').order('id')
+          supabase.from('ota_channels').select('*').order('id'),
+          supabase.from('room_types').select('*').order('name')
         ]);
 
         if (isMounted) {
@@ -303,6 +304,29 @@ export function DashboardProvider({ children }) {
               activeBookings: c.active_bookings,
               commission: c.commission
             })));
+          }
+          if (roomTypesRes?.data && roomTypesRes.data.length > 0) {
+            const hotelRt = roomTypesRes.data.filter(t => !t.hotel_id || t.hotel_id === currentHotel.id);
+            if (hotelRt.length > 0) {
+              setRoomTypes(hotelRt.map(t => ({
+                id: t.id,
+                hotelId: t.hotel_id || currentHotel.id,
+                name: t.name,
+                label: t.label || 'Room',
+                beddingType: t.bedding_type || 'King Bed',
+                maxAdults: Number(t.max_adults) || 2,
+                maxExtra: Number(t.max_extra) || 1,
+                maxChildren: Number(t.max_children) || 1,
+                areaSqft: Number(t.area_sqft) || 350,
+                basePrice: Number(t.base_price) || 2500,
+                extraBedPrice: Number(t.extra_bed_price) || 800,
+                childPrice: Number(t.child_price) || 400,
+                amenities: t.amenities || ['Free High-Speed Wi-Fi', 'Air conditioning'],
+                description: t.description || '',
+                notes: t.notes || '',
+                isBookingEngine: t.is_booking_engine !== false
+              })));
+            }
           }
 
           if (tablesFound) {
@@ -400,6 +424,53 @@ export function DashboardProvider({ children }) {
           setFnbOrders(prev => [item, ...prev.filter(o => o.orderId !== item.orderId)]);
         } else if (payload.eventType === 'UPDATE' && payload.new) {
           setFnbOrders(prev => prev.map(o => o.orderId === payload.new.id ? { ...o, status: payload.new.status } : o));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_types' }, payload => {
+        if (payload.eventType === 'INSERT' && payload.new) {
+          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
+            const newRt = {
+              id: payload.new.id,
+              hotelId: payload.new.hotel_id || currentHotel.id,
+              name: payload.new.name,
+              label: payload.new.label || 'Room',
+              beddingType: payload.new.bedding_type || 'King Bed',
+              maxAdults: Number(payload.new.max_adults) || 2,
+              maxExtra: Number(payload.new.max_extra) || 1,
+              maxChildren: Number(payload.new.max_children) || 1,
+              areaSqft: Number(payload.new.area_sqft) || 350,
+              basePrice: Number(payload.new.base_price) || 2500,
+              extraBedPrice: Number(payload.new.extra_bed_price) || 800,
+              childPrice: Number(payload.new.child_price) || 400,
+              amenities: payload.new.amenities || [],
+              description: payload.new.description || '',
+              notes: payload.new.notes || '',
+              isBookingEngine: payload.new.is_booking_engine !== false
+            };
+            setRoomTypes(prev => [newRt, ...prev.filter(t => t.id !== newRt.id && t.name !== newRt.name)]);
+          }
+        } else if (payload.eventType === 'UPDATE' && payload.new) {
+          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
+            setRoomTypes(prev => prev.map(t => (t.id === payload.new.id || t.name === payload.new.name) ? {
+              ...t,
+              name: payload.new.name,
+              label: payload.new.label,
+              beddingType: payload.new.bedding_type,
+              maxAdults: Number(payload.new.max_adults),
+              maxExtra: Number(payload.new.max_extra),
+              maxChildren: Number(payload.new.max_children),
+              areaSqft: Number(payload.new.area_sqft),
+              basePrice: Number(payload.new.base_price),
+              extraBedPrice: Number(payload.new.extra_bed_price),
+              childPrice: Number(payload.new.child_price),
+              amenities: payload.new.amenities,
+              description: payload.new.description,
+              notes: payload.new.notes,
+              isBookingEngine: payload.new.is_booking_engine
+            } : t));
+          }
+        } else if (payload.eventType === 'DELETE' && payload.old) {
+          setRoomTypes(prev => prev.filter(t => t.id !== payload.old.id));
         }
       })
       .subscribe((status) => {
