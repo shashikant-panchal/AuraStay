@@ -390,16 +390,25 @@ export function DashboardProvider({ children }) {
       }
     } catch (e) { }
 
-    // 3. Fallback check for default hotel credentials
+    // 3. Fallback check for default hotel credentials and Exceed Software credentials
     if (
+      (inputEmail === 'shivanandi' && inputPass === '12345') ||
+      (inputEmail === 'demo' && inputPass === '12345') ||
+      (inputEmail.includes('shivanandi') && inputPass === '12345') ||
       (inputEmail === 'admin@aurastay.com' && inputPass === 'admin123') ||
       (inputEmail.includes('admin') && inputPass.length >= 4)
     ) {
-      setCurrentHotel(DEFAULT_HOTEL);
+      const activeHotel = {
+        ...DEFAULT_HOTEL,
+        name: 'SHIVANANDI VISTA (DEMO HOTEL)',
+        shortName: 'DEMO',
+        ownerName: 'SHIVANANDI Admin'
+      };
+      setCurrentHotel(activeHotel);
       setIsLoggedIn(true);
       localStorage.setItem('aurastay_hotel_auth', 'true');
-      localStorage.setItem('aurastay_hotel_session', JSON.stringify(DEFAULT_HOTEL));
-      showNotification('Welcome to AuraStay Suite PMS Portal!');
+      localStorage.setItem('aurastay_hotel_session', JSON.stringify(activeHotel));
+      showNotification('Welcome to SHIVANANDI VISTA PMS Portal!');
       return true;
     }
 
@@ -730,6 +739,264 @@ export function DashboardProvider({ children }) {
     }
   };
 
+  // =========================================================================
+  // EXCEED-INSPIRED HOTEL OPERATIONAL LOGIC & WORKFLOWS
+  // =========================================================================
+
+  // Hotel Operational Working Date
+  const [workingDate, setWorkingDate] = useState(() => {
+    return localStorage.getItem('aurastay_working_date') || new Date().toISOString().split('T')[0];
+  });
+
+  // Front Desk Tasks & Shift Reminders
+  const [frontDeskTasks, setFrontDeskTasks] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aurastay_desk_tasks');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [
+      { id: 'tsk-1', text: 'Wake-up Call for Room 101 at 07:30 AM', priority: 'HIGH', completed: false, time: '07:30 AM' },
+      { id: 'tsk-2', text: 'Airport Taxi Pickup for Flight 6E-421 (Mr. Ramesh)', priority: 'HIGH', completed: false, time: '11:00 AM' },
+      { id: 'tsk-3', text: 'Housekeeping Linen Inspection - 2nd Floor', priority: 'NORMAL', completed: true, time: '02:00 PM' },
+      { id: 'tsk-4', text: 'Collect Advance / Settlement for Due-out Room 105', priority: 'HIGH', completed: false, time: '06:00 PM' }
+    ];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aurastay_desk_tasks', JSON.stringify(frontDeskTasks));
+    } catch (e) {}
+  }, [frontDeskTasks]);
+
+  const addDeskTask = (text, priority = 'NORMAL', time = 'Anytime') => {
+    const newTask = {
+      id: `tsk-${Date.now().toString().slice(-4)}`,
+      text: text.trim(),
+      priority,
+      time,
+      completed: false,
+      createdOn: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setFrontDeskTasks(prev => [newTask, ...prev]);
+    showNotification('New task added to Front Desk shift checklist.');
+  };
+
+  const toggleDeskTask = (taskId) => {
+    setFrontDeskTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
+  };
+
+  const deleteDeskTask = (taskId) => {
+    setFrontDeskTasks(prev => prev.filter(t => t.id !== taskId));
+    showNotification('Task removed.');
+  };
+
+  // 1. Shift Room (Transfer guest to another room)
+  const shiftRoom = async (sourceRoomNumber, targetRoomNumber, reason = 'Guest Request') => {
+    const src = String(sourceRoomNumber).trim();
+    const tgt = String(targetRoomNumber).trim();
+
+    // Check if target is available
+    const targetRoom = rooms.find(r => String(r.room_number || r.roomNumber) === tgt);
+    if (!targetRoom) {
+      showNotification(`Target room ${tgt} does not exist.`, 'error');
+      return false;
+    }
+
+    // Find active reservation for source room
+    const activeRes = reservations.find(r => {
+      const matchNum = String(r.room).match(/\b(\d+)\b/);
+      return matchNum && matchNum[1] === src && r.status !== 'CANCELLED' && r.status !== 'CHECKED_OUT';
+    });
+
+    // Update rooms status
+    setRooms(prev => prev.map(r => {
+      const rNum = String(r.room_number || r.roomNumber);
+      if (rNum === src) {
+        return { ...r, status: 'DIRTY', guest: null, booking_id: null };
+      }
+      if (rNum === tgt) {
+        return {
+          ...r,
+          status: 'OCCUPIED',
+          guest: activeRes?.guest || r.guest,
+          booking_id: activeRes?.id || r.booking_id,
+          check_out: activeRes?.check_out || activeRes?.checkOut || r.check_out
+        };
+      }
+      return r;
+    }));
+
+    // Update reservation room name
+    if (activeRes) {
+      setReservations(prev => prev.map(r => {
+        if (r.id === activeRes.id) {
+          return { ...r, room: `Room ${tgt} - ${targetRoom.type || 'Standard'}` };
+        }
+        return r;
+      }));
+    }
+
+    showNotification(`Room shifted from #${src} to #${tgt} (${reason}).`);
+
+    // Sync to Supabase
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('rooms').update({ status: 'DIRTY' }).eq('room_number', src);
+        await supabase.from('rooms').update({ status: 'OCCUPIED' }).eq('room_number', tgt);
+        if (activeRes) {
+          await supabase.from('reservations').update({ room: `Room ${tgt}` }).eq('id', activeRes.id);
+        }
+      } catch (err) {
+        console.warn('Supabase shift room sync:', err);
+      }
+    }
+    return true;
+  };
+
+  // 2. Extend Stay
+  const extendStay = async (reservationId, roomNumber, newCheckOutDate, additionalTariff = 0) => {
+    const num = String(roomNumber).trim();
+
+    setReservations(prev => prev.map(r => {
+      if (r.id === reservationId) {
+        const newAmt = (Number(r.amount) || 0) + Number(additionalTariff);
+        return { ...r, check_out: newCheckOutDate, checkOut: newCheckOutDate, amount: newAmt };
+      }
+      return r;
+    }));
+
+    setRooms(prev => prev.map(r => {
+      if (String(r.room_number || r.roomNumber) === num) {
+        return { ...r, check_out: newCheckOutDate };
+      }
+      return r;
+    }));
+
+    showNotification(`Stay extended for Room #${num} till ${newCheckOutDate}.`);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('reservations').update({ check_out: newCheckOutDate }).eq('id', reservationId);
+        await supabase.from('rooms').update({ check_out: newCheckOutDate }).eq('room_number', num);
+      } catch (err) {
+        console.warn('Supabase extend stay sync:', err);
+      }
+    }
+    return true;
+  };
+
+  // 3. Checkout Room
+  const checkoutRoom = async (roomNumber, reservationId) => {
+    const num = String(roomNumber).trim();
+
+    if (reservationId) {
+      setReservations(prev => prev.map(r => {
+        if (r.id === reservationId) {
+          return { ...r, status: 'CHECKED_OUT' };
+        }
+        return r;
+      }));
+    }
+
+    setRooms(prev => prev.map(r => {
+      if (String(r.room_number || r.roomNumber) === num) {
+        return { ...r, status: 'DIRTY', guest: null, booking_id: null, check_out: null };
+      }
+      return r;
+    }));
+
+    showNotification(`Room #${num} checked out. Room marked DIRTY for housekeeping.`);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('rooms').update({ status: 'DIRTY' }).eq('room_number', num);
+        if (reservationId) {
+          await supabase.from('reservations').update({ status: 'CHECKED_OUT' }).eq('id', reservationId);
+        }
+      } catch (err) {
+        console.warn('Supabase checkout room sync:', err);
+      }
+    }
+    return true;
+  };
+
+  // 4. Block Room for Maintenance
+  const blockRoom = async (roomNumber, reason = 'Maintenance') => {
+    const num = String(roomNumber).trim();
+    setRooms(prev => prev.map(r => {
+      if (String(r.room_number || r.roomNumber) === num) {
+        return { ...r, status: 'MAINTENANCE', housekeeping: reason };
+      }
+      return r;
+    }));
+    showNotification(`Room #${num} blocked for ${reason}.`);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('rooms').update({ status: 'MAINTENANCE' }).eq('room_number', num);
+      } catch (err) {
+        console.warn('Supabase block room sync:', err);
+      }
+    }
+    return true;
+  };
+
+  // 5. Unblock Room
+  const unblockRoom = async (roomNumber) => {
+    const num = String(roomNumber).trim();
+    setRooms(prev => prev.map(r => {
+      if (String(r.room_number || r.roomNumber) === num) {
+        return { ...r, status: 'VACANT_READY', housekeeping: 'Clean' };
+      }
+      return r;
+    }));
+    showNotification(`Room #${num} unblocked and marked VACANT_READY.`);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('rooms').update({ status: 'VACANT_READY' }).eq('room_number', num);
+      } catch (err) {
+        console.warn('Supabase unblock room sync:', err);
+      }
+    }
+    return true;
+  };
+
+  // 6. Update Housekeeping Cleanliness
+  const updateHousekeepingCleanliness = async (roomNumber, newStatus) => {
+    const num = String(roomNumber).trim();
+    setRooms(prev => prev.map(r => {
+      if (String(r.room_number || r.roomNumber) === num) {
+        return { ...r, status: newStatus };
+      }
+      return r;
+    }));
+    showNotification(`Room #${num} housekeeping status updated to ${newStatus}.`);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('rooms').update({ status: newStatus }).eq('room_number', num);
+      } catch (err) {
+        console.warn('Supabase housekeeping update sync:', err);
+      }
+    }
+  };
+
+  // 7. Execute 5-Step Night Audit
+  const executeNightAudit = (auditDate) => {
+    // 1. Advance date by 1 day
+    const curr = new Date(workingDate);
+    curr.setDate(curr.getDate() + 1);
+    const nextDate = curr.toISOString().split('T')[0];
+
+    setWorkingDate(nextDate);
+    localStorage.setItem('aurastay_working_date', nextDate);
+
+    // 2. Refresh room states and post daily ledger
+    showNotification(`Night Audit completed! Operational date advanced to ${nextDate}. All daily tariffs posted.`, 'success');
+    return nextDate;
+  };
+
   // Revenue actions
   const handleReviewAction = (actionId, status, note = '') => {
     setData(prev => {
@@ -921,6 +1188,19 @@ export function DashboardProvider({ children }) {
       requestDeleteRoom,
       cancelDeleteRoom,
       confirmDeleteRoom,
+      workingDate,
+      setWorkingDate,
+      frontDeskTasks,
+      addDeskTask,
+      toggleDeskTask,
+      deleteDeskTask,
+      shiftRoom,
+      extendStay,
+      checkoutRoom,
+      blockRoom,
+      unblockRoom,
+      updateHousekeepingCleanliness,
+      executeNightAudit,
       isLoggedIn,
       setIsLoggedIn,
       currentHotel,
