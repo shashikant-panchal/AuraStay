@@ -305,15 +305,6 @@ export default function DashboardView() {
             <Plus className="w-4 h-4" />
             <span>New Reservation</span>
           </button>
-
-          {/* Add Room */}
-          <button
-            onClick={() => setIsCreateRoomModalOpen(true)}
-            className="px-3.5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all flex items-center space-x-1.5"
-          >
-            <Plus className="w-4 h-4 text-slate-500" />
-            <span>Add Room</span>
-          </button>
         </div>
       </div>
 

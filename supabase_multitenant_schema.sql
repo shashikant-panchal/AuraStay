@@ -253,6 +253,68 @@ CREATE TABLE IF NOT EXISTS guest_users (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 9. Housekeeping Tasks & Work Orders Table
+CREATE TABLE IF NOT EXISTS housekeeping_tasks (
+    id TEXT PRIMARY KEY,
+    hotel_id TEXT NOT NULL DEFAULT 'hotel_aurastay_01',
+    room_number TEXT NOT NULL,
+    task_type TEXT NOT NULL DEFAULT 'Daily Cleaning',
+    priority TEXT DEFAULT 'Normal',
+    assigned_to TEXT DEFAULT 'Unassigned',
+    status TEXT DEFAULT 'PENDING',
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10. Stores & Inventory Items Table
+CREATE TABLE IF NOT EXISTS inventory_items (
+    id TEXT PRIMARY KEY,
+    hotel_id TEXT NOT NULL DEFAULT 'hotel_aurastay_01',
+    sku_code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'F&B Raw Materials',
+    unit TEXT DEFAULT 'pcs',
+    current_stock NUMERIC(10, 2) DEFAULT 0,
+    min_threshold NUMERIC(10, 2) DEFAULT 10,
+    cost_per_unit NUMERIC(10, 2) DEFAULT 0,
+    supplier TEXT,
+    status TEXT DEFAULT 'IN_STOCK',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 11. Purchase Orders Table
+CREATE TABLE IF NOT EXISTS purchase_orders (
+    id TEXT PRIMARY KEY,
+    hotel_id TEXT NOT NULL DEFAULT 'hotel_aurastay_01',
+    supplier TEXT NOT NULL,
+    items TEXT DEFAULT '',
+    total_amount NUMERIC(10, 2) DEFAULT 0,
+    status TEXT DEFAULT 'DISPATCHED',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 12. Financial Invoices & Vouchers Table
+CREATE TABLE IF NOT EXISTS financial_invoices (
+    id TEXT PRIMARY KEY,
+    hotel_id TEXT NOT NULL DEFAULT 'hotel_aurastay_01',
+    client_name TEXT NOT NULL,
+    client_phone TEXT,
+    category TEXT DEFAULT 'Room Stay Accommodation',
+    subtotal NUMERIC(10, 2) DEFAULT 0,
+    cgst NUMERIC(10, 2) DEFAULT 0,
+    sgst NUMERIC(10, 2) DEFAULT 0,
+    total_amount NUMERIC(10, 2) DEFAULT 0,
+    paid_amount NUMERIC(10, 2) DEFAULT 0,
+    payment_mode TEXT DEFAULT 'UPI',
+    status TEXT DEFAULT 'PENDING',
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 9. Enable Realtime Publications for all applications
 DO $$
 BEGIN
@@ -286,6 +348,10 @@ ALTER TABLE IF EXISTS reservations DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS banquet_bookings DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS fnb_orders DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS super_admins DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS housekeeping_tasks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS inventory_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS purchase_orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS financial_invoices DISABLE ROW LEVEL SECURITY;
 
 -- 11. Clean Reset: Clear all old test reservations and reset room inventory
 DELETE FROM reservations;
