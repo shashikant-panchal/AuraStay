@@ -31,7 +31,8 @@ export default function StayViewCalendar() {
     setIsCreateReservationModalOpen,
     deleteRoom,
     requestDeleteRoom,
-    rooms = []
+    rooms = [],
+    reservations = []
   } = useDashboard();
 
   // Quick Actions toggle
@@ -60,23 +61,39 @@ export default function StayViewCalendar() {
     const weekend = d.getDay() === 0 || d.getDay() === 6;
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dayDate = `${yyyy}-${mm}-${dayNum.padStart(2, '0')}`;
+
+    // Count real active reservations on this day across all rooms
+    const bookedOnDay = (reservations || []).filter(res => {
+      if (res.status === 'CANCELLED' || res.status === 'CHECKED_OUT') return false;
+      const cIn = res.check_in || res.checkIn;
+      const cOut = res.check_out || res.checkOut;
+      return cIn <= dayDate && cOut > dayDate;
+    }).length;
+
+    const availableCount = Math.max(0, rooms.length - bookedOnDay);
+    const occupancyRate = rooms.length > 0 ? Math.round((bookedOnDay / rooms.length) * 100) : 0;
+
     return {
-      date: `${yyyy}-${mm}-${dayNum.padStart(2, '0')}`,
+      date: dayDate,
       month: monthNames[d.getMonth()],
       dayNum,
       dayName,
       weekend,
-      availableRooms: rooms.length,
-      occupancy: 0,
-      revenue: '₹ 0',
-      adr: '₹ 0'
+      availableRooms: availableCount,
+      bookedRooms: bookedOnDay,
+      occupancy: occupancyRate,
+      revenue: `₹ ${(bookedOnDay * 2500).toLocaleString('en-IN')}`,
+      adr: bookedOnDay > 0 ? '₹ 2,500' : '₹ 0'
     };
   });
 
-  // Room Categories & sub-rooms setup dynamically from rooms
+  // Room Categories & sub-rooms setup dynamically from rooms and real reservations
   const categoryConfig = React.useMemo(() => {
     if (!rooms || rooms.length === 0) return [];
     const grouped = {};
+    const startDate = new Date(timelineDays[0].date);
+
     rooms.forEach(r => {
       const type = r.type || 'Standard Room';
       if (!grouped[type]) {
@@ -89,15 +106,80 @@ export default function StayViewCalendar() {
         };
       }
       grouped[type].inventory += 1;
+
+      const rNum = String(r.roomNumber || r.room_number || r.id);
+
+      // Map real reservations to this room
+      const roomBookings = [];
+      (reservations || []).forEach(res => {
+        if (res.status === 'CANCELLED') return;
+        const resRoom = String(res.room_number || res.room || '');
+        const matchNum = resRoom.match(/\b(\d+)\b/);
+        const matchesRoom = (matchNum && matchNum[1] === rNum) || resRoom === rNum || resRoom.includes(`Room ${rNum}`) || resRoom.includes(rNum);
+        if (!matchesRoom) return;
+
+        const checkInStr = res.check_in || res.checkIn;
+        const checkOutStr = res.check_out || res.checkOut;
+        if (!checkInStr || !checkOutStr) return;
+
+        const resCheckIn = new Date(checkInStr);
+        const resCheckOut = new Date(checkOutStr);
+
+        const diffInDays = Math.floor((resCheckIn - startDate) / (1000 * 60 * 60 * 24));
+        const diffOutDays = Math.ceil((resCheckOut - startDate) / (1000 * 60 * 60 * 24));
+
+        // Overlaps if resCheckOut > startDate and diffInDays < 15
+        if (diffOutDays > 0 && diffInDays < 15) {
+          const startIdx = Math.max(0, diffInDays);
+          const endIdx = Math.min(15, diffOutDays);
+          const span = Math.max(1, endIdx - startIdx);
+
+          roomBookings.push({
+            id: res.id,
+            guest: res.guest || 'Guest',
+            shortLabel: res.guest || 'Guest',
+            startIdx,
+            span,
+            amount: `₹ ${Number(res.amount || 0).toLocaleString('en-IN')}`,
+            paid: Number(res.paid || res.advance_paid || 0),
+            payment: res.payment || 'PENDING',
+            status: res.status || 'CONFIRMED',
+            roomType: r.type,
+            roomNumber: rNum,
+            checkIn: checkInStr,
+            checkOut: checkOutStr,
+            phone: res.guest_phone || 'N/A',
+            email: res.guest_email || 'N/A',
+            ratePlan: res.rate_plan || 'EP - Room Only',
+            color: res.status === 'CHECKED_IN' ? 'bg-emerald-600' : 'bg-[#0092d6]'
+          });
+
+          for (let d = startIdx; d < Math.min(15, startIdx + span); d++) {
+            if (grouped[type].dailyStats[d]) {
+              grouped[type].dailyStats[d].booked += 1;
+            }
+          }
+        }
+      });
+
+      const isOccupiedToday = roomBookings.some(b => b.startIdx === 0);
+
       grouped[type].rooms.push({
-        id: String(r.roomNumber),
-        name: String(r.roomNumber),
-        statusColor: r.status === 'OCCUPIED' ? 'bg-amber-500' : 'bg-emerald-500',
-        bookings: []
+        id: rNum,
+        name: rNum,
+        statusColor: isOccupiedToday || r.status === 'OCCUPIED' ? 'bg-amber-500' : 'bg-emerald-500',
+        bookings: roomBookings
       });
     });
+
+    Object.values(grouped).forEach(cat => {
+      cat.dailyStats.forEach(stat => {
+        stat.available = Math.max(0, cat.inventory - stat.booked);
+      });
+    });
+
     return Object.values(grouped);
-  }, [rooms, timelineDays]);
+  }, [rooms, reservations, timelineDays]);
 
   const toggleCategory = (catId) => {
     setCollapsedCategories(prev => ({
@@ -556,58 +638,81 @@ export default function StayViewCalendar() {
       {/* BOOKING DETAILS MODAL */}
       {selectedBooking && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <div className="flex items-center space-x-2">
-                <span className={`w-3 h-3 rounded-full ${selectedBooking.color}`} />
-                <h3 className="font-black text-sm text-slate-900">{selectedBooking.guest}</h3>
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <span className={`w-3.5 h-3.5 rounded-full ${selectedBooking.color}`} />
+                <div>
+                  <h3 className="font-black text-base text-slate-900">{selectedBooking.guest}</h3>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Online Booking Details</span>
+                </div>
               </div>
               <button 
                 onClick={() => setSelectedBooking(null)} 
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="text-xs space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Booking ID:</span>
-                <span className="font-mono font-bold text-slate-800">{selectedBooking.id}</span>
+            <div className="text-xs space-y-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Booking ID:</span>
+                <span className="font-mono font-bold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">{selectedBooking.id}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Allocated Room:</span>
-                <span className="font-bold text-slate-800">{selectedBooking.roomType}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Allocated Room:</span>
+                <span className="font-bold text-slate-900">Room #{selectedBooking.roomNumber} ({selectedBooking.roomType})</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Length of Stay:</span>
-                <span className="font-bold text-slate-800">{selectedBooking.span} Nights</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Stay Dates:</span>
+                <span className="font-semibold text-slate-800">{selectedBooking.checkIn} → {selectedBooking.checkOut} ({selectedBooking.span} Nights)</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Total Tariffs:</span>
-                <span className="font-mono font-bold text-emerald-700">{selectedBooking.amount}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Guest Mobile:</span>
+                <span className="font-mono font-bold text-slate-700">{selectedBooking.phone || 'Direct'}</span>
               </div>
-              <div className="flex justify-between items-center pt-1 border-t border-slate-200">
-                <span className="text-slate-500">Stay Status:</span>
-                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Guest Email:</span>
+                <span className="font-mono text-slate-700">{selectedBooking.email || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Rate Plan:</span>
+                <span className="font-bold text-indigo-700">{selectedBooking.ratePlan}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                <span className="text-slate-500 font-medium">Total Tariff:</span>
+                <span className="font-mono font-bold text-base text-slate-900">{selectedBooking.amount}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Payment Status:</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                  selectedBooking.payment === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {selectedBooking.payment}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Stay Status:</span>
+                <span className="bg-sky-100 text-sky-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
                   {selectedBooking.status}
                 </span>
               </div>
             </div>
 
-            <div className="flex space-x-2 pt-1">
+            <div className="flex space-x-2.5 pt-1">
               <button
                 onClick={() => {
-                  showNotification(`Guest folio opened for ${selectedBooking.guest}`);
+                  showNotification(`Guest folio opened for ${selectedBooking.guest} (Room #${selectedBooking.roomNumber})`);
                   setSelectedBooking(null);
                 }}
-                className="flex-1 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs rounded-lg shadow-sm"
+                className="flex-1 py-2.5 bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs rounded-xl shadow-sm transition"
               >
-                Open Folio
+                Open Folio & Ledger
               </button>
               <button
                 onClick={() => setSelectedBooking(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg"
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
               >
                 Close
               </button>
