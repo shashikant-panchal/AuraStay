@@ -1,263 +1,516 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
-import { X, CalendarPlus, BedDouble, AlertCircle, AlertTriangle, ShieldCheck } from 'lucide-react';
+import {
+  X,
+  CalendarPlus,
+  BedDouble,
+  AlertCircle,
+  AlertTriangle,
+  ShieldCheck,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  CreditCard,
+  Receipt,
+  Star,
+  Check,
+  DollarSign,
+  Calendar
+} from 'lucide-react';
 
 export default function CreateReservationModal() {
-  const { 
-    isCreateReservationModalOpen, 
-    setIsCreateReservationModalOpen, 
+  const {
+    isCreateReservationModalOpen,
+    setIsCreateReservationModalOpen,
     addReservation,
     rooms = [],
     reservations = [],
+    roomTypes = [],
     showNotification
   } = useDashboard();
 
-  const [guest, setGuest] = useState('');
-  const [room, setRoom] = useState('');
+  // Guest Information
+  const [guestName, setGuestName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [country, setCountry] = useState('India');
+  const [city, setCity] = useState('');
+  const [idType, setIdType] = useState('Aadhaar Card');
+  const [idNumber, setIdNumber] = useState('');
+  const [vipTier, setVipTier] = useState('Regular');
+
+  // Stay Information
   const [checkIn, setCheckIn] = useState(() => new Date().toISOString().split('T')[0]);
   const [checkOut, setCheckOut] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
     return d.toISOString().split('T')[0];
   });
-  const [source, setSource] = useState('Direct Walk-in');
-  const [amount, setAmount] = useState('2000');
+  const [selectedRoomNum, setSelectedRoomNum] = useState('');
+  const [adults, setAdults] = useState(2);
+  const [children, setChildren] = useState(0);
+  const [ratePlan, setRatePlan] = useState('CP - Continental Plan (Breakfast Included)');
+
+  // Commercials & Billing
+  const [tariffRate, setTariffRate] = useState(2500);
+  const [advancePaid, setAdvancePaid] = useState(1000);
+  const [paymentMode, setPaymentMode] = useState('UPI');
+  const [billingMode, setBillingMode] = useState('Guest Direct');
+  const [companyName, setCompanyName] = useState('');
+  const [gstin, setGstin] = useState('');
+  const [notes, setNotes] = useState('');
   const [validationError, setValidationError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const defaultRoomVal = room || (rooms.length > 0 ? `${rooms[0].roomNumber} (${rooms[0].type})` : 'Unassigned Room');
+  // Available vacant rooms
+  const availableRooms = useMemo(() => {
+    return rooms.filter(r => {
+      const num = String(r.room_number || r.roomNumber);
+      return r.status !== 'MAINTENANCE';
+    });
+  }, [rooms]);
 
-  // Check if a specific room has date conflict or is occupied
-  const checkConflict = (roomIdentifier, start, end) => {
-    if (!roomIdentifier || !start || !end) return null;
-    const roomNumMatch = String(roomIdentifier).match(/\b(\d+)\b/);
-    const roomNum = roomNumMatch ? roomNumMatch[1] : String(roomIdentifier);
-
-    // 1. Check if room is in maintenance
-    const matchedRoom = rooms.find(r => String(r.roomNumber) === String(roomNum));
-    if (matchedRoom && matchedRoom.status === 'MAINTENANCE') {
-      return `Room ${roomNum} is currently out of order (Maintenance) and cannot be booked.`;
+  useEffect(() => {
+    if (availableRooms.length > 0 && !selectedRoomNum) {
+      setSelectedRoomNum(String(availableRooms[0].room_number || availableRooms[0].roomNumber));
+      setTariffRate(Number(availableRooms[0].price || 2500));
     }
+  }, [availableRooms, selectedRoomNum]);
 
-    // 2. Check overlap with existing active reservations
-    const sDate = new Date(start);
-    const eDate = new Date(end);
+  const handleRoomSelect = (num) => {
+    setSelectedRoomNum(num);
+    const rm = rooms.find(r => String(r.room_number || r.roomNumber) === String(num));
+    if (rm) {
+      setTariffRate(Number(rm.price || 2500));
+    }
+  };
+
+  // Calculate nights
+  const calculateNights = () => {
+    if (!checkIn || !checkOut) return 1;
+    const d1 = new Date(checkIn);
+    const d2 = new Date(checkOut);
+    const diff = Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24));
+    return diff > 0 ? diff : 1;
+  };
+  const nightsCount = calculateNights();
+
+  // Commercials
+  const subtotal = tariffRate * nightsCount;
+  const taxes = Math.round(subtotal * 0.12);
+  const totalTariff = subtotal + taxes;
+
+  // Conflict validation
+  const activeConflict = useMemo(() => {
+    if (!selectedRoomNum || !checkIn || !checkOut) return null;
+    if (checkIn >= checkOut) return 'Check-out date must be strictly after Check-in date.';
+
+    const sDate = new Date(checkIn);
+    const eDate = new Date(checkOut);
 
     const conflictingRes = reservations.find(res => {
-      if (res.status === 'CANCELLED') return false;
+      if (res.status === 'CANCELLED' || res.status === 'CHECKED_OUT') return false;
       const resRoomMatch = String(res.room).match(/\b(\d+)\b/);
-      const resRoomNum = resRoomMatch ? resRoomMatch[1] : String(res.room);
-      if (String(resRoomNum) !== String(roomNum)) return false;
+      const resNum = resRoomMatch ? resRoomMatch[1] : String(res.room_number || res.room);
+      if (String(resNum) !== String(selectedRoomNum)) return false;
 
       const rStart = new Date(res.checkIn || res.check_in);
       const rEnd = new Date(res.checkOut || res.check_out);
-
-      // Overlap formula: (start < rEnd) && (end > rStart)
       return sDate < rEnd && eDate > rStart;
     });
 
     if (conflictingRes) {
-      return `Room ${roomNum} is already reserved by ${conflictingRes.guest || 'another guest'} from ${conflictingRes.checkIn || conflictingRes.check_in} to ${conflictingRes.checkOut || conflictingRes.check_out}.`;
+      return `Room #${selectedRoomNum} is already reserved by ${conflictingRes.guest || 'another guest'} from ${conflictingRes.checkIn || conflictingRes.check_in} to ${conflictingRes.checkOut || conflictingRes.check_out}.`;
     }
-
     return null;
-  };
-
-  // Compute active conflict for current form selection
-  const activeConflict = useMemo(() => {
-    if (checkIn >= checkOut) {
-      return 'Check-out date must be strictly after Check-in date.';
-    }
-    return checkConflict(defaultRoomVal, checkIn, checkOut);
-  }, [defaultRoomVal, checkIn, checkOut, rooms, reservations]);
+  }, [selectedRoomNum, checkIn, checkOut, reservations]);
 
   if (!isCreateReservationModalOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!guest.trim()) {
+    if (!guestName.trim()) {
       setValidationError('Please enter guest full name.');
       return;
     }
-
-    if (checkIn >= checkOut) {
-      setValidationError('Check-out date must be strictly after Check-in date.');
-      return;
-    }
-
-    const conflict = checkConflict(defaultRoomVal, checkIn, checkOut);
-    if (conflict) {
-      setValidationError(conflict);
-      showNotification(conflict, 'error');
+    if (activeConflict) {
+      setValidationError(activeConflict);
+      showNotification(activeConflict, 'error');
       return;
     }
 
     setValidationError('');
+    setIsSubmitting(true);
 
-    if (addReservation) {
-      addReservation({
-        guest: guest.trim(),
-        room: defaultRoomVal,
-        checkIn,
-        checkOut,
-        source,
-        amount: Number(amount) || 2000,
+    try {
+      const selectedRoomObj = rooms.find(r => String(r.room_number || r.roomNumber) === String(selectedRoomNum));
+
+      const payload = {
+        id: `RES-${Date.now().toString().slice(-4)}`,
+        guest: guestName.trim(),
+        guest_email: email.trim() || null,
+        guest_phone: phone.trim() || null,
+        guest_country: country,
+        guest_id_type: idType,
+        guest_id_number: idNumber.trim() || null,
+        vip_tier: vipTier,
+        room: `Room ${selectedRoomNum} - ${selectedRoomObj?.type || 'Deluxe'}`,
+        room_number: selectedRoomNum,
+        room_type: selectedRoomObj?.type || 'Deluxe Room',
+        check_in: checkIn,
+        check_out: checkOut,
+        nights: nightsCount,
+        adults: Number(adults),
+        children: Number(children),
+        rate_plan: ratePlan,
+        source: 'Front Desk Direct Booking',
+        amount: totalTariff,
+        paid: Number(advancePaid) || 0,
+        advance_paid: Number(advancePaid) || 0,
+        payment_mode: paymentMode,
+        billing_mode: billingMode,
+        organisation: companyName.trim() || null,
+        gstin: gstin.trim() || null,
         status: 'CONFIRMED',
-        payment: 'PENDING'
-      });
+        payment: Number(advancePaid) >= totalTariff ? 'PAID' : 'PENDING',
+        notes: notes.trim() || null
+      };
+
+      if (addReservation) {
+        await addReservation(payload);
+      }
+      showNotification(`Reservation confirmed for ${guestName} in Room #${selectedRoomNum}!`, 'success');
+      setIsCreateReservationModalOpen(false);
+    } catch (err) {
+      setValidationError('Failed to create reservation.');
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsCreateReservationModalOpen(false);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-emerald-50 via-white to-slate-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-hidden animate-in fade-in duration-150">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh] relative">
+        
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-100">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
               <CalendarPlus className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">
-                Create Reservation
+              <h2 className="text-base font-black tracking-wide">
+                Exceed HMS Reservation Create & Room Booking
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Front desk guest booking & room allocation
+              <p className="text-xs text-indigo-200/80">
+                Front desk guest registration, KYC identity proof & room allocation
               </p>
             </div>
           </div>
-
           <button
             onClick={() => setIsCreateReservationModalOpen(false)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
-          {/* Active Conflict Warning Alert */}
-          {(activeConflict || validationError) && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-800 animate-in fade-in">
+        {/* Scrollable Form Body */}
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 space-y-5 text-xs">
+          
+          {validationError && (
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 font-semibold flex items-start space-x-2">
               <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div className="leading-relaxed font-medium text-[11px]">
-                <strong className="font-bold">Reservation Conflict: </strong>
-                {activeConflict || validationError}
-              </div>
+              <span>{validationError}</span>
             </div>
           )}
 
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">Guest Full Name <span className="text-rose-500">*</span></label>
-            <input
-              type="text"
-              placeholder="e.g. Rahul Sharma"
-              value={guest}
-              onChange={(e) => { setGuest(e.target.value); setValidationError(''); }}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-              required
-            />
+          {/* Section 1: Guest Profile & KYC */}
+          <div className="space-y-3">
+            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-900 flex items-center space-x-1.5">
+              <User className="w-3.5 h-3.5" />
+              <span>Primary Guest Identity & KYC</span>
+            </span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Guest Full Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Mr. Rajesh Sharma"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/30 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">VIP Tier</label>
+                <select
+                  value={vipTier}
+                  onChange={(e) => setVipTier(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-semibold outline-none text-xs"
+                >
+                  <option value="Regular">Regular Guest</option>
+                  <option value="Silver VIP">Silver VIP</option>
+                  <option value="Gold VIP">Gold VIP</option>
+                  <option value="Platinum VIP">Platinum VIP</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Mobile Number *</label>
+                <input
+                  type="text"
+                  placeholder="+91..."
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 font-mono text-xs outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Email Address</label>
+                <input
+                  type="email"
+                  placeholder="rajesh@gmail.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">City / Origin</label>
+                <input
+                  type="text"
+                  placeholder="City, State"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Government ID Proof */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">ID Proof Type</label>
+                <select
+                  value={idType}
+                  onChange={(e) => setIdType(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold outline-none text-xs"
+                >
+                  <option value="Aadhaar Card">Aadhaar Card</option>
+                  <option value="Passport">Passport</option>
+                  <option value="Driving License">Driving License</option>
+                  <option value="Voter ID">Voter ID</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">ID Document Number</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 5421-9812-4412"
+                  value={idNumber}
+                  onChange={(e) => setIdNumber(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-mono text-xs outline-none"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Check-in Date <span className="text-rose-500">*</span></label>
-              <input
-                type="date"
-                value={checkIn}
-                onChange={(e) => { setCheckIn(e.target.value); setValidationError(''); }}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Check-out Date <span className="text-rose-500">*</span></label>
-              <input
-                type="date"
-                value={checkOut}
-                min={checkIn}
-                onChange={(e) => { setCheckOut(e.target.value); setValidationError(''); }}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                required
-              />
-            </div>
-          </div>
+          {/* Section 2: Stay Dates & Room Selection */}
+          <div className="space-y-3 pt-2 border-t border-slate-100">
+            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-900 flex items-center space-x-1.5">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Stay Dates & Room Allocation</span>
+            </span>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Assigned Room <span className="text-rose-500">*</span></label>
-              <select
-                value={defaultRoomVal}
-                onChange={(e) => { setRoom(e.target.value); setValidationError(''); }}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                {rooms.length === 0 ? (
-                  <option value="Unassigned Room">Unassigned Room (No rooms in inventory)</option>
-                ) : (
-                  rooms.map(r => {
-                    const conflict = checkConflict(r.roomNumber, checkIn, checkOut);
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Check-In Date *</label>
+                <input
+                  type="date"
+                  value={checkIn}
+                  onChange={(e) => setCheckIn(e.target.value)}
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs font-bold outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Check-Out Date *</label>
+                <input
+                  type="date"
+                  min={checkIn}
+                  value={checkOut}
+                  onChange={(e) => setCheckOut(e.target.value)}
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs font-bold outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Select Room *</label>
+                <select
+                  value={selectedRoomNum}
+                  onChange={(e) => handleRoomSelect(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-bold text-xs outline-none"
+                >
+                  {availableRooms.map(r => {
+                    const rNum = String(r.room_number || r.roomNumber);
                     return (
-                      <option 
-                        key={r.roomNumber} 
-                        value={`${r.roomNumber} (${r.type})`}
-                        disabled={Boolean(conflict)}
-                      >
-                        Room {r.roomNumber} - {r.type} {conflict ? '⚠️ [Booked / Conflict]' : '✓ [Available]'}
+                      <option key={rNum} value={rNum}>
+                        Room #{rNum} ({r.type || 'Deluxe'}) - â‚¹{r.price || 2500}/n
                       </option>
                     );
-                  })
-                )}
-              </select>
-            </div>
+                  })}
+                </select>
+              </div>
 
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Booking Source</label>
-              <select
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="Direct Walk-in">Direct Walk-in</option>
-                <option value="Booking Engine">Direct Booking Engine</option>
-                <option value="Booking.com">Booking.com</option>
-                <option value="Agoda">Agoda</option>
-                <option value="Corporate Contract">Corporate Contract</option>
-              </select>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Adults / Children</label>
+                <div className="flex space-x-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="6"
+                    value={adults}
+                    onChange={(e) => setAdults(e.target.value)}
+                    className="w-1/2 px-2.5 py-2 rounded-xl border border-slate-300 text-center font-bold text-xs"
+                    title="Adults"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="4"
+                    value={children}
+                    onChange={(e) => setChildren(e.target.value)}
+                    className="w-1/2 px-2.5 py-2 rounded-xl border border-slate-300 text-center font-bold text-xs"
+                    title="Children"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Rate Plan</label>
+                <select
+                  value={ratePlan}
+                  onChange={(e) => setRatePlan(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold text-xs outline-none"
+                >
+                  <option value="EP - Room Only">EP (Room Only)</option>
+                  <option value="CP - Continental Plan (Breakfast Included)">CP (With Breakfast)</option>
+                  <option value="MAP - Half Board (Breakfast + Dinner)">MAP (Half Board)</option>
+                  <option value="AP - Full Board (All Meals)">AP (All Meals)</option>
+                </select>
+              </div>
             </div>
           </div>
 
+          {/* Section 3: Commercials & Billing */}
+          <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-900">
+                Commercials, Taxes & Advance Settlement
+              </span>
+              <span className="text-[11px] font-bold text-amber-800">
+                {nightsCount} Night{nightsCount > 1 ? 's' : ''} Stay
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div>
+                <span className="text-[10px] text-slate-500 font-bold uppercase block">Daily Tariff</span>
+                <span className="font-mono font-bold text-slate-900">â‚¹{tariffRate.toLocaleString('en-IN')}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-bold uppercase block">Room Subtotal</span>
+                <span className="font-mono font-bold text-slate-900">â‚¹{subtotal.toLocaleString('en-IN')}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-bold uppercase block">GST (12%)</span>
+                <span className="font-mono font-bold text-slate-900">â‚¹{taxes.toLocaleString('en-IN')}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-indigo-700 font-bold uppercase block">Total Amount</span>
+                <span className="font-mono font-black text-indigo-950 text-sm">â‚¹{totalTariff.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-amber-200/60">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Advance Payment Amount (â‚¹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max={totalTariff}
+                  value={advancePaid}
+                  onChange={(e) => setAdvancePaid(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white font-bold font-mono text-xs outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Payment Mode
+                </label>
+                <select
+                  value={paymentMode}
+                  onChange={(e) => setPaymentMode(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white font-semibold text-xs outline-none"
+                >
+                  <option value="UPI">UPI / QR (GPay / PhonePe / Paytm)</option>
+                  <option value="Cash">Cash (Front Desk)</option>
+                  <option value="Credit Card">Credit / Debit Card</option>
+                  <option value="Bank Transfer">Bank Transfer (NEFT/RTGS)</option>
+                  <option value="Direct Billing">Company Direct Bill</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Special Preferences & Notes */}
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">Total Stay Amount (₹)</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              required
+            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+              Guest Remarks / Special Preferences
+            </label>
+            <textarea
+              rows={2}
+              placeholder="e.g. Non-smoking room, high floor, airport taxi pickup..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs outline-none resize-none"
             />
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+          {/* Footer Actions */}
+          <div className="pt-3 border-t border-slate-200 flex items-center justify-between shrink-0">
             <button
               type="button"
               onClick={() => setIsCreateReservationModalOpen(false)}
-              className="px-4 py-2 font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+              className="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs"
             >
               Cancel
             </button>
+
             <button
               type="submit"
-              disabled={Boolean(activeConflict)}
-              className={`px-5 py-2 rounded-lg font-semibold shadow-sm transition flex items-center gap-1.5 ${
-                activeConflict 
-                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
-              }`}
+              disabled={isSubmitting || !!activeConflict}
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs shadow-md shadow-emerald-600/20 flex items-center space-x-1.5 transition-all disabled:opacity-50"
             >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Confirm Reservation</span>
+              <Check className="w-4 h-4" />
+              <span>{isSubmitting ? 'Confirming...' : 'Confirm Reservation & Post Folio'}</span>
             </button>
           </div>
+
         </form>
+
       </div>
     </div>
   );

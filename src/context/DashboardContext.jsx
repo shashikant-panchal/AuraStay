@@ -50,6 +50,78 @@ const VALID_VIEWS = new Set([
   'hr-payroll'
 ]);
 
+// Exceed HMS Room Categories Mock Master
+const defaultMockRoomTypes = [
+  {
+    id: 'rt-deluxe',
+    name: 'Deluxe Room',
+    label: 'Room',
+    beddingType: 'King Bed',
+    maxAdults: 2,
+    maxExtra: 1,
+    maxChildren: 1,
+    areaSqft: 350,
+    basePrice: 2500,
+    extraBedPrice: 800,
+    childPrice: 400,
+    amenities: ['Air conditioning', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Private bathroom', 'Electric kettle', 'Daily housekeeping'],
+    description: 'Spacious deluxe room featuring plush king bedding, work desk, and ensuite bath.',
+    notes: 'Standard deluxe inventory on 1st & 2nd floors.',
+    isBookingEngine: true
+  },
+  {
+    id: 'rt-exec',
+    name: 'Executive Suite',
+    label: 'Suite',
+    beddingType: 'Suite',
+    maxAdults: 3,
+    maxExtra: 1,
+    maxChildren: 2,
+    areaSqft: 550,
+    basePrice: 4500,
+    extraBedPrice: 1000,
+    childPrice: 500,
+    amenities: ['Air conditioning', 'Balcony', 'City view', 'Bathtub', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Minibar', 'Tea/Coffee machine', 'Safe'],
+    description: 'Luxury executive suite with dedicated living room area, private balcony, and panoramic city views.',
+    notes: 'Premium suite allocation with VIP welcome drinks.',
+    isBookingEngine: true
+  },
+  {
+    id: 'rt-pres',
+    name: 'Presidential Suite',
+    label: 'Suite',
+    beddingType: '2 King Bed(s)',
+    maxAdults: 4,
+    maxExtra: 2,
+    maxChildren: 2,
+    areaSqft: 850,
+    basePrice: 8000,
+    extraBedPrice: 1500,
+    childPrice: 800,
+    amenities: ['Air conditioning', 'Balcony', 'Terrace', 'Bathtub', 'Hot tub', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Minibar', 'Dining area', 'Kitchenette', 'Safe'],
+    description: 'Top-tier luxury penthouse suite with two master bedrooms, private terrace jacuzzi, and 24/7 personal butler service.',
+    notes: 'Requires GM approval for complimentary upgrades.',
+    isBookingEngine: true
+  },
+  {
+    id: 'rt-std',
+    name: 'Standard Room',
+    label: 'Room',
+    beddingType: 'Queen Bed',
+    maxAdults: 2,
+    maxExtra: 0,
+    maxChildren: 1,
+    areaSqft: 280,
+    basePrice: 1800,
+    extraBedPrice: 600,
+    childPrice: 300,
+    amenities: ['Air conditioning', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Private bathroom', 'Daily housekeeping'],
+    description: 'Comfortable standard accommodation ideal for business travelers and short transit stays.',
+    notes: 'Compact cozy room layout.',
+    isBookingEngine: true
+  }
+];
+
 export function DashboardProvider({ children }) {
   // Multi-tenant Hotel Authentication State
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -114,6 +186,22 @@ export function DashboardProvider({ children }) {
   });
 
   // Rooms & Operations state
+  const [roomTypes, setRoomTypes] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aurastay_room_types');
+      if (saved) return JSON.parse(saved);
+    } catch (e) { }
+    return defaultMockRoomTypes;
+  });
+
+  const [isCreateRoomTypeModalOpen, setIsCreateRoomTypeModalOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aurastay_room_types', JSON.stringify(roomTypes));
+    } catch (e) { }
+  }, [roomTypes]);
+
   const [rooms, setRooms] = useState(mockRooms);
   const [reservations, setReservations] = useState(mockReservations);
   const [fnbOrders, setFnbOrders] = useState(mockFnbOrders);
@@ -582,23 +670,93 @@ export function DashboardProvider({ children }) {
     }
   };
 
+  // Room Categories (Exceed HMS Room Category Master) CRUD
+  const addRoomType = async (newType) => {
+    const typeObj = {
+      ...newType,
+      id: newType.id || `rt-${Date.now().toString().slice(-4)}`,
+      hotelId: currentHotel.id
+    };
+    setRoomTypes(prev => [typeObj, ...prev.filter(t => t.name !== typeObj.name)]);
+    showNotification(`Room Category ${typeObj.name} saved successfully.`);
+    setIsCreateRoomTypeModalOpen(false);
+
+    if (isSupabaseConfigured) {
+      try {
+        const payload = {
+          id: typeObj.id,
+          hotel_id: currentHotel.id,
+          name: typeObj.name,
+          label: typeObj.label || 'Room',
+          bedding_type: typeObj.beddingType || 'King Bed',
+          max_adults: Number(typeObj.maxAdults) || 2,
+          max_extra: Number(typeObj.maxExtra) || 1,
+          max_children: Number(typeObj.maxChildren) || 1,
+          area_sqft: Number(typeObj.areaSqft) || 350,
+          base_price: Number(typeObj.basePrice) || 2500,
+          extra_bed_price: Number(typeObj.extraBedPrice) || 800,
+          child_price: Number(typeObj.childPrice) || 400,
+          amenities: typeObj.amenities || [],
+          description: typeObj.description || '',
+          notes: typeObj.notes || '',
+          is_booking_engine: typeObj.isBookingEngine !== false
+        };
+        await supabase.from('room_types').upsert(payload);
+      } catch (err) {
+        console.warn('Supabase room_types sync:', err);
+      }
+    }
+  };
+
+  const updateRoomType = async (id, updatedType) => {
+    setRoomTypes(prev => prev.map(t => t.id === id ? { ...t, ...updatedType } : t));
+    showNotification('Room category updated.');
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('room_types').update(updatedType).eq('id', id);
+      } catch (err) {
+        console.warn('Supabase update room type error:', err);
+      }
+    }
+  };
+
+  const deleteRoomType = async (id) => {
+    setRoomTypes(prev => prev.filter(t => t.id !== id));
+    showNotification('Room category removed.');
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('room_types').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Supabase delete room type error:', err);
+      }
+    }
+  };
+
   // Add room (saved to Supabase & local state)
   const addRoom = async (newRoom) => {
+    const cleanNum = String(newRoom.roomNumber).trim();
     const room = {
       hotelId: currentHotel.id,
-      roomNumber: String(newRoom.roomNumber).trim(),
-      floor: newRoom.floor || '1st Floor',
-      type: newRoom.type || 'Standard Room',
+      roomNumber: cleanNum,
+      room_number: cleanNum,
+      roomTypeId: newRoom.roomTypeId || null,
+      floor: newRoom.floor || 'Floor 1',
+      type: newRoom.type || 'Deluxe Room',
+      category: newRoom.type || 'Deluxe Room',
       bed: newRoom.bed || 'King Bed',
-      status: 'VACANT_READY',
-      price: Number(newRoom.price) || 2000,
+      status: newRoom.status || (newRoom.housekeeping === 'Dirty' ? 'DIRTY' : 'VACANT_READY'),
+      housekeeping: newRoom.housekeeping || 'Clean',
+      price: Number(newRoom.price) || 2500,
+      keyCardNo: newRoom.keyCardNo || `CARD-${cleanNum}`,
+      isSmoking: !!newRoom.isSmoking,
+      phoneExtension: newRoom.phoneExtension || cleanNum,
       guest: null,
       bookingId: null,
       checkOut: null
     };
 
-    setRooms(prev => [room, ...prev.filter(r => r.roomNumber !== room.roomNumber)]);
-    showNotification(`Room ${room.roomNumber} created successfully.`);
+    setRooms(prev => [room, ...prev.filter(r => String(r.roomNumber || r.room_number) !== cleanNum)]);
+    showNotification(`Room #${cleanNum} created successfully.`);
     setIsCreateRoomModalOpen(false);
 
     if (isSupabaseConfigured) {
@@ -608,15 +766,18 @@ export function DashboardProvider({ children }) {
           floor: room.floor,
           type: room.type,
           bed: room.bed,
-          status: 'VACANT_READY',
-          price: room.price
+          status: room.status,
+          price: room.price,
+          housekeeping: room.housekeeping,
+          key_card_no: room.keyCardNo,
+          is_smoking: room.isSmoking,
+          phone_extension: room.phoneExtension
         };
         const { error } = await supabase.from('rooms').insert({
           ...payload,
           hotel_id: currentHotel.id
         });
         if (error && (error.code === 'PGRST204' || error.message?.includes('hotel_id'))) {
-          // Schema does not have hotel_id yet, fallback insert without hotel_id
           await supabase.from('rooms').insert(payload);
         }
       } catch (err) {
@@ -688,53 +849,129 @@ export function DashboardProvider({ children }) {
     }
   };
 
-  // Add reservation
+  // Add reservation (Full Exceed HMS Schema Synchronization)
   const addReservation = async (newRes) => {
-    const resId = newRes.id || `AST-B-${(reservations?.length || 0) + 101}`;
+    const resId = newRes.id || `RES-${Date.now().toString().slice(-4)}`;
+    const cleanRoomNum = String(newRes.room_number || String(newRes.room).match(/\b(\d+)\b/)?.[1] || '');
+
     const reservation = {
       ...newRes,
       id: resId,
       hotelId: currentHotel.id,
+      guest: newRes.guest,
+      guest_email: newRes.guest_email || newRes.email || null,
+      guest_phone: newRes.guest_phone || newRes.phone || null,
+      guest_country: newRes.guest_country || newRes.country || 'India',
+      guest_id_type: newRes.guest_id_type || 'Aadhaar Card',
+      guest_id_number: newRes.guest_id_number || null,
+      vip_tier: newRes.vip_tier || 'Regular',
+      room: newRes.room,
+      room_number: cleanRoomNum,
+      room_type: newRes.room_type || 'Deluxe Room',
+      check_in: newRes.check_in || newRes.checkIn,
+      check_out: newRes.check_out || newRes.checkOut,
+      checkIn: newRes.check_in || newRes.checkIn,
+      checkOut: newRes.check_out || newRes.checkOut,
+      nights: Number(newRes.nights) || 1,
+      adults: Number(newRes.adults) || 2,
+      children: Number(newRes.children) || 0,
+      rate_plan: newRes.rate_plan || 'CP - Continental Plan',
+      source: newRes.source || 'Front Desk Direct Booking',
+      amount: Number(newRes.amount) || 2500,
+      paid: Number(newRes.paid || newRes.advance_paid) || 0,
+      advance_paid: Number(newRes.advance_paid || newRes.paid) || 0,
+      payment_mode: newRes.payment_mode || 'UPI',
+      billing_mode: newRes.billing_mode || 'Guest Direct',
+      organisation: newRes.organisation || null,
+      gstin: newRes.gstin || null,
       status: newRes.status || 'CONFIRMED',
-      payment: newRes.payment || 'PENDING'
+      payment: (Number(newRes.paid || newRes.advance_paid) >= Number(newRes.amount)) ? 'PAID' : 'PENDING',
+      notes: newRes.notes || null
     };
+
     setReservations(prev => [reservation, ...(prev || [])]);
-    showNotification(`Reservation ${resId} created for ${newRes.guest}`);
+    showNotification(`Reservation ${resId} confirmed for ${reservation.guest}`);
     setIsCreateReservationModalOpen(false);
 
     // If check-in is today or ongoing, mark room status as OCCUPIED
     const todayStr = new Date().toISOString().split('T')[0];
-    const roomNumMatch = String(newRes.room).match(/\b(\d+)\b/);
-    const roomNum = roomNumMatch ? roomNumMatch[1] : null;
-
-    if (roomNum && (newRes.checkIn || newRes.check_in) <= todayStr && (newRes.checkOut || newRes.check_out) >= todayStr) {
-      updateRoomStatus(roomNum, 'OCCUPIED');
+    if (cleanRoomNum && reservation.check_in <= todayStr && reservation.check_out >= todayStr) {
+      setRooms(prev => prev.map(r => {
+        if (String(r.room_number || r.roomNumber) === cleanRoomNum) {
+          return {
+            ...r,
+            status: 'OCCUPIED',
+            guest: reservation.guest,
+            booking_id: resId,
+            check_out: reservation.check_out
+          };
+        }
+        return r;
+      }));
     }
 
     if (isSupabaseConfigured) {
       try {
         const payload = {
           id: resId,
-          guest: newRes.guest,
-          guest_email: newRes.guestEmail || newRes.guest_email || null,
-          guest_phone: newRes.guestPhone || newRes.guest_phone || null,
-          room: newRes.room,
-          check_in: newRes.checkIn || newRes.check_in,
-          check_out: newRes.checkOut || newRes.check_out,
-          source: newRes.source || 'Direct Website',
-          amount: Number(newRes.amount) || 2000,
-          status: newRes.status || 'CONFIRMED',
-          payment: newRes.payment || 'PENDING'
+          hotel_id: currentHotel.id,
+          guest: reservation.guest,
+          guest_email: reservation.guest_email,
+          guest_phone: reservation.guest_phone,
+          guest_country: reservation.guest_country,
+          guest_id_type: reservation.guest_id_type,
+          guest_id_number: reservation.guest_id_number,
+          vip_tier: reservation.vip_tier,
+          room: reservation.room,
+          room_number: cleanRoomNum,
+          room_type: reservation.room_type,
+          check_in: reservation.check_in,
+          check_out: reservation.check_out,
+          nights: reservation.nights,
+          adults: reservation.adults,
+          children: reservation.children,
+          rate_plan: reservation.rate_plan,
+          source: reservation.source,
+          amount: reservation.amount,
+          paid: reservation.paid,
+          advance_paid: reservation.advance_paid,
+          payment_mode: reservation.payment_mode,
+          billing_mode: reservation.billing_mode,
+          organisation: reservation.organisation,
+          gstin: reservation.gstin,
+          status: reservation.status,
+          payment: reservation.payment,
+          notes: reservation.notes
         };
-        const { error } = await supabase.from('reservations').insert({
-          ...payload,
-          hotel_id: currentHotel.id
-        });
-        if (error && (error.code === 'PGRST204' || error.message?.includes('hotel_id'))) {
-          await supabase.from('reservations').insert(payload);
+        const { error } = await supabase.from('reservations').insert(payload);
+        if (error) {
+          // Schema fallback if extra columns not in Supabase yet
+          await supabase.from('reservations').insert({
+            id: resId,
+            hotel_id: currentHotel.id,
+            guest: reservation.guest,
+            guest_email: reservation.guest_email,
+            guest_phone: reservation.guest_phone,
+            room: reservation.room,
+            check_in: reservation.check_in,
+            check_out: reservation.check_out,
+            source: 'Front Desk Direct',
+            amount: reservation.amount,
+            status: reservation.status,
+            payment: reservation.payment
+          });
+        }
+
+        if (cleanRoomNum && reservation.check_in <= todayStr && reservation.check_out >= todayStr) {
+          await supabase.from('rooms').update({
+            status: 'OCCUPIED',
+            guest: reservation.guest,
+            booking_id: resId,
+            check_out: reservation.check_out
+          }).eq('room_number', cleanRoomNum);
         }
       } catch (err) {
-        console.warn('Supabase reservation insert sync pending table setup', err);
+        console.warn('Supabase reservation insert sync:', err);
       }
     }
   };
@@ -1180,6 +1417,13 @@ export function DashboardProvider({ children }) {
       setIsTourOpen,
       setIsSearchOpen,
       setIsCreateReservationModalOpen,
+      roomTypes,
+      setRoomTypes,
+      addRoomType,
+      updateRoomType,
+      deleteRoomType,
+      isCreateRoomTypeModalOpen,
+      setIsCreateRoomTypeModalOpen,
       isCreateRoomModalOpen,
       setIsCreateRoomModalOpen,
       addRoom,

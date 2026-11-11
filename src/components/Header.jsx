@@ -43,6 +43,8 @@ export default function Header() {
     setIsTourOpen,
     setIsSearchOpen,
     setIsCreateReservationModalOpen,
+    setIsCreateRoomModalOpen,
+    setIsCreateRoomTypeModalOpen,
     subModuleTitle,
     isLiveConnected,
     currentHotel,
@@ -141,6 +143,28 @@ export default function Header() {
                   >
                     <Plus className="w-4 h-4 text-emerald-600" />
                     <span className="font-bold">New Reservation</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsQuickLinksOpen(false);
+                      setIsCreateRoomModalOpen(true);
+                    }}
+                    className="w-full px-3.5 py-2 text-left hover:bg-indigo-50 hover:text-indigo-900 flex items-center space-x-2.5 transition"
+                  >
+                    <Building2 className="w-4 h-4 text-sky-600" />
+                    <span>Add Room Number (Exceed Master)</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsQuickLinksOpen(false);
+                      setIsCreateRoomTypeModalOpen(true);
+                    }}
+                    className="w-full px-3.5 py-2 text-left hover:bg-indigo-50 hover:text-indigo-900 flex items-center space-x-2.5 transition"
+                  >
+                    <Layers className="w-4 h-4 text-indigo-600" />
+                    <span>Create Room Category (Exceed Master)</span>
                   </button>
 
                   <button

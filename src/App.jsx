@@ -40,6 +40,7 @@ import TourModal from './components/modals/TourModal';
 import QuickSearchModal from './components/modals/QuickSearchModal';
 import CreateReservationModal from './components/modals/CreateReservationModal';
 import CreateRoomModal from './components/modals/CreateRoomModal';
+import CreateRoomTypeModal from './components/modals/CreateRoomTypeModal';
 import DeleteRoomModal from './components/modals/DeleteRoomModal';
 import NotificationToast from './components/NotificationToast';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -165,6 +166,7 @@ export default function App() {
           <QuickSearchModal />
           <CreateReservationModal />
           <CreateRoomModal />
+          <CreateRoomTypeModal />
           <DeleteRoomModal />
           <NotificationToast />
         </ErrorBoundary>
