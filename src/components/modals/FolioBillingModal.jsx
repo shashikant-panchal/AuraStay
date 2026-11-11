@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Printer,
@@ -18,11 +18,13 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useDashboard } from '../../context/DashboardContext';
+import BookingVoucher from '../common/BookingVoucher';
 
 export default function FolioBillingModal({ isOpen, onClose, room, reservation }) {
-  const { showNotification, checkoutRoom, updateReservation } = useDashboard();
+  const { showNotification, checkoutRoom, updateReservation, currentHotel } = useDashboard();
 
   const [activeTab, setActiveTab] = useState('charges'); // charges | payments | invoice
+  const [voucherType, setVoucherType] = useState('BOOKING VOUCHER');
   const [discountPercent, setDiscountPercent] = useState(0);
 
   // New charge item state
@@ -36,6 +38,37 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
   const [payAmount, setPayAmount] = useState('');
   const [payRef, setPayRef] = useState('');
 
+  // Standard charges & payments
+  const [folioItems, setFolioItems] = useState([]);
+  const [paymentEntries, setPaymentEntries] = useState([]);
+
+  // Sync / initialize folio items & payments whenever modal opens with room/reservation
+  useEffect(() => {
+    if (isOpen && room) {
+      const roomNum = String(room.room_number || room.roomNumber || room.number || '101');
+      const checkIn = reservation?.check_in || reservation?.checkIn || '2026-11-04';
+      const roomPrice = Number(room.price || room.tariff || reservation?.price || 2500);
+
+      setFolioItems([
+        { id: 'chg-1', date: checkIn, category: 'Room Tariff', description: `Room #${roomNum} - Night 1 Accommodation`, rate: roomPrice, qty: 1, amount: roomPrice, gst: 12 },
+        { id: 'chg-2', date: checkIn, category: 'F&B', description: 'Room Service Dinner (Buffet & Beverages)', rate: 650, qty: 1, amount: 650, gst: 5 },
+        { id: 'chg-3', date: '2026-11-05', category: 'Laundry', description: 'Express Dry Cleaning (2 Garments)', rate: 250, qty: 1, amount: 250, gst: 18 }
+      ]);
+
+      setPaymentEntries([
+        { id: 'pay-1', date: checkIn, mode: 'UPI', ref: 'UPI-9831920', amount: Number(reservation?.paid || 2000), note: 'Check-in Advance' }
+      ]);
+
+      setActiveTab('charges');
+      setDiscountPercent(0);
+      setNewDescription('');
+      setNewAmount('');
+      setIsPostingCharge(false);
+      setPayAmount('');
+      setPayRef('');
+    }
+  }, [isOpen, room, reservation]);
+
   if (!isOpen || !room) return null;
 
   const roomNum = String(room.room_number || room.roomNumber || room.number);
@@ -44,17 +77,6 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
   const checkIn = reservation?.check_in || reservation?.checkIn || '2026-11-04';
   const checkOut = reservation?.check_out || reservation?.checkOut || '2026-11-06';
   const roomPrice = Number(room.price || room.tariff || reservation?.price || 2500);
-
-  // Standard charges
-  const [folioItems, setFolioItems] = useState([
-    { id: 'chg-1', date: checkIn, category: 'Room Tariff', description: `Room #${roomNum} - Night 1 Accommodation`, rate: roomPrice, qty: 1, amount: roomPrice, gst: 12 },
-    { id: 'chg-2', date: checkIn, category: 'F&B', description: 'Room Service Dinner (Buffet & Beverages)', rate: 650, qty: 1, amount: 650, gst: 5 },
-    { id: 'chg-3', date: '2026-11-05', category: 'Laundry', description: 'Express Dry Cleaning (2 Garments)', rate: 250, qty: 1, amount: 250, gst: 18 }
-  ]);
-
-  const [paymentEntries, setPaymentEntries] = useState([
-    { id: 'pay-1', date: checkIn, mode: 'UPI', ref: 'UPI-9831920', amount: Number(reservation?.paid || 2000), note: 'Check-in Advance' }
-  ]);
 
   // Calculations
   const subtotalCharges = folioItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -138,14 +160,14 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
       <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden relative max-h-[92vh] flex flex-col">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="no-print bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
               <Receipt className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="text-base font-black tracking-wide">Guest Folio & Tax Invoice</h3>
+                <h3 className="text-base font-black tracking-wide">Guest Folio & Booking Voucher</h3>
                 <span className="text-[10px] font-mono bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-400/30">
                   FOL-2026-{roomNum}
                 </span>
@@ -156,10 +178,10 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
           <div className="flex items-center space-x-2">
             <button
               onClick={handlePrint}
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all flex items-center space-x-1.5"
+              className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all flex items-center space-x-1.5 shadow-xs"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Print Invoice</span>
+              <span>Print Document</span>
             </button>
             <button
               onClick={onClose}
@@ -171,7 +193,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-slate-50 border-b border-slate-200 px-6 py-2 flex items-center justify-between shrink-0">
+        <div className="no-print bg-slate-50 border-b border-slate-200 px-6 py-2 flex items-center justify-between shrink-0">
           <div className="flex space-x-2">
             <button
               onClick={() => setActiveTab('charges')}
@@ -201,7 +223,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
               }`}
             >
-              Tax Invoice Preview
+              Booking Voucher / Invoice
             </button>
           </div>
 
@@ -400,110 +422,140 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
             </div>
           )}
 
-          {activeTab === 'invoice' && (
-            <div className="border border-slate-200 rounded-3xl p-6 bg-white space-y-6 shadow-xs font-sans">
-              <div className="flex justify-between items-start border-b border-slate-200 pb-5">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900 tracking-tight">DEMO HOTEL</h2>
-                  <p className="text-xs text-slate-500">MG Road, Central Business District, Bengaluru, Karnataka</p>
-                  <p className="text-xs text-slate-500 font-mono">GSTIN: 29AAACH7409R1ZZ • Phone: +91 80 2234 5678</p>
+          {/* BOOKING VOUCHER / TAX INVOICE TAB */}
+          {activeTab === 'invoice' ? (
+            <div className="space-y-4">
+              {/* Document Type Switcher & Action Toolbar (Hidden in Print) */}
+              <div className="no-print bg-slate-50 border border-slate-200/90 rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-2xs">
+                <div className="flex items-center space-x-2.5">
+                  <span className="text-xs font-bold text-slate-600">Document Format:</span>
+                  <div className="bg-slate-200/80 p-0.5 rounded-xl flex space-x-1">
+                    <button
+                      onClick={() => setVoucherType('BOOKING VOUCHER')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        voucherType === 'BOOKING VOUCHER'
+                          ? 'bg-[#034a7f] text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Booking Voucher
+                    </button>
+                    <button
+                      onClick={() => setVoucherType('TAX INVOICE')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        voucherType === 'TAX INVOICE'
+                          ? 'bg-[#034a7f] text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Tax Invoice
+                    </button>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-xs font-black uppercase tracking-wider px-3 py-1 bg-slate-900 text-white rounded-full">
-                    TAX INVOICE
-                  </span>
-                  <p className="text-xs font-mono text-slate-600 mt-2">Invoice #: INV-2026-{roomNum}01</p>
-                  <p className="text-xs text-slate-500">Date: {new Date().toISOString().split('T')[0]}</p>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handlePrint}
+                    className="px-4 py-2 rounded-xl bg-[#034a7f] hover:bg-[#023358] text-white text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-all hover:scale-[1.01]"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Print {voucherType === 'BOOKING VOUCHER' ? 'Booking Voucher' : 'Tax Invoice'}</span>
+                  </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-xs">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Billed To (Guest Details):</span>
-                  <p className="font-bold text-slate-900 text-sm">{guestName}</p>
-                  <p className="text-slate-600">Mobile: {phone}</p>
-                  <p className="text-slate-600">Room: #{roomNum} ({room.category || room.type || 'Deluxe Room'})</p>
-                </div>
-                <div className="space-y-1 text-right">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Stay Details:</span>
-                  <p className="text-slate-700">Check-in: <strong className="text-slate-900">{checkIn}</strong></p>
-                  <p className="text-slate-700">Check-out: <strong className="text-slate-900">{checkOut}</strong></p>
-                  <p className="text-slate-700">Payment Status: <strong className={balanceDue === 0 ? 'text-emerald-700' : 'text-rose-700'}>
-                    {balanceDue === 0 ? 'PAID IN FULL' : 'PARTIAL DUE'}
-                  </strong></p>
-                </div>
+              {/* Booking Voucher & Invoice Preview */}
+              <div className="border border-slate-300 rounded-2xl overflow-hidden shadow-sm bg-white">
+                <BookingVoucher
+                  room={room}
+                  reservation={reservation}
+                  folioItems={folioItems}
+                  paymentEntries={paymentEntries}
+                  subtotalCharges={subtotalCharges}
+                  discountAmount={discountAmount}
+                  discountPercent={discountPercent}
+                  grandTotal={grandTotal}
+                  totalPaid={totalPaid}
+                  balanceDue={balanceDue}
+                  currentHotel={currentHotel}
+                  voucherType={voucherType}
+                  voucherNo={reservation?.id || `00${roomNum}46`}
+                />
               </div>
+            </div>
+          ) : (
+            /* Rendered for immediate background print capability when on charges/payments tab */
+            <div className="hidden print:block">
+              <BookingVoucher
+                room={room}
+                reservation={reservation}
+                folioItems={folioItems}
+                paymentEntries={paymentEntries}
+                subtotalCharges={subtotalCharges}
+                discountAmount={discountAmount}
+                discountPercent={discountPercent}
+                grandTotal={grandTotal}
+                totalPaid={totalPaid}
+                balanceDue={balanceDue}
+                currentHotel={currentHotel}
+                voucherType={voucherType}
+                voucherNo={reservation?.id || `00${roomNum}46`}
+              />
+            </div>
+          )}
 
-              {/* Compact invoice items */}
-              <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-                <div className="bg-slate-50 px-3 py-2 font-bold text-slate-600 grid grid-cols-12 uppercase tracking-wider text-[10px]">
-                  <span className="col-span-6">Description</span>
-                  <span className="col-span-2 text-right">Tax Rate</span>
-                  <span className="col-span-4 text-right">Amount (INR)</span>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {folioItems.map((item) => (
-                    <div key={item.id} className="px-3 py-2 grid grid-cols-12 text-slate-800">
-                      <span className="col-span-6 font-semibold">{item.description}</span>
-                      <span className="col-span-2 text-right font-mono text-slate-500">{item.gst}%</span>
-                      <span className="col-span-4 text-right font-mono font-bold">₹{item.amount.toLocaleString('en-IN')}</span>
-                    </div>
+          {/* Financial Summary Card (Only on charges and payments tabs, hidden in print) */}
+          {activeTab !== 'invoice' && (
+            <div className="no-print bg-slate-50 border border-slate-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center space-x-3">
+                <span className="text-xs font-bold text-slate-700">Manager Discount:</span>
+                <div className="flex space-x-1.5">
+                  {[0, 5, 10, 15].map(pct => (
+                    <button
+                      key={pct}
+                      onClick={() => setDiscountPercent(pct)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                        discountPercent === pct
+                          ? 'bg-amber-500 text-white shadow-xs'
+                          : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {pct === 0 ? 'None' : `${pct}%`}
+                    </button>
                   ))}
+                </div>
+              </div>
+
+              <div className="space-y-1 text-right text-xs">
+                <div className="flex justify-between sm:justify-end space-x-6 text-slate-600">
+                  <span>Subtotal:</span>
+                  <span className="font-mono font-semibold">₹{subtotalCharges.toLocaleString('en-IN')}</span>
+                </div>
+                {discountPercent > 0 && (
+                  <div className="flex justify-between sm:justify-end space-x-6 text-amber-700">
+                    <span>Discount ({discountPercent}%):</span>
+                    <span className="font-mono font-semibold">-₹{discountAmount.toLocaleString('en-IN')}</span>
+                  </div>
+                )}
+                <div className="flex justify-between sm:justify-end space-x-6 text-slate-600">
+                  <span>Taxes (CGST + SGST 12%):</span>
+                  <span className="font-mono font-semibold">₹{(cgstAmount + sgstAmount).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between sm:justify-end space-x-6 border-t border-slate-200 pt-1 text-sm font-black text-slate-900">
+                  <span>Total Amount:</span>
+                  <span className="font-mono text-indigo-900">₹{grandTotal.toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between sm:justify-end space-x-6 text-emerald-700 font-bold">
+                  <span>Total Received:</span>
+                  <span className="font-mono">₹{totalPaid.toLocaleString('en-IN')}</span>
                 </div>
               </div>
             </div>
           )}
-
-          {/* Financial Summary Card */}
-          <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center space-x-3">
-              <span className="text-xs font-bold text-slate-700">Manager Discount:</span>
-              <div className="flex space-x-1.5">
-                {[0, 5, 10, 15].map(pct => (
-                  <button
-                    key={pct}
-                    onClick={() => setDiscountPercent(pct)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                      discountPercent === pct
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {pct === 0 ? 'None' : `${pct}%`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-1 text-right text-xs">
-              <div className="flex justify-between sm:justify-end space-x-6 text-slate-600">
-                <span>Subtotal:</span>
-                <span className="font-mono font-semibold">₹{subtotalCharges.toLocaleString('en-IN')}</span>
-              </div>
-              {discountPercent > 0 && (
-                <div className="flex justify-between sm:justify-end space-x-6 text-amber-700">
-                  <span>Discount ({discountPercent}%):</span>
-                  <span className="font-mono font-semibold">-₹{discountAmount.toLocaleString('en-IN')}</span>
-                </div>
-              )}
-              <div className="flex justify-between sm:justify-end space-x-6 text-slate-600">
-                <span>Taxes (CGST + SGST 12%):</span>
-                <span className="font-mono font-semibold">₹{(cgstAmount + sgstAmount).toLocaleString('en-IN')}</span>
-              </div>
-              <div className="flex justify-between sm:justify-end space-x-6 border-t border-slate-200 pt-1 text-sm font-black text-slate-900">
-                <span>Total Amount:</span>
-                <span className="font-mono text-indigo-900">₹{grandTotal.toLocaleString('en-IN')}</span>
-              </div>
-              <div className="flex justify-between sm:justify-end space-x-6 text-emerald-700 font-bold">
-                <span>Total Received:</span>
-                <span className="font-mono">₹{totalPaid.toLocaleString('en-IN')}</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="no-print bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs"

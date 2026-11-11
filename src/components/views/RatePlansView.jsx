@@ -79,10 +79,10 @@ export default function RatePlansView() {
     <div className="space-y-6 animate-in fade-in duration-200 pb-16">
       
       {/* 1. Header with Direct "+ Add Room" & "+ Add Room Type" Actions */}
-      <div className="bg-white rounded-3xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.05)] border border-slate-200/80 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/90 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2.5">
-            <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full shadow-2xs">
+            <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full shadow-sm">
               INVENTORY & TARIFF MASTER
             </span>
             <span className="text-xs text-slate-400 font-semibold">• Live Supabase Cloud Sync</span>
@@ -99,7 +99,7 @@ export default function RatePlansView() {
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <button
             onClick={() => setIsCreateRoomTypeModalOpen(true)}
-            className="px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 font-bold text-xs flex items-center space-x-1.5 transition shadow-xs hover:border-slate-400"
+            className="h-10 px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 font-bold text-xs inline-flex items-center space-x-2 transition shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4 text-emerald-600" />
             <span>Add Room Type</span>
@@ -107,7 +107,7 @@ export default function RatePlansView() {
 
           <button
             onClick={() => setIsCreateRoomModalOpen(true)}
-            className="px-4 py-2.5 rounded-2xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs flex items-center space-x-1.5 transition shadow-md shadow-[#0e4860]/20 hover:scale-[1.02]"
+            className="h-10 px-4 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs inline-flex items-center space-x-2 transition shadow-sm hover:scale-[1.01] cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Add Room</span>
@@ -116,73 +116,123 @@ export default function RatePlansView() {
       </div>
 
       {/* 2. Top Summary KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">TOTAL ROOM TYPES</span>
-          <div className="text-2xl font-black text-slate-900 mt-1">{roomTypes.length}</div>
-          <span className="text-[11px] font-bold text-emerald-600 mt-1 block">Active on Booking Engine</span>
-        </div>
-
-        <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">TOTAL PHYSICAL ROOMS</span>
-          <div className="text-2xl font-black text-slate-900 mt-1">{rooms.length}</div>
-          <span className="text-[11px] font-bold text-sky-700 mt-1 block">Across {availableFloors.length || 1} Floor(s)</span>
-        </div>
-
-        <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">STARTING BASE TARIFF</span>
-          <div className="text-2xl font-black text-emerald-700 font-mono mt-1">
-            ₹{roomTypes.length > 0 ? Math.min(...roomTypes.map(t => Number(t.basePrice) || 2000)).toLocaleString() : '0'}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {/* Card 1: Total Room Types */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm hover:shadow transition flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Room Types</span>
+            <div className="w-8 h-8 rounded-xl bg-slate-100/80 border border-slate-200/60 flex items-center justify-center">
+              <Layers className="w-4 h-4 text-[#0e4860]" />
+            </div>
           </div>
-          <span className="text-[11px] font-bold text-slate-500 mt-1 block">EP Room Only</span>
+          <div className="mt-3">
+            <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">{roomTypes.length}</div>
+            <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-semibold text-emerald-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span>Active on Booking Engine</span>
+            </div>
+          </div>
         </div>
 
-        <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">VACANT & READY</span>
-          <div className="text-2xl font-black text-indigo-700 mt-1">
-            {rooms.filter(r => r.status === 'VACANT_READY').length}
+        {/* Card 2: Total Physical Rooms */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm hover:shadow transition flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Physical Rooms</span>
+            <div className="w-8 h-8 rounded-xl bg-slate-100/80 border border-slate-200/60 flex items-center justify-center">
+              <BedDouble className="w-4 h-4 text-[#0e4860]" />
+            </div>
           </div>
-          <span className="text-[11px] font-bold text-emerald-600 mt-1 block">Ready for check-in</span>
+          <div className="mt-3">
+            <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">{rooms.length}</div>
+            <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-medium text-slate-500">
+              <span>Across {availableFloors.length || 1} Floor(s)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Starting Base Tariff */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm hover:shadow transition flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Starting Base Tariff</span>
+            <div className="w-8 h-8 rounded-xl bg-slate-100/80 border border-slate-200/60 flex items-center justify-center">
+              <Tag className="w-4 h-4 text-[#0e4860]" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">
+              ₹{roomTypes.length > 0 ? Math.min(...roomTypes.map(t => Number(t.basePrice) || 2000)).toLocaleString('en-IN') : '0'}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-medium text-slate-500">
+              <span>EP Room Only</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 4: Vacant & Ready */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm hover:shadow transition flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Vacant & Ready</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">
+              {rooms.filter(r => r.status === 'VACANT_READY').length}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-semibold text-emerald-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span>Ready for check-in</span>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* 3. Navigation Tabs */}
-      <div className="flex border-b border-slate-200 bg-white rounded-2xl p-1.5 shadow-2xs gap-1">
-        <button
-          onClick={() => setActiveTab('categories')}
-          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 ${
-            activeTab === 'categories'
-              ? 'bg-[#0e4860] text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>Room Types & Plans ({roomTypes.length})</span>
-        </button>
+      <div className="bg-white rounded-2xl p-1.5 border border-slate-200/90 shadow-sm flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            onClick={() => setActiveTab('categories')}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer ${
+              activeTab === 'categories'
+                ? 'bg-[#0e4860] text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Room Types & Plans ({roomTypes.length})</span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('rooms')}
-          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 ${
-            activeTab === 'rooms'
-              ? 'bg-[#0e4860] text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <BedDouble className="w-4 h-4" />
-          <span>Rooms Matrix ({rooms.length})</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('rooms')}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer ${
+              activeTab === 'rooms'
+                ? 'bg-[#0e4860] text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+            }`}
+          >
+            <BedDouble className="w-4 h-4" />
+            <span>Rooms Matrix ({rooms.length})</span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('pricing-rules')}
-          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 ${
-            activeTab === 'pricing-rules'
-              ? 'bg-[#0e4860] text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Percent className="w-4 h-4" />
-          <span>Dynamic Pricing Rules</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('pricing-rules')}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer ${
+              activeTab === 'pricing-rules'
+                ? 'bg-[#0e4860] text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+            }`}
+          >
+            <Percent className="w-4 h-4" />
+            <span>Dynamic Pricing Rules</span>
+          </button>
+        </div>
+
+        {/* Right live status indicator */}
+        <div className="hidden sm:flex items-center gap-2 pr-3 text-[11px] font-semibold text-slate-500">
+          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span>PMS Inventory Active</span>
+        </div>
       </div>
 
       {/* ========================================================================= */}
@@ -190,34 +240,37 @@ export default function RatePlansView() {
       {/* ========================================================================= */}
       {activeTab === 'categories' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white rounded-2xl p-4 sm:px-6 sm:py-4 border border-slate-200/90 shadow-sm">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Room Categories & Plan Tiers</h2>
-              <p className="text-xs text-slate-500">Each room category carries meal plans, guest capacity, and amenities.</p>
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Layers className="w-4.5 h-4.5 text-[#0e4860]" />
+                <span>Room Categories & Plan Tiers</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">Each room category carries meal plans (EP, CP, MAP, AP), guest capacity, and amenities.</p>
             </div>
             <button
               onClick={() => setIsCreateRoomTypeModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs"
+              className="px-4 py-2 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition self-start sm:self-auto cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New Category</span>
+              <Plus className="w-4 h-4" />
+              <span>Add Room Type</span>
             </button>
           </div>
 
           {roomTypes.length === 0 ? (
-            <div className="bg-white rounded-3xl p-16 text-center border-2 border-dashed border-slate-200 space-y-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-                <Layers className="w-8 h-8" />
+            <div className="bg-white rounded-2xl p-12 sm:p-16 text-center border-2 border-dashed border-slate-200 space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-[#0e4860] flex items-center justify-center mx-auto border border-emerald-100 shadow-sm">
+                <Layers className="w-8 h-8 text-[#0e4860]" />
               </div>
-              <div>
-                <h3 className="font-serif text-lg font-bold text-slate-900">No Room Categories Created Yet</h3>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
+              <div className="max-w-md mx-auto">
+                <h3 className="text-lg font-bold text-slate-900">No Room Categories Created Yet</h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                   Start by creating room types (e.g. Deluxe Room, Executive Suite, Family Villa). Then assign physical room numbers.
                 </p>
               </div>
               <button
                 onClick={() => setIsCreateRoomTypeModalOpen(true)}
-                className="px-5 py-2.5 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs inline-flex items-center gap-2 shadow-md"
+                className="px-5 py-2.5 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs inline-flex items-center gap-2 shadow-sm cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Create First Room Type</span>
@@ -234,14 +287,14 @@ export default function RatePlansView() {
                 return (
                   <div
                     key={rt.id}
-                    className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.04)] hover:shadow-md transition space-y-5"
+                    className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition space-y-5"
                   >
                     {/* Header */}
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-serif text-lg font-bold text-slate-900">{rt.name}</h3>
-                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          <h3 className="text-base font-bold text-slate-900">{rt.name}</h3>
+                          <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
                             {rt.label || 'Room'}
                           </span>
                         </div>
@@ -264,7 +317,7 @@ export default function RatePlansView() {
                             if (deleteRoomType) deleteRoomType(rt.id);
                             showNotification(`Removed category ${rt.name}.`);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
                           title="Delete Category"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -273,43 +326,43 @@ export default function RatePlansView() {
                     </div>
 
                     {/* Meal Plan Tariff Tiers */}
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-2.5">
+                    <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80 space-y-2.5">
                       <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex justify-between">
                         <span>Rate Plan Tiers</span>
                         <span>Daily Tariff</span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 flex justify-between items-center shadow-xs">
                           <div>
                             <span className="font-bold text-slate-800 block">EP (Room Only)</span>
                             <span className="text-[10px] text-slate-400">European Plan</span>
                           </div>
-                          <span className="font-mono font-black text-slate-900">₹{base.toLocaleString()}</span>
+                          <span className="font-mono font-black text-slate-900">₹{base.toLocaleString('en-IN')}</span>
                         </div>
 
-                        <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 flex justify-between items-center shadow-xs">
                           <div>
                             <span className="font-bold text-slate-800 block">CP (with Breakfast)</span>
                             <span className="text-[10px] text-slate-400">Continental Plan</span>
                           </div>
-                          <span className="font-mono font-black text-emerald-700">₹{cpRate.toLocaleString()}</span>
+                          <span className="font-mono font-black text-emerald-700">₹{cpRate.toLocaleString('en-IN')}</span>
                         </div>
 
-                        <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 flex justify-between items-center shadow-xs">
                           <div>
                             <span className="font-bold text-slate-800 block">MAP (Half Board)</span>
                             <span className="text-[10px] text-slate-400">Breakfast + Dinner</span>
                           </div>
-                          <span className="font-mono font-black text-amber-700">₹{mapRate.toLocaleString()}</span>
+                          <span className="font-mono font-black text-amber-700">₹{mapRate.toLocaleString('en-IN')}</span>
                         </div>
 
-                        <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 flex justify-between items-center shadow-xs">
                           <div>
                             <span className="font-bold text-slate-800 block">AP (Full Board)</span>
                             <span className="text-[10px] text-slate-400">All 3 Meals Included</span>
                           </div>
-                          <span className="font-mono font-black text-purple-700">₹{apRate.toLocaleString()}</span>
+                          <span className="font-mono font-black text-purple-700">₹{apRate.toLocaleString('en-IN')}</span>
                         </div>
                       </div>
 
@@ -324,14 +377,14 @@ export default function RatePlansView() {
                       <div>
                         <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1.5">Inclusions & Amenities</span>
                         <div className="flex flex-wrap gap-1.5">
-                          {rt.amenities.slice(0, 5).map((am, i) => (
-                            <span key={i} className="text-[10.5px] font-semibold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-md">
+                          {rt.amenities.slice(0, 6).map((am, i) => (
+                            <span key={i} className="text-[10.5px] font-semibold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-md border border-slate-200/60">
                               {am}
                             </span>
                           ))}
-                          {rt.amenities.length > 5 && (
+                          {rt.amenities.length > 6 && (
                             <span className="text-[10px] font-bold text-slate-400 self-center">
-                              +{rt.amenities.length - 5} more
+                              +{rt.amenities.length - 6} more
                             </span>
                           )}
                         </div>
@@ -351,7 +404,7 @@ export default function RatePlansView() {
       {activeTab === 'rooms' && (
         <div className="space-y-4">
           {/* Controls Bar */}
-          <div className="bg-white rounded-2xl p-4 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+          <div className="bg-white rounded-2xl p-4 border border-slate-200/90 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
             <div className="relative flex-1 w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
@@ -359,7 +412,7 @@ export default function RatePlansView() {
                 placeholder="Search rooms by number, category, or floor..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-xs font-medium outline-none focus:border-indigo-600"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium outline-none focus:border-[#0e4860] focus:ring-1 focus:ring-[#0e4860]"
               />
             </div>
 
@@ -367,7 +420,7 @@ export default function RatePlansView() {
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-none"
+                className="px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-none cursor-pointer"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="VACANT_READY">Vacant Ready</option>
@@ -378,28 +431,28 @@ export default function RatePlansView() {
 
               <button
                 onClick={() => setIsCreateRoomModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs"
+                className="px-4 py-2.5 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
                 <span>Add Room</span>
               </button>
             </div>
           </div>
 
           {filteredRooms.length === 0 ? (
-            <div className="bg-white rounded-3xl p-16 text-center border-2 border-dashed border-slate-200 space-y-4">
-              <div className="w-16 h-16 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
-                <BedDouble className="w-8 h-8" />
+            <div className="bg-white rounded-2xl p-12 sm:p-16 text-center border-2 border-dashed border-slate-200 space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-[#0e4860] flex items-center justify-center mx-auto border border-indigo-100 shadow-sm">
+                <BedDouble className="w-8 h-8 text-[#0e4860]" />
               </div>
-              <div>
-                <h3 className="font-serif text-lg font-bold text-slate-900">No Hotel Rooms Added Yet</h3>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
+              <div className="max-w-md mx-auto">
+                <h3 className="text-lg font-bold text-slate-900">No Hotel Rooms Added Yet</h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                   Add physical room numbers (e.g. 101, 102, 201) to begin managing occupancy, front-desk stays, and housekeeping.
                 </p>
               </div>
               <button
                 onClick={() => setIsCreateRoomModalOpen(true)}
-                className="px-5 py-2.5 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs inline-flex items-center gap-2 shadow-md"
+                className="px-5 py-2.5 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs inline-flex items-center gap-2 shadow-sm cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add First Hotel Room</span>
@@ -416,7 +469,7 @@ export default function RatePlansView() {
                 return (
                   <div
                     key={r.id || rNum}
-                    className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-[0_8px_20px_-4px_rgba(0,0,0,0.03)] hover:shadow-md transition space-y-3 relative group"
+                    className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm hover:shadow-md transition space-y-3 relative group"
                   >
                     <div className="flex items-start justify-between">
                       <div>
@@ -439,7 +492,7 @@ export default function RatePlansView() {
                       </span>
                     </div>
 
-                    <div className="bg-slate-50 p-3 rounded-2xl text-[11px] text-slate-600 space-y-1.5 border border-slate-200/60 font-medium">
+                    <div className="bg-slate-50/80 p-3 rounded-xl text-[11px] text-slate-600 space-y-1.5 border border-slate-200/60 font-medium">
                       <div className="flex justify-between">
                         <span>Floor:</span>
                         <span className="font-bold text-slate-800">{r.floor || 'Floor 1'}</span>
@@ -455,14 +508,14 @@ export default function RatePlansView() {
                     </div>
 
                     {/* Actions */}
-                    <div className="pt-1 flex items-center justify-between border-t border-slate-100">
+                    <div className="pt-2 flex items-center justify-between border-t border-slate-100">
                       <select
                         value={r.status || 'VACANT_READY'}
                         onChange={(e) => {
                           if (updateRoomStatus) updateRoomStatus(rNum, e.target.value);
                           showNotification(`Room #${rNum} set to ${e.target.value}`);
                         }}
-                        className="text-[10.5px] font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none"
+                        className="text-[10.5px] font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none cursor-pointer"
                       >
                         <option value="VACANT_READY">Vacant Ready</option>
                         <option value="DIRTY">Mark Dirty</option>
@@ -475,7 +528,7 @@ export default function RatePlansView() {
                           if (requestDeleteRoom) requestDeleteRoom(r);
                           else if (deleteRoom) deleteRoom(r.id || rNum);
                         }}
-                        className="p-1 text-slate-400 hover:text-rose-600 rounded transition"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
                         title="Delete Room"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -493,7 +546,7 @@ export default function RatePlansView() {
       {/* TAB 3: DYNAMIC PRICING RULES */}
       {/* ========================================================================= */}
       {activeTab === 'pricing-rules' && (
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-6">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-6">
           <div className="border-b border-slate-200 pb-4">
             <h2 className="text-base font-bold text-slate-900">Dynamic Pricing & Surcharge Rules</h2>
             <p className="text-xs text-slate-500 mt-0.5">Automate weekend surge pricing, holiday markups, and corporate discounts.</p>
@@ -548,7 +601,7 @@ export default function RatePlansView() {
           <div className="pt-2 flex justify-end">
             <button
               onClick={() => showNotification('Dynamic pricing rules saved successfully.')}
-              className="px-5 py-2.5 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs shadow-md transition"
+              className="px-5 py-2.5 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs shadow-sm transition cursor-pointer"
             >
               Save Pricing Rules
             </button>

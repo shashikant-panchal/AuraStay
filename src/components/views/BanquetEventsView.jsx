@@ -22,10 +22,10 @@ import { useDashboard } from '../../context/DashboardContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 export default function BanquetEventsView() {
-  const { 
+  const {
     showNotification,
     activeTab: contextActiveTab,
-    setActiveTab: setContextActiveTab 
+    setActiveTab: setContextActiveTab
   } = useDashboard();
 
   // Resolve active tab from context
@@ -61,7 +61,7 @@ export default function BanquetEventsView() {
     try {
       const saved = localStorage.getItem('aurastay_banquet_venues_v2');
       if (saved) return JSON.parse(saved);
-    } catch(e){}
+    } catch (e) { }
     return [];
   });
 
@@ -70,7 +70,7 @@ export default function BanquetEventsView() {
     try {
       const saved = localStorage.getItem('aurastay_banquet_menus_v2');
       if (saved) return JSON.parse(saved);
-    } catch(e){}
+    } catch (e) { }
     return [];
   });
 
@@ -78,13 +78,13 @@ export default function BanquetEventsView() {
   useEffect(() => {
     try {
       localStorage.setItem('aurastay_banquet_venues_v2', JSON.stringify(venues));
-    } catch(e){}
+    } catch (e) { }
   }, [venues]);
 
   useEffect(() => {
     try {
       localStorage.setItem('aurastay_banquet_menus_v2', JSON.stringify(presetMenus));
-    } catch(e){}
+    } catch (e) { }
   }, [presetMenus]);
 
   // Live Banquet Bookings State
@@ -281,8 +281,8 @@ export default function BanquetEventsView() {
   const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
       const matchSearch = String(b.guestName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          String(b.phone || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          String(b.id || '').toLowerCase().includes(searchQuery.toLowerCase());
+        String(b.phone || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(b.id || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchVenue = selectedVenue === 'ALL' || b.venue === selectedVenue;
       return matchSearch && matchVenue;
     });
@@ -290,858 +290,905 @@ export default function BanquetEventsView() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      
+
       {/* 1. Header Banner */}
-      <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center space-x-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
-              BANQUETS & CONVENTIONS
-            </span>
-            <span className="text-xs text-purple-200/80 font-mono">• Exceed HMS Module</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-serif font-black tracking-wide text-white mt-1">
-            Banquets, Events & Catering
-          </h1>
-          <p className="text-xs text-purple-200 mt-1 max-w-xl">
-            Manage weddings, corporate conferences, venue schedules, catering packages, and event folio billings with real-time Supabase sync.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {activeTab === 'bookings' && (
-            <button
-              onClick={() => setIsNewBookingModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold text-xs flex items-center space-x-2 transition shadow-md cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Banquet Booking</span>
-            </button>
-          )}
-
-          {activeTab === 'venues' && (
-            <button
-              onClick={() => setIsNewVenueModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold text-xs flex items-center space-x-2 transition shadow-md cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Venue / Hall</span>
-            </button>
-          )}
-
-          {activeTab === 'menus' && (
-            <button
-              onClick={() => setIsNewMenuModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold text-xs flex items-center space-x-2 transition shadow-md cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Catering Menu</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 2. Top Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">TOTAL BOOKINGS</span>
-          <div className="text-2xl font-black text-slate-900 mt-1">{bookings.length} Events</div>
-          <span className="text-[11px] font-bold text-slate-500 mt-1 block">Scheduled in Calendar</span>
-        </div>
-
-        <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 block">TOTAL REVENUE</span>
-          <div className="text-2xl font-black text-purple-950 font-mono mt-1">₹{totalRevenue.toLocaleString()}</div>
-          <span className="text-[11px] font-bold text-purple-800 mt-1 block">Banquets & Catering</span>
-        </div>
-
-        <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">ADVANCE COLLECTED</span>
-          <div className="text-2xl font-black text-emerald-800 font-mono mt-1">₹{totalCollected.toLocaleString()}</div>
-          <span className="text-[11px] font-bold text-emerald-700 mt-1 block">Cleared in Bank</span>
-        </div>
-
-        <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 block">PENDING BALANCE DUE</span>
-          <div className="text-2xl font-black text-rose-900 font-mono mt-1">₹{totalDue.toLocaleString()}</div>
-          <span className="text-[11px] font-bold text-rose-700 mt-1 block">Due on event date</span>
-        </div>
-      </div>
-
-      {/* 3. Navigation Sub-Tabs */}
-      <div className="flex border-b border-slate-200 bg-white rounded-2xl p-1.5 shadow-2xs gap-1 overflow-x-auto">
-        <button
-          onClick={() => handleTabChange('bookings')}
-          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer ${
-            activeTab === 'bookings'
-              ? 'bg-purple-900 text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <CalendarCheck className="w-4 h-4" />
-          <span>Banquet Bookings & Calendar ({bookings.length})</span>
-        </button>
-
-        <button
-          onClick={() => handleTabChange('venues')}
-          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer ${
-            activeTab === 'venues'
-              ? 'bg-purple-900 text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Building className="w-4 h-4" />
-          <span>Venues & Halls Master ({venues.length})</span>
-        </button>
-
-        <button
-          onClick={() => handleTabChange('menus')}
-          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer ${
-            activeTab === 'menus'
-              ? 'bg-purple-900 text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Utensils className="w-4 h-4" />
-          <span>Catering Menus & Invoicing ({presetMenus.length})</span>
-        </button>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* TAB 1: BANQUET BOOKINGS LIST */}
-      {/* ========================================================================= */}
-      {activeTab === 'bookings' && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl p-4 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center space-x-2 w-full sm:w-auto">
-              <div className="relative flex-1 sm:w-64">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search client, event or ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                />
+        <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                BANQUETS & CONVENTIONS
+              </span>
+              <span className="text-xs text-purple-200/80 font-mono">• Exceed HMS Module</span>
+            </div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mt-1">
+                Banquets, Events & Catering
+              </h1>
+                <p className="text-xs text-purple-200 mt-1 max-w-xl leading-relaxed">
+                  Manage weddings, corporate conferences, venue schedules, catering packages, and event folio billings with real-time Supabase sync.
+                </p>
               </div>
 
-              {venues.length > 0 && (
-                <select
-                  value={selectedVenue}
-                  onChange={(e) => setSelectedVenue(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none"
-                >
-                  <option value="ALL">All Venues</option>
-                  {venues.map(v => (
-                    <option key={v.id} value={v.name}>{v.name}</option>
-                  ))}
-                </select>
-              )}
-            </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {activeTab === 'bookings' && (
+                  <button
+                    onClick={() => setIsNewBookingModalOpen(true)}
+                    className="h-10 px-4 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold text-xs flex items-center space-x-2 transition shadow-sm cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>New Banquet Booking</span>
+                  </button>
+                )}
 
-            <div className="text-xs font-semibold text-slate-500">
-              Showing {filteredBookings.length} of {bookings.length} events
-            </div>
+                {activeTab === 'venues' && (
+                  <button
+                    onClick={() => setIsNewVenueModalOpen(true)}
+                    className="h-10 px-4 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold text-xs flex items-center space-x-2 transition shadow-sm cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Venue / Hall</span>
+                  </button>
+                )}
+
+                {activeTab === 'menus' && (
+                  <button
+                    onClick={() => setIsNewMenuModalOpen(true)}
+                    className="h-10 px-4 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold text-xs flex items-center space-x-2 transition shadow-sm cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create Catering Menu</span>
+                  </button>
+                )}
+              </div>
           </div>
 
-          {filteredBookings.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
-              <div className="w-16 h-16 rounded-3xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-3">
-                <PartyPopper className="w-8 h-8" />
+          {/* 2. Top Metric Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {/* Card 1: Total Bookings */}
+              <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm hover:shadow transition flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Bookings</span>
+                  <div className="w-8 h-8 rounded-xl bg-slate-100/80 border border-slate-200/60 flex items-center justify-center">
+                    <CalendarCheck className="w-4 h-4 text-purple-800" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">{bookings.length} Events</div>
+                  <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-medium text-slate-500">
+                    <span>Scheduled in Calendar</span>
+                  </div>
+                </div>
               </div>
-              <h3 className="font-serif text-lg font-bold text-slate-800">No Banquet Bookings Found</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                No events currently scheduled. Click the button below to reserve a hall or banquet space.
-              </p>
-              <button
-                onClick={() => setIsNewBookingModalOpen(true)}
-                className="mt-4 px-4 py-2 bg-purple-900 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
-              >
-                + Create Banquet Booking
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredBookings.map(b => (
-                <div key={b.id} className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-2xs hover:shadow-md transition space-y-4 flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-[10px] font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded">
-                          {b.id}
-                        </span>
-                        <h4 className="font-serif font-black text-slate-900 text-base mt-1">
-                          {b.guestName}
-                        </h4>
-                        <span className="text-xs text-slate-500 font-mono">{b.phone}</span>
-                      </div>
 
-                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                        b.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-800' :
-                        b.status === 'COMPLETED' ? 'bg-sky-100 text-sky-800' :
-                        'bg-rose-100 text-rose-800'
-                      }`}>
-                        {b.status}
-                      </span>
+                {/* Card 2: Total Revenue */}
+                <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm hover:shadow transition flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Revenue</span>
+                    <div className="w-8 h-8 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center">
+                      <Receipt className="w-4 h-4 text-purple-700" />
                     </div>
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">₹{totalRevenue.toLocaleString('en-IN')}</div>
+                    <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-semibold text-purple-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
+                      <span>Banquets & Catering</span>
+                    </div>
+                  </div>
+                </div>
 
-                    <div className="mt-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-1.5">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Event:</span>
-                        <span className="font-bold text-slate-800">{b.eventType}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Hall:</span>
-                        <span className="font-bold text-purple-950 truncate max-w-[180px]">{b.venue}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Date:</span>
-                        <span className="font-semibold text-slate-800">{b.date} • {b.timeSlot}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Pax:</span>
-                        <span className="font-semibold text-slate-800">{b.pax} Guests</span>
+                  {/* Card 3: Advance Collected */}
+                  <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm hover:shadow transition flex flex-col justify-between">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Advance Collected</span>
+                      <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       </div>
                     </div>
-
-                    <div className="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block uppercase font-bold">Total Tariff</span>
-                        <span className="font-mono font-black text-slate-900 text-sm">₹{b.totalAmount.toLocaleString()}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-emerald-700 block uppercase font-bold">Advance Token</span>
-                        <span className="font-mono font-bold text-emerald-800 text-xs">₹{b.paidAmount.toLocaleString()}</span>
+                    <div className="mt-3">
+                      <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">₹{totalCollected.toLocaleString('en-IN')}</div>
+                      <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-semibold text-emerald-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span>Cleared in Bank</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => setSelectedBookingForInvoice(b)}
-                      className="flex-1 py-1.5 px-3 bg-purple-50 hover:bg-purple-100 text-purple-900 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 transition cursor-pointer"
-                    >
-                      <Receipt className="w-3.5 h-3.5" />
-                      <span>Folio / BFP</span>
-                    </button>
+                    {/* Card 4: Pending Balance Due */}
+                    <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm hover:shadow transition flex flex-col justify-between">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Pending Balance Due</span>
+                        <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center">
+                          <Clock className="w-4 h-4 text-amber-600" />
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">₹{totalDue.toLocaleString('en-IN')}</div>
+                        <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-semibold text-amber-700">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                          <span>Due on event date</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                    {b.status === 'CONFIRMED' && (
-                      <button
-                        onClick={() => handleUpdateStatus(b.id, 'COMPLETED')}
-                        className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition cursor-pointer"
-                      >
-                        Settle ✓
-                      </button>
+                  {/* 3. Navigation Sub-Tabs */}
+                    <div className="bg-white rounded-2xl p-1.5 border border-slate-200/90 shadow-sm flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          onClick={() => handleTabChange('bookings')}
+                          className={`px-4 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer ${activeTab === 'bookings'
+                              ? 'bg-purple-900 text-white shadow-sm'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                            }`}
+                        >
+                          <CalendarCheck className="w-4 h-4" />
+                          <span>Banquet Bookings & Calendar ({bookings.length})</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleTabChange('venues')}
+                          className={`px-4 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer ${activeTab === 'venues'
+                              ? 'bg-purple-900 text-white shadow-sm'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                            }`}
+                        >
+                          <Building className="w-4 h-4" />
+                          <span>Venues & Halls Master ({venues.length})</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleTabChange('menus')}
+                          className={`px-4 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer ${activeTab === 'menus'
+                              ? 'bg-purple-900 text-white shadow-sm'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                            }`}
+                        >
+                          <Utensils className="w-4 h-4" />
+                          <span>Catering Menus & Invoicing ({presetMenus.length})</span>
+                        </button>
+                      </div>
+
+                      {/* Right status indicator */}
+                      <div className="hidden sm:flex items-center gap-2 pr-3 text-[11px] font-semibold text-slate-500">
+                        <span className="w-2 h-2 rounded-full bg-purple-600"></span>
+                        <span>Banquet Calendar In Sync</span>
+                      </div>
+                    </div>
+
+                    {/* ========================================================================= */}
+                    {/* TAB 1: BANQUET BOOKINGS LIST */}
+                    {/* ========================================================================= */}
+                    {activeTab === 'bookings' && (
+                      <div className="space-y-4">
+                        <div className="bg-white rounded-2xl p-4 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+                          <div className="flex items-center space-x-2 w-full sm:w-auto">
+                            <div className="relative flex-1 sm:w-64">
+                              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                              <input
+                                type="text"
+                                placeholder="Search client, event or ID..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              />
+                            </div>
+
+                            {venues.length > 0 && (
+                              <select
+                                value={selectedVenue}
+                                onChange={(e) => setSelectedVenue(e.target.value)}
+                                className="px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none"
+                              >
+                                <option value="ALL">All Venues</option>
+                                {venues.map(v => (
+                                  <option key={v.id} value={v.name}>{v.name}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+
+                          <div className="text-xs font-semibold text-slate-500">
+                            Showing {filteredBookings.length} of {bookings.length} events
+                          </div>
+                        </div>
+
+                        {filteredBookings.length === 0 ? (
+                          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
+                            <div className="w-16 h-16 rounded-3xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-3">
+                              <PartyPopper className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800">No Banquet Bookings Found</h3>
+                            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                              No events currently scheduled. Click the button below to reserve a hall or banquet space.
+                            </p>
+                            <button
+                              onClick={() => setIsNewBookingModalOpen(true)}
+                              className="mt-4 px-4 py-2 bg-purple-900 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
+                            >
+                              + Create Banquet Booking
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filteredBookings.map(b => (
+                              <div key={b.id} className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-2xs hover:shadow-md transition space-y-4 flex flex-col justify-between">
+                                <div>
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <span className="text-[10px] font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded">
+                                        {b.id}
+                                      </span>
+                                        <h4 className="font-bold text-slate-900 text-base mt-1">
+                                          {b.guestName}
+                                        </h4>
+                                        <span className="text-xs text-slate-500 font-mono">{b.phone}</span>
+                                    </div>
+
+                                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${b.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-800' :
+                                        b.status === 'COMPLETED' ? 'bg-sky-100 text-sky-800' :
+                                          'bg-rose-100 text-rose-800'
+                                      }`}>
+                                      {b.status}
+                                    </span>
+                                  </div>
+
+                                  <div className="mt-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-1.5">
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Event:</span>
+                                      <span className="font-bold text-slate-800">{b.eventType}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Hall:</span>
+                                      <span className="font-bold text-purple-950 truncate max-w-[180px]">{b.venue}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Date:</span>
+                                      <span className="font-semibold text-slate-800">{b.date} • {b.timeSlot}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Pax:</span>
+                                      <span className="font-semibold text-slate-800">{b.pax} Guests</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
+                                    <div>
+                                      <span className="text-[10px] text-slate-400 block uppercase font-bold">Total Tariff</span>
+                                      <span className="font-mono font-black text-slate-900 text-sm">₹{b.totalAmount.toLocaleString()}</span>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-[10px] text-emerald-700 block uppercase font-bold">Advance Token</span>
+                                      <span className="font-mono font-bold text-emerald-800 text-xs">₹{b.paidAmount.toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                                  <button
+                                    onClick={() => setSelectedBookingForInvoice(b)}
+                                    className="flex-1 py-1.5 px-3 bg-purple-50 hover:bg-purple-100 text-purple-900 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 transition cursor-pointer"
+                                  >
+                                    <Receipt className="w-3.5 h-3.5" />
+                                    <span>Folio / BFP</span>
+                                  </button>
+
+                                  {b.status === 'CONFIRMED' && (
+                                    <button
+                                      onClick={() => handleUpdateStatus(b.id, 'COMPLETED')}
+                                      className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                                    >
+                                      Settle ✓
+                                    </button>
+                                  )}
+
+                                  <button
+                                    onClick={() => setBookings(prev => prev.filter(item => item.id !== b.id))}
+                                    className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-xl transition cursor-pointer"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
 
-                    <button
-                      onClick={() => setBookings(prev => prev.filter(item => item.id !== b.id))}
-                      className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-xl transition cursor-pointer"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {/* ========================================================================= */}
+                    {/* TAB 2: VENUES & HALLS MASTER */}
+                    {/* ========================================================================= */}
+                    {activeTab === 'venues' && (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200">
+                          <div>
+                            <h3 className="font-bold text-slate-900 text-sm">Hotel Banquet & Convention Venues Master</h3>
+                            <p className="text-xs text-slate-500">Add halls, lawns, and corporate conference meeting spaces.</p>
+                          </div>
+                          <button
+                            onClick={() => setIsNewVenueModalOpen(true)}
+                            className="px-3.5 py-2 bg-purple-900 hover:bg-purple-800 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 transition shadow-sm cursor-pointer"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Add Venue / Hall</span>
+                          </button>
+                        </div>
+
+                        {venues.length === 0 ? (
+                          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
+                            <div className="w-16 h-16 rounded-3xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-3">
+                              <Building className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800">No Venues or Halls Added</h3>
+                            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                              Configure your banquet halls, grand ballrooms, or meeting spaces with capacity and slot pricing.
+                            </p>
+                            <button
+                              onClick={() => setIsNewVenueModalOpen(true)}
+                              className="mt-4 px-4 py-2 bg-purple-900 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
+                            >
+                              + Add Venue / Hall
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            {venues.map(v => (
+                              <div key={v.id} className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <h3 className="text-base font-bold text-slate-900">{v.name}</h3>
+                                    <span className="text-xs text-slate-500">{v.floor} • {v.type}</span>
+                                  </div>
+                                  <div className="text-right font-mono font-black text-lg text-slate-900">
+                                    ₹{v.rate.toLocaleString()}
+                                    <span className="text-[10px] font-normal text-slate-400 block font-sans">base rental</span>
+                                  </div>
+                                </div>
+
+                                <div className="p-3 bg-purple-50 rounded-2xl text-xs font-semibold text-purple-900 flex items-center justify-between">
+                                  <span>Maximum Capacity:</span>
+                                  <span className="font-bold">{v.capacity} Guests</span>
+                                </div>
+
+                                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                                  <span className="text-emerald-700 font-bold flex items-center space-x-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Available for Bookings</span>
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      setFormVenue(v.name);
+                                      setIsNewBookingModalOpen(true);
+                                    }}
+                                    className="px-3 py-1.5 bg-purple-900 hover:bg-purple-800 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                                  >
+                                    Book This Hall
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ========================================================================= */}
+                    {/* TAB 3: CATERING MENUS & INVOICING */}
+                    {/* ========================================================================= */}
+                    {activeTab === 'menus' && (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200">
+                          <div>
+                            <h3 className="font-bold text-slate-900 text-sm">Preset Catering Packages & Menus</h3>
+                            <p className="text-xs text-slate-500">Configure wedding buffets, corporate high-teas, and per-guest dining rates.</p>
+                          </div>
+                          <button
+                            onClick={() => setIsNewMenuModalOpen(true)}
+                            className="px-3.5 py-2 bg-purple-900 hover:bg-purple-800 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 transition shadow-sm cursor-pointer"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Create Catering Menu</span>
+                          </button>
+                        </div>
+
+                        {presetMenus.length === 0 ? (
+                          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
+                            <div className="w-16 h-16 rounded-3xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-3">
+                              <Utensils className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800">No Catering Menus Configured</h3>
+                            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                              Add preset catering buffets, cocktails, or high-tea packages with per-guest tariffs.
+                            </p>
+                            <button
+                              onClick={() => setIsNewMenuModalOpen(true)}
+                              className="mt-4 px-4 py-2 bg-purple-900 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
+                            >
+                              + Create Catering Menu
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            {presetMenus.map(m => (
+                              <div key={m.id || m.name} className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4 flex flex-col justify-between">
+                                <div>
+                                  <h3 className="text-base font-black text-slate-900">{m.name}</h3>
+                                  <p className="text-lg font-black text-purple-950 font-mono mt-1">
+                                    ₹{m.pricePerPax} <span className="text-xs font-normal text-slate-500">/ Person</span>
+                                  </p>
+                                  <div className="text-xs text-slate-600 leading-relaxed mt-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                    {m.items}
+                                  </div>
+                                </div>
+
+                                <div className="pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                                  <span className="text-slate-400 font-bold">Includes Chef & Service</span>
+                                  <button
+                                    onClick={() => {
+                                      setFormMenu(m.name);
+                                      setIsNewBookingModalOpen(true);
+                                    }}
+                                    className="px-3 py-1.5 bg-purple-100 text-purple-900 hover:bg-purple-200 rounded-xl font-bold transition cursor-pointer"
+                                  >
+                                    Select Package
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ========================================================================= */}
+                    {/* MODAL: NEW BANQUET BOOKING */}
+                    {/* ========================================================================= */}
+                    {isNewBookingModalOpen && (
+                      <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-lg text-slate-900">New Banquet Booking</h3>
+                            <button onClick={() => setIsNewBookingModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          <form onSubmit={handleCreateBooking} className="space-y-3 text-xs">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Client / Host Name</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Verma Family / Corporate Host"
+                                  value={formGuestName}
+                                  onChange={(e) => setFormGuestName(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Mobile Phone</label>
+                                <input
+                                  type="tel"
+                                  placeholder="e.g. +91 98765 43210"
+                                  value={formPhone}
+                                  onChange={(e) => setFormPhone(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono"
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Venue / Hall</label>
+                                {venues.length > 0 ? (
+                                  <select
+                                    value={formVenue}
+                                    onChange={(e) => setFormVenue(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold"
+                                  >
+                                    <option value="">Select a Venue</option>
+                                    {venues.map(v => (
+                                      <option key={v.id} value={v.name}>{v.name} (₹{v.rate})</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Grand Ballroom"
+                                    value={formVenue}
+                                    onChange={(e) => setFormVenue(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-semibold"
+                                    required
+                                  />
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Event Type</label>
+                                <select
+                                  value={formEventType}
+                                  onChange={(e) => setFormEventType(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                                >
+                                  <option value="Wedding Reception">Wedding Reception</option>
+                                  <option value="Corporate Conference">Corporate Conference</option>
+                                  <option value="Birthday Gala">Birthday Gala</option>
+                                  <option value="Sangeet & Mehendi">Sangeet & Mehendi</option>
+                                  <option value="Cocktail Dinner">Cocktail Dinner</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            {venues.length === 0 && (
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Venue Slot Rental (₹)</label>
+                                <input
+                                  type="number"
+                                  value={formCustomRate}
+                                  onChange={(e) => setFormCustomRate(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
+                                />
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Event Date</label>
+                                <input
+                                  type="date"
+                                  value={formDate}
+                                  onChange={(e) => setFormDate(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Time Slot</label>
+                                <select
+                                  value={formTimeSlot}
+                                  onChange={(e) => setFormTimeSlot(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                                >
+                                  <option value="Morning (09:00 - 14:00)">Morning (09:00 - 14:00)</option>
+                                  <option value="Evening (18:00 - 23:30)">Evening (18:00 - 23:30)</option>
+                                  <option value="Full Day (09:00 - 23:00)">Full Day (09:00 - 23:00)</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Guaranteed Guests (Pax)</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={formPax}
+                                  onChange={(e) => setFormPax(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Catering Package</label>
+                                {presetMenus.length > 0 ? (
+                                  <select
+                                    value={formMenu}
+                                    onChange={(e) => setFormMenu(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                                  >
+                                    <option value="">Select Package</option>
+                                    {presetMenus.map(m => (
+                                      <option key={m.id || m.name} value={m.name}>{m.name} (₹{m.pricePerPax}/pax)</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Wedding Grand Buffet"
+                                    value={formMenu}
+                                    onChange={(e) => setFormMenu(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-300"
+                                  />
+                                )}
+                              </div>
+                            </div>
+
+                            {presetMenus.length === 0 && (
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Catering Price per Guest (₹/pax)</label>
+                                <input
+                                  type="number"
+                                  value={formCustomMenuPrice}
+                                  onChange={(e) => setFormCustomMenuPrice(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
+                                />
+                              </div>
+                            )}
+
+                            <div>
+                              <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Advance Token (₹)</label>
+                              <input
+                                type="number"
+                                value={formAdvance}
+                                onChange={(e) => setFormAdvance(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold text-emerald-800"
+                              />
+                            </div>
+
+                            {/* Real-time Pricing Summary */}
+                            <div className="p-3 bg-purple-50 rounded-2xl border border-purple-100 flex justify-between items-center text-xs">
+                              <div>
+                                <span className="text-[10px] text-purple-700 block font-bold uppercase">Estimated Event Value</span>
+                                <span className="font-mono font-black text-slate-900 text-base">₹{calculatedTotal.toLocaleString()}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[10px] text-slate-400 block font-bold uppercase">Balance on Event Date</span>
+                                <span className="font-mono font-bold text-rose-700">₹{(calculatedTotal - (Number(formAdvance) || 0)).toLocaleString()}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                              <button
+                                type="button"
+                                onClick={() => setIsNewBookingModalOpen(false)}
+                                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                className="px-4 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold shadow-md cursor-pointer"
+                              >
+                                Confirm Banquet Booking
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ========================================================================= */}
+                    {/* MODAL: NEW VENUE */}
+                    {/* ========================================================================= */}
+                    {isNewVenueModalOpen && (
+                      <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-lg text-slate-900">Add Banquet Venue / Hall</h3>
+                            <button onClick={() => setIsNewVenueModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          <form onSubmit={handleCreateVenue} className="space-y-3 text-xs">
+                            <div>
+                              <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Hall Name</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Grand Crystal Ballroom"
+                                value={venueName}
+                                onChange={(e) => setVenueName(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"
+                                required
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Max Capacity (Guests)</label>
+                                <input
+                                  type="number"
+                                  value={venueCapacity}
+                                  onChange={(e) => setVenueCapacity(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Base Rent per Slot (₹)</label>
+                                <input
+                                  type="number"
+                                  value={venueRate}
+                                  onChange={(e) => setVenueRate(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Hall Type</label>
+                                <select
+                                  value={venueType}
+                                  onChange={(e) => setVenueType(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                                >
+                                  <option value="Indoor AC">Indoor AC</option>
+                                  <option value="Rooftop Lounge">Rooftop Lounge</option>
+                                  <option value="Lawn / Garden">Lawn / Garden</option>
+                                  <option value="Corporate Boardroom">Corporate Boardroom</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Floor Allocation</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Ground Floor, 2nd Floor"
+                                  value={venueFloor}
+                                  onChange={(e) => setVenueFloor(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                              <button
+                                type="button"
+                                onClick={() => setIsNewVenueModalOpen(false)}
+                                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                className="px-4 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold shadow-md cursor-pointer"
+                              >
+                                Add Venue
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ========================================================================= */}
+                    {/* MODAL: NEW MENU */}
+                    {/* ========================================================================= */}
+                    {isNewMenuModalOpen && (
+                      <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-lg text-slate-900">Create Catering Menu</h3>
+                            <button onClick={() => setIsNewMenuModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          <form onSubmit={handleCreateMenu} className="space-y-3 text-xs">
+                            <div>
+                              <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Package Name</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Royal Wedding Buffet"
+                                value={menuName}
+                                onChange={(e) => setMenuName(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Price per Guest (₹/pax)</label>
+                              <input
+                                type="number"
+                                value={menuPrice}
+                                onChange={(e) => setMenuPrice(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Items / Dishes Included</label>
+                              <textarea
+                                rows={3}
+                                placeholder="List starters, main course, breads, desserts..."
+                                value={menuItems}
+                                onChange={(e) => setMenuItems(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-300"
+                                required
+                              />
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                              <button
+                                type="button"
+                                onClick={() => setIsNewMenuModalOpen(false)}
+                                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                className="px-4 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold shadow-md cursor-pointer"
+                              >
+                                Save Package
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ========================================================================= */}
+                    {/* MODAL: PRINTABLE BANQUET FUNCTION PROSPECTUS (BFP) */}
+                    {/* ========================================================================= */}
+                    {selectedBookingForInvoice && (
+                      <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                          <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                            <div>
+                              <span className="text-[10px] font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded">
+                                BANQUET FUNCTION PROSPECTUS (BFP)
+                              </span>
+                                <h3 className="font-bold text-xl text-slate-900 mt-1">
+                                  Event Folio #{selectedBookingForInvoice.id}
+                                </h3>
+                            </div>
+                            <button onClick={() => setSelectedBookingForInvoice(null)} className="text-slate-400 hover:text-slate-600">
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          <div className="py-4 space-y-3 text-xs">
+                            <div className="flex justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-500 font-medium">Client / Host:</span>
+                              <span className="font-bold text-slate-900">{selectedBookingForInvoice.guestName}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-500 font-medium">Contact:</span>
+                              <span className="font-mono text-slate-900">{selectedBookingForInvoice.phone}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-500 font-medium">Venue:</span>
+                              <span className="font-bold text-purple-900">{selectedBookingForInvoice.venue}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-500 font-medium">Date & Slot:</span>
+                              <span className="font-semibold text-slate-900">{selectedBookingForInvoice.date} • {selectedBookingForInvoice.timeSlot}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-500 font-medium">Pax Count:</span>
+                              <span className="font-bold text-slate-900">{selectedBookingForInvoice.pax} Guests</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-500 font-medium">Catering Package:</span>
+                              <span className="font-semibold text-slate-900">{selectedBookingForInvoice.cateringPackage}</span>
+                            </div>
+
+                            <div className="pt-2">
+                              <div className="flex justify-between py-1 font-bold text-sm text-slate-900">
+                                <span>Total Event Billing:</span>
+                                <span className="font-mono">₹{selectedBookingForInvoice.totalAmount.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between py-1 text-emerald-800 font-semibold">
+                                <span>Advance Token Cleared:</span>
+                                <span className="font-mono">₹{selectedBookingForInvoice.paidAmount.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between py-1 text-rose-800 font-bold border-t border-slate-200 mt-1 pt-1">
+                                <span>Remaining Due:</span>
+                                <span className="font-mono">₹{(selectedBookingForInvoice.totalAmount - selectedBookingForInvoice.paidAmount).toLocaleString()}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                            <button
+                              onClick={() => window.print()}
+                              className="px-4 py-2 bg-purple-900 hover:bg-purple-800 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 transition shadow-sm cursor-pointer"
+                            >
+                              <Printer className="w-4 h-4" />
+                              <span>Print Prospectus</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 2: VENUES & HALLS MASTER */}
-      {/* ========================================================================= */}
-      {activeTab === 'venues' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200">
-            <div>
-              <h3 className="font-bold text-slate-900 text-sm">Hotel Banquet & Convention Venues Master</h3>
-              <p className="text-xs text-slate-500">Add halls, lawns, and corporate conference meeting spaces.</p>
-            </div>
-            <button
-              onClick={() => setIsNewVenueModalOpen(true)}
-              className="px-3.5 py-2 bg-purple-900 hover:bg-purple-800 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 transition shadow-sm cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Venue / Hall</span>
-            </button>
-          </div>
-
-          {venues.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
-              <div className="w-16 h-16 rounded-3xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-3">
-                <Building className="w-8 h-8" />
-              </div>
-              <h3 className="font-serif text-lg font-bold text-slate-800">No Venues or Halls Added</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                Configure your banquet halls, grand ballrooms, or meeting spaces with capacity and slot pricing.
-              </p>
-              <button
-                onClick={() => setIsNewVenueModalOpen(true)}
-                className="mt-4 px-4 py-2 bg-purple-900 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
-              >
-                + Add Venue / Hall
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {venues.map(v => (
-                <div key={v.id} className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-serif text-lg font-bold text-slate-900">{v.name}</h3>
-                      <span className="text-xs text-slate-500">{v.floor} • {v.type}</span>
-                    </div>
-                    <div className="text-right font-mono font-black text-lg text-slate-900">
-                      ₹{v.rate.toLocaleString()}
-                      <span className="text-[10px] font-normal text-slate-400 block font-sans">base rental</span>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-purple-50 rounded-2xl text-xs font-semibold text-purple-900 flex items-center justify-between">
-                    <span>Maximum Capacity:</span>
-                    <span className="font-bold">{v.capacity} Guests</span>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <span className="text-emerald-700 font-bold flex items-center space-x-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Available for Bookings</span>
-                    </span>
-                    <button
-                      onClick={() => {
-                        setFormVenue(v.name);
-                        setIsNewBookingModalOpen(true);
-                      }}
-                      className="px-3 py-1.5 bg-purple-900 hover:bg-purple-800 text-white rounded-xl text-xs font-bold transition cursor-pointer"
-                    >
-                      Book This Hall
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 3: CATERING MENUS & INVOICING */}
-      {/* ========================================================================= */}
-      {activeTab === 'menus' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200">
-            <div>
-              <h3 className="font-bold text-slate-900 text-sm">Preset Catering Packages & Menus</h3>
-              <p className="text-xs text-slate-500">Configure wedding buffets, corporate high-teas, and per-guest dining rates.</p>
-            </div>
-            <button
-              onClick={() => setIsNewMenuModalOpen(true)}
-              className="px-3.5 py-2 bg-purple-900 hover:bg-purple-800 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 transition shadow-sm cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Catering Menu</span>
-            </button>
-          </div>
-
-          {presetMenus.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
-              <div className="w-16 h-16 rounded-3xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-3">
-                <Utensils className="w-8 h-8" />
-              </div>
-              <h3 className="font-serif text-lg font-bold text-slate-800">No Catering Menus Configured</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                Add preset catering buffets, cocktails, or high-tea packages with per-guest tariffs.
-              </p>
-              <button
-                onClick={() => setIsNewMenuModalOpen(true)}
-                className="mt-4 px-4 py-2 bg-purple-900 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
-              >
-                + Create Catering Menu
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {presetMenus.map(m => (
-                <div key={m.id || m.name} className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4 flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-base font-black text-slate-900">{m.name}</h3>
-                    <p className="text-lg font-black text-purple-950 font-mono mt-1">
-                      ₹{m.pricePerPax} <span className="text-xs font-normal text-slate-500">/ Person</span>
-                    </p>
-                    <div className="text-xs text-slate-600 leading-relaxed mt-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                      {m.items}
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
-                    <span className="text-slate-400 font-bold">Includes Chef & Service</span>
-                    <button
-                      onClick={() => {
-                        setFormMenu(m.name);
-                        setIsNewBookingModalOpen(true);
-                      }}
-                      className="px-3 py-1.5 bg-purple-100 text-purple-900 hover:bg-purple-200 rounded-xl font-bold transition cursor-pointer"
-                    >
-                      Select Package
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL: NEW BANQUET BOOKING */}
-      {/* ========================================================================= */}
-      {isNewBookingModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-serif font-black text-lg text-slate-900">New Banquet Booking</h3>
-              <button onClick={() => setIsNewBookingModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateBooking} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Client / Host Name</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Verma Family / Corporate Host"
-                    value={formGuestName}
-                    onChange={(e) => setFormGuestName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Mobile Phone</label>
-                  <input
-                    type="tel"
-                    placeholder="e.g. +91 98765 43210"
-                    value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Venue / Hall</label>
-                  {venues.length > 0 ? (
-                    <select
-                      value={formVenue}
-                      onChange={(e) => setFormVenue(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold"
-                    >
-                      <option value="">Select a Venue</option>
-                      {venues.map(v => (
-                        <option key={v.id} value={v.name}>{v.name} (₹{v.rate})</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      placeholder="e.g. Grand Ballroom"
-                      value={formVenue}
-                      onChange={(e) => setFormVenue(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-semibold"
-                      required
-                    />
-                  )}
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Event Type</label>
-                  <select
-                    value={formEventType}
-                    onChange={(e) => setFormEventType(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
-                  >
-                    <option value="Wedding Reception">Wedding Reception</option>
-                    <option value="Corporate Conference">Corporate Conference</option>
-                    <option value="Birthday Gala">Birthday Gala</option>
-                    <option value="Sangeet & Mehendi">Sangeet & Mehendi</option>
-                    <option value="Cocktail Dinner">Cocktail Dinner</option>
-                  </select>
-                </div>
-              </div>
-
-              {venues.length === 0 && (
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Venue Slot Rental (₹)</label>
-                  <input
-                    type="number"
-                    value={formCustomRate}
-                    onChange={(e) => setFormCustomRate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
-                  />
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Event Date</label>
-                  <input
-                    type="date"
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Time Slot</label>
-                  <select
-                    value={formTimeSlot}
-                    onChange={(e) => setFormTimeSlot(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
-                  >
-                    <option value="Morning (09:00 - 14:00)">Morning (09:00 - 14:00)</option>
-                    <option value="Evening (18:00 - 23:30)">Evening (18:00 - 23:30)</option>
-                    <option value="Full Day (09:00 - 23:00)">Full Day (09:00 - 23:00)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Guaranteed Guests (Pax)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formPax}
-                    onChange={(e) => setFormPax(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Catering Package</label>
-                  {presetMenus.length > 0 ? (
-                    <select
-                      value={formMenu}
-                      onChange={(e) => setFormMenu(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
-                    >
-                      <option value="">Select Package</option>
-                      {presetMenus.map(m => (
-                        <option key={m.id || m.name} value={m.name}>{m.name} (₹{m.pricePerPax}/pax)</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      placeholder="e.g. Wedding Grand Buffet"
-                      value={formMenu}
-                      onChange={(e) => setFormMenu(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300"
-                    />
-                  )}
-                </div>
-              </div>
-
-              {presetMenus.length === 0 && (
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Catering Price per Guest (₹/pax)</label>
-                  <input
-                    type="number"
-                    value={formCustomMenuPrice}
-                    onChange={(e) => setFormCustomMenuPrice(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Advance Token (₹)</label>
-                <input
-                  type="number"
-                  value={formAdvance}
-                  onChange={(e) => setFormAdvance(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold text-emerald-800"
-                />
-              </div>
-
-              {/* Real-time Pricing Summary */}
-              <div className="p-3 bg-purple-50 rounded-2xl border border-purple-100 flex justify-between items-center text-xs">
-                <div>
-                  <span className="text-[10px] text-purple-700 block font-bold uppercase">Estimated Event Value</span>
-                  <span className="font-mono font-black text-slate-900 text-base">₹{calculatedTotal.toLocaleString()}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] text-slate-400 block font-bold uppercase">Balance on Event Date</span>
-                  <span className="font-mono font-bold text-rose-700">₹{(calculatedTotal - (Number(formAdvance) || 0)).toLocaleString()}</span>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsNewBookingModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold shadow-md cursor-pointer"
-                >
-                  Confirm Banquet Booking
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL: NEW VENUE */}
-      {/* ========================================================================= */}
-      {isNewVenueModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-serif font-black text-lg text-slate-900">Add Banquet Venue / Hall</h3>
-              <button onClick={() => setIsNewVenueModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateVenue} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Hall Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Grand Crystal Ballroom"
-                  value={venueName}
-                  onChange={(e) => setVenueName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Max Capacity (Guests)</label>
-                  <input
-                    type="number"
-                    value={venueCapacity}
-                    onChange={(e) => setVenueCapacity(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Base Rent per Slot (₹)</label>
-                  <input
-                    type="number"
-                    value={venueRate}
-                    onChange={(e) => setVenueRate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Hall Type</label>
-                  <select
-                    value={venueType}
-                    onChange={(e) => setVenueType(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
-                  >
-                    <option value="Indoor AC">Indoor AC</option>
-                    <option value="Rooftop Lounge">Rooftop Lounge</option>
-                    <option value="Lawn / Garden">Lawn / Garden</option>
-                    <option value="Corporate Boardroom">Corporate Boardroom</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Floor Allocation</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Ground Floor, 2nd Floor"
-                    value={venueFloor}
-                    onChange={(e) => setVenueFloor(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsNewVenueModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold shadow-md cursor-pointer"
-                >
-                  Add Venue
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL: NEW MENU */}
-      {/* ========================================================================= */}
-      {isNewMenuModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-serif font-black text-lg text-slate-900">Create Catering Menu</h3>
-              <button onClick={() => setIsNewMenuModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateMenu} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Package Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Royal Wedding Buffet"
-                  value={menuName}
-                  onChange={(e) => setMenuName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Price per Guest (₹/pax)</label>
-                <input
-                  type="number"
-                  value={menuPrice}
-                  onChange={(e) => setMenuPrice(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Items / Dishes Included</label>
-                <textarea
-                  rows={3}
-                  placeholder="List starters, main course, breads, desserts..."
-                  value={menuItems}
-                  onChange={(e) => setMenuItems(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300"
-                  required
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsNewMenuModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold shadow-md cursor-pointer"
-                >
-                  Save Package
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL: PRINTABLE BANQUET FUNCTION PROSPECTUS (BFP) */}
-      {/* ========================================================================= */}
-      {selectedBookingForInvoice && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-              <div>
-                <span className="text-[10px] font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded">
-                  BANQUET FUNCTION PROSPECTUS (BFP)
-                </span>
-                <h3 className="font-serif font-black text-xl text-slate-900 mt-1">
-                  Event Folio #{selectedBookingForInvoice.id}
-                </h3>
-              </div>
-              <button onClick={() => setSelectedBookingForInvoice(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="py-4 space-y-3 text-xs">
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500 font-medium">Client / Host:</span>
-                <span className="font-bold text-slate-900">{selectedBookingForInvoice.guestName}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500 font-medium">Contact:</span>
-                <span className="font-mono text-slate-900">{selectedBookingForInvoice.phone}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500 font-medium">Venue:</span>
-                <span className="font-bold text-purple-900">{selectedBookingForInvoice.venue}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500 font-medium">Date & Slot:</span>
-                <span className="font-semibold text-slate-900">{selectedBookingForInvoice.date} • {selectedBookingForInvoice.timeSlot}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500 font-medium">Pax Count:</span>
-                <span className="font-bold text-slate-900">{selectedBookingForInvoice.pax} Guests</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500 font-medium">Catering Package:</span>
-                <span className="font-semibold text-slate-900">{selectedBookingForInvoice.cateringPackage}</span>
-              </div>
-
-              <div className="pt-2">
-                <div className="flex justify-between py-1 font-bold text-sm text-slate-900">
-                  <span>Total Event Billing:</span>
-                  <span className="font-mono">₹{selectedBookingForInvoice.totalAmount.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between py-1 text-emerald-800 font-semibold">
-                  <span>Advance Token Cleared:</span>
-                  <span className="font-mono">₹{selectedBookingForInvoice.paidAmount.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between py-1 text-rose-800 font-bold border-t border-slate-200 mt-1 pt-1">
-                  <span>Remaining Due:</span>
-                  <span className="font-mono">₹{(selectedBookingForInvoice.totalAmount - selectedBookingForInvoice.paidAmount).toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                onClick={() => window.print()}
-                className="px-4 py-2 bg-purple-900 hover:bg-purple-800 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 transition shadow-sm cursor-pointer"
-              >
-                <Printer className="w-4 h-4" />
-                <span>Print Prospectus</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-    </div>
-  );
+                  );
 }

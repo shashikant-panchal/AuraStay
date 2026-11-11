@@ -27,6 +27,7 @@ import {
   Filter,
   CheckCircle2
 } from 'lucide-react';
+import DetailedReportView from '../reports/DetailedReportView';
 
 const REPORTS_CATALOG = [
   {
@@ -197,7 +198,7 @@ const REPORTS_CATALOG = [
   },
   {
     id: 'guest-in-house',
-    title: 'Guest In House Report',
+    title: 'In House Guests',
     subtitle: 'Helps in-room service tracking and emergency planning.',
     overview: 'Guests currently checked-in and staying in the property.',
     departments: ['Operations'],
@@ -304,6 +305,7 @@ const DEPARTMENT_PILLS = [
 export default function ReportsView() {
   const { navigateTo, showNotification } = useDashboard();
 
+  const [activeReportId, setActiveReportId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('ALL');
   const [activeReportModal, setActiveReportModal] = useState(null);
@@ -342,6 +344,19 @@ export default function ReportsView() {
   const handleDownload = (format) => {
     showNotification(`Exporting ${activeReportModal?.title} in ${format} format...`);
   };
+
+  // If a specific report is opened, navigate to its dedicated full-page view
+  if (activeReportId) {
+    const selectedReport = REPORTS_CATALOG.find(r => r.id === activeReportId) || REPORTS_CATALOG[0];
+    return (
+      <DetailedReportView
+        report={selectedReport}
+        onBack={() => setActiveReportId(null)}
+        onSwitchReport={(newId) => setActiveReportId(newId)}
+        reportsCatalog={REPORTS_CATALOG}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
@@ -407,8 +422,8 @@ export default function ReportsView() {
                 key={dept.name}
                 onClick={() => handleToggleDepartment(dept.name)}
                 className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition ${isSelected
-                    ? 'ring-2 ring-slate-800 shadow-xs'
-                    : 'hover:opacity-90'
+                  ? 'ring-2 ring-slate-800 shadow-xs'
+                  : 'hover:opacity-90'
                   } ${dept.bg}`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${dept.dot}`} />
@@ -453,7 +468,7 @@ export default function ReportsView() {
                   <tr
                     key={rep.id}
                     className="hover:bg-slate-50/70 transition group cursor-pointer"
-                    onClick={() => setActiveReportModal(rep)}
+                    onClick={() => setActiveReportId(rep.id)}
                   >
                     {/* 1. REPORT TITLE */}
                     <td className="py-4 px-5 align-top">
@@ -500,9 +515,9 @@ export default function ReportsView() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setActiveReportModal(rep);
+                          setActiveReportId(rep.id);
                         }}
-                        className="inline-flex items-center space-x-1 text-sky-800 hover:text-sky-950 font-bold text-xs hover:underline transition"
+                        className="inline-flex items-center space-x-1 text-sky-800 hover:text-sky-950 font-bold text-xs hover:underline transition cursor-pointer"
                       >
                         <span>Open</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -525,7 +540,7 @@ export default function ReportsView() {
             b
           </div>
           <span className="font-semibold text-slate-300">
-            Powered by <strong className="text-white">AuraStay</strong>
+            Powered by <strong className="text-white">Dama Digital</strong>
           </span>
         </div>
       </div>

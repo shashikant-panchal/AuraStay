@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   CreditCard, 
@@ -16,33 +16,43 @@ import { useDashboard } from '../../context/DashboardContext';
 export default function BookingPaymentsModal({ isOpen, onClose, reservation, onUpdatePayment }) {
   const { showNotification } = useDashboard();
 
-  if (!isOpen || !reservation) return null;
-
-  const totalTariff = Number(reservation.total || reservation.amount || 2000.00);
-  const isPaid = reservation.payment === 'PAID';
-  const initialPaid = reservation.paid !== undefined ? Number(reservation.paid) : (isPaid ? totalTariff : 0.00);
-  const initialDue = reservation.due !== undefined ? Number(reservation.due) : Math.max(0, totalTariff - initialPaid);
-
-  const [paidAmount, setPaidAmount] = useState(initialPaid);
-  const [dueAmount, setDueAmount] = useState(initialDue);
+  const [paidAmount, setPaidAmount] = useState(0);
+  const [dueAmount, setDueAmount] = useState(0);
   const [activeAction, setActiveAction] = useState(null); // 'part' | 'full' | 'new'
   const [inputAmount, setInputAmount] = useState('');
   const [paymentMode, setPaymentMode] = useState('UPI');
+  const [transactions, setTransactions] = useState([]);
 
-  // Transactions list
-  const [transactions, setTransactions] = useState(
-    initialPaid > 0 ? [
-      {
-        id: `TXN-${reservation?.id ? reservation.id.replace(/[^0-9]/g, '') : '101'}`,
-        date: 'Booking Date',
-        mode: reservation?.payment === 'PAID' ? 'Direct / UPI' : 'Advance Payment',
-        type: 'Advance Deposit',
-        amount: initialPaid,
-        status: 'SETTLED',
-        ref: `AST-REC-${Math.floor(100 + Math.random() * 900)}`
-      }
-    ] : []
-  );
+  useEffect(() => {
+    if (isOpen && reservation) {
+      const totalTariff = Number(reservation.total || reservation.amount || 2000.00);
+      const isPaid = reservation.payment === 'PAID';
+      const initialPaid = reservation.paid !== undefined ? Number(reservation.paid) : (isPaid ? totalTariff : 0.00);
+      const initialDue = reservation.due !== undefined ? Number(reservation.due) : Math.max(0, totalTariff - initialPaid);
+
+      setPaidAmount(initialPaid);
+      setDueAmount(initialDue);
+      setActiveAction(null);
+      setInputAmount('');
+      setTransactions(
+        initialPaid > 0 ? [
+          {
+            id: `TXN-${reservation?.id ? String(reservation.id).replace(/[^0-9]/g, '') : '101'}`,
+            date: 'Booking Date',
+            mode: reservation?.payment === 'PAID' ? 'Direct / UPI' : 'Advance Payment',
+            type: 'Advance Deposit',
+            amount: initialPaid,
+            status: 'SETTLED',
+            ref: `AST-REC-${Math.floor(100 + Math.random() * 900)}`
+          }
+        ] : []
+      );
+    }
+  }, [isOpen, reservation]);
+
+  if (!isOpen || !reservation) return null;
+
+  const totalTariff = Number(reservation.total || reservation.amount || 2000.00);
 
   const handleFullPayment = () => {
     if (dueAmount <= 0) {

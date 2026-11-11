@@ -396,8 +396,8 @@ export default function ReservationManagementView({ isSubTab = false }) {
                 key={cat}
                 onClick={() => setFilterCategory(cat)}
                 className={`px-3 py-1.5 rounded-lg transition ${filterCategory === cat
-                    ? 'bg-[#0e4860] text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  ? 'bg-[#0e4860] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
               >
                 {cat}
@@ -485,8 +485,8 @@ export default function ReservationManagementView({ isSubTab = false }) {
                   <tr
                     key={res.id}
                     className={`transition ${isHighlight
-                        ? 'bg-rose-50/40 border-l-4 border-l-rose-500 hover:bg-rose-50/70'
-                        : 'hover:bg-slate-50/80'
+                      ? 'bg-rose-50/40 border-l-4 border-l-rose-500 hover:bg-rose-50/70'
+                      : 'hover:bg-slate-50/80'
                       }`}
                   >
                     {/* 1. BOOKING ID */}
@@ -682,7 +682,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
             b
           </div>
           <span className="font-semibold text-slate-300">
-            Powered by <strong className="text-white">AuraStay</strong>
+            Powered by <strong className="text-white">Dama Digital</strong>
           </span>
         </div>
       </div>

@@ -43,7 +43,7 @@ export default function ShiftRoomModal({ isOpen, onClose, sourceRoom }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden relative">
-        
+
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white px-6 py-5 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -54,9 +54,9 @@ export default function ShiftRoomModal({ isOpen, onClose, sourceRoom }) {
               <div className="text-[10px] tracking-widest uppercase font-bold text-indigo-300">
                 Front Office Operations
               </div>
-              <h3 className="font-serif text-lg font-bold text-white">
-                Shift Room (Room Move)
-              </h3>
+                <h3 className="text-lg font-bold text-white">
+                  Shift Room (Room Move)
+                </h3>
             </div>
           </div>
 
@@ -69,7 +69,7 @@ export default function ShiftRoomModal({ isOpen, onClose, sourceRoom }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          
+
           {/* Source Room Info Card */}
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
             <div>
@@ -168,11 +168,10 @@ export default function ShiftRoomModal({ isOpen, onClose, sourceRoom }) {
             <button
               type="submit"
               disabled={isSubmitting || !targetRoomNumber || availableTargetRooms.length === 0}
-              className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition ${
-                !targetRoomNumber || availableTargetRooms.length === 0 || isSubmitting
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition ${!targetRoomNumber || availableTargetRooms.length === 0 || isSubmitting
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/30'
-              }`}
+                }`}
             >
               <Check className="w-4 h-4" />
               <span>{isSubmitting ? 'Shifting...' : 'Confirm Room Shift'}</span>

@@ -144,11 +144,11 @@ export default function App() {
 
             <div className="flex items-center space-x-2 text-xs">
               <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-[#0b1a30] font-black text-xs shadow-xs">
-                a
+                D
               </div>
               <div className="text-right leading-none">
                 <span className="text-slate-400 text-xs">Powered by </span>
-                <span className="font-bold text-white text-xs">AuraStay</span>
+                <span className="font-bold text-white text-xs">Dama Digital</span>
               </div>
             </div>
           </footer>

@@ -42,6 +42,8 @@ import FolioBillingModal from '../modals/FolioBillingModal';
 import NightAuditModal from '../modals/NightAuditModal';
 import BlockRoomModal from '../modals/BlockRoomModal';
 import FrontDeskTasksDrawer from '../modals/FrontDeskTasksDrawer';
+import RoomActionsModal from '../modals/RoomActionsModal';
+import TodayGlanceRevenueCard from '../dashboard/TodayGlanceRevenueCard';
 
 export default function DashboardView() {
   const {
@@ -67,9 +69,8 @@ export default function DashboardView() {
   // Accordion collapsed state
   const [collapsedCategories, setCollapsedCategories] = useState({});
 
-  // Context Menu State
-  const [activeMenuRoomId, setActiveMenuRoomId] = useState(null);
-  const menuRef = useRef(null);
+  // Room Actions Modal State
+  const [actionModalRoom, setActionModalRoom] = useState(null);
 
   // Modal active targets
   const [modalRoom, setModalRoom] = useState(null);
@@ -85,16 +86,7 @@ export default function DashboardView() {
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const [isTasksDrawerOpen, setIsTasksDrawerOpen] = useState(false);
 
-  // Close context menu on click outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setActiveMenuRoomId(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+
 
   // Helper to find active reservation for a room
   const getActiveReservation = (room) => {
@@ -209,7 +201,7 @@ export default function DashboardView() {
 
   // Quick Action Handler for Room
   const handleRoomAction = (room, action) => {
-    setActiveMenuRoomId(null);
+    setActionModalRoom(null);
     setModalRoom(room);
     setModalRes(room.activeReservation || null);
 
@@ -568,21 +560,20 @@ export default function DashboardView() {
                       const isVacant = room.effectiveStatus === 'VACANT';
                       const isDirty = room.effectiveStatus === 'DIRTY';
                       const isBlocked = room.effectiveStatus === 'BLOCKED';
-                      const isMenuOpen = activeMenuRoomId === room.roomNumber;
 
                       if (viewDensity === 'COMPACT') {
                         // Compact matrix box
                         return (
                           <div
                             key={room.roomNumber}
-                            onClick={() => handleRoomAction(room, isOccupied ? 'folio' : isVacant ? 'book' : 'block')}
+                            onClick={() => setActionModalRoom(room)}
                             className={`cursor-pointer rounded-2xl p-3 border transition-all text-center relative overflow-hidden group shadow-xs hover:shadow-md hover:-translate-y-0.5 ${isOccupied
-                                ? 'bg-indigo-50/60 border-indigo-200 text-indigo-950'
-                                : isVacant
-                                  ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
-                                  : isDirty
-                                    ? 'bg-amber-50/60 border-amber-200 text-amber-950'
-                                    : 'bg-rose-50/60 border-rose-200 text-rose-950'
+                              ? 'bg-indigo-50/60 border-indigo-200 text-indigo-950'
+                              : isVacant
+                                ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
+                                : isDirty
+                                  ? 'bg-amber-50/60 border-amber-200 text-amber-950'
+                                  : 'bg-rose-50/60 border-rose-200 text-rose-950'
                               }`}
                           >
                             <p className="font-black text-lg font-mono">#{room.roomNumber}</p>
@@ -598,22 +589,22 @@ export default function DashboardView() {
                         <div
                           key={room.roomNumber}
                           className={`group relative bg-white rounded-3xl border transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.06),0_8px_10px_-6px_rgba(0,0,0,0.04)] hover:-translate-y-1.5 hover:shadow-[0_20px_35px_-8px_rgba(0,0,0,0.12),0_10px_10px_-5px_rgba(0,0,0,0.04)] ${isOccupied
-                              ? 'border-indigo-100 hover:border-indigo-300'
-                              : isVacant
-                                ? 'border-emerald-100 hover:border-emerald-300'
-                                : isDirty
-                                  ? 'border-amber-100 hover:border-amber-300'
-                                  : 'border-rose-100 hover:border-rose-300'
+                            ? 'border-indigo-100 hover:border-indigo-300'
+                            : isVacant
+                              ? 'border-emerald-100 hover:border-emerald-300'
+                              : isDirty
+                                ? 'border-amber-100 hover:border-amber-300'
+                                : 'border-rose-100 hover:border-rose-300'
                             }`}
                         >
                           {/* Top 3D Embossed Bar */}
                           <div className={`p-4 border-b flex items-center justify-between ${isOccupied
-                              ? 'bg-gradient-to-r from-indigo-50/90 to-purple-50/50 border-indigo-100/70'
-                              : isVacant
-                                ? 'bg-gradient-to-r from-emerald-50/90 to-teal-50/50 border-emerald-100/70'
-                                : isDirty
-                                  ? 'bg-gradient-to-r from-amber-50/90 to-orange-50/50 border-amber-100/70'
-                                  : 'bg-gradient-to-r from-rose-50/90 to-red-50/50 border-rose-100/70'
+                            ? 'bg-gradient-to-r from-indigo-50/90 to-purple-50/50 border-indigo-100/70'
+                            : isVacant
+                              ? 'bg-gradient-to-r from-emerald-50/90 to-teal-50/50 border-emerald-100/70'
+                              : isDirty
+                                ? 'bg-gradient-to-r from-amber-50/90 to-orange-50/50 border-amber-100/70'
+                                : 'bg-gradient-to-r from-rose-50/90 to-red-50/50 border-rose-100/70'
                             }`}>
                             <div className="flex items-center space-x-2">
                               {/* 3D Room Number Badge */}
@@ -625,134 +616,29 @@ export default function DashboardView() {
                                   {room.floor}
                                 </span>
                                 <span className={`text-[10px] font-black uppercase tracking-wider mt-0.5 inline-block px-1.5 py-0.2 rounded-md ${isOccupied
-                                    ? 'text-indigo-800 bg-indigo-100/70'
-                                    : isVacant
-                                      ? 'text-emerald-800 bg-emerald-100/70'
-                                      : isDirty
-                                        ? 'text-amber-800 bg-amber-100/70'
-                                        : 'text-rose-800 bg-rose-100/70'
+                                  ? 'text-indigo-800 bg-indigo-100/70'
+                                  : isVacant
+                                    ? 'text-emerald-800 bg-emerald-100/70'
+                                    : isDirty
+                                      ? 'text-amber-800 bg-amber-100/70'
+                                      : 'text-rose-800 bg-rose-100/70'
                                   }`}>
                                   {isOccupied ? 'Occupied' : isVacant ? 'Ready' : isDirty ? 'Dirty' : 'Blocked'}
                                 </span>
                               </div>
                             </div>
 
-                            {/* 3-Dot Context Menu Button */}
-                            <div className="relative">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuRoomId(isMenuOpen ? null : room.roomNumber);
-                                }}
-                                className="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-200/80 flex items-center justify-center shadow-xs transition-colors"
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-
-                              {/* Floating Exceed 12-Action Context Menu */}
-                              {isMenuOpen && (
-                                <div
-                                  ref={menuRef}
-                                  className="absolute right-0 top-10 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-2 z-40 text-xs font-semibold text-slate-700 animate-in fade-in zoom-in-95 duration-100 space-y-0.5"
-                                >
-                                  <div className="px-3 py-1.5 border-b border-slate-100 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                    Room #{room.roomNumber} Actions
-                                  </div>
-
-                                  {isOccupied && (
-                                    <>
-                                      <button
-                                        onClick={() => handleRoomAction(room, 'folio')}
-                                        className="w-full px-3.5 py-2 text-left hover:bg-indigo-50 hover:text-indigo-900 flex items-center space-x-2 transition-colors"
-                                      >
-                                        <Receipt className="w-3.5 h-3.5 text-indigo-600" />
-                                        <span>View Folio & Billing</span>
-                                      </button>
-                                      <button
-                                        onClick={() => handleRoomAction(room, 'balance')}
-                                        className="w-full px-3.5 py-2 text-left hover:bg-emerald-50 hover:text-emerald-900 flex items-center space-x-2 transition-colors"
-                                      >
-                                        <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-                                        <span>Quick Balance Popover</span>
-                                      </button>
-                                      <button
-                                        onClick={() => handleRoomAction(room, 'guest360')}
-                                        className="w-full px-3.5 py-2 text-left hover:bg-slate-50 flex items-center space-x-2 transition-colors"
-                                      >
-                                        <User className="w-3.5 h-3.5 text-slate-600" />
-                                        <span>Guest 360 & ID Proof</span>
-                                      </button>
-                                      <button
-                                        onClick={() => handleRoomAction(room, 'shift')}
-                                        className="w-full px-3.5 py-2 text-left hover:bg-indigo-50 hover:text-indigo-900 flex items-center space-x-2 transition-colors"
-                                      >
-                                        <ArrowRight className="w-3.5 h-3.5 text-indigo-600" />
-                                        <span>Shift / Move Room</span>
-                                      </button>
-                                      <button
-                                        onClick={() => handleRoomAction(room, 'extend')}
-                                        className="w-full px-3.5 py-2 text-left hover:bg-amber-50 hover:text-amber-900 flex items-center space-x-2 transition-colors"
-                                      >
-                                        <Clock className="w-3.5 h-3.5 text-amber-600" />
-                                        <span>Extend Stay</span>
-                                      </button>
-                                      <button
-                                        onClick={() => handleRoomAction(room, 'checkout')}
-                                        className="w-full px-3.5 py-2 text-left hover:bg-rose-50 hover:text-rose-900 flex items-center space-x-2 transition-colors"
-                                      >
-                                        <BedDouble className="w-3.5 h-3.5 text-rose-600" />
-                                        <span>Checkout This Room</span>
-                                      </button>
-                                    </>
-                                  )}
-
-                                  {isVacant && (
-                                    <button
-                                      onClick={() => handleRoomAction(room, 'book')}
-                                      className="w-full px-3.5 py-2 text-left hover:bg-emerald-50 hover:text-emerald-900 flex items-center space-x-2 transition-colors"
-                                    >
-                                      <Plus className="w-3.5 h-3.5 text-emerald-600" />
-                                      <span>Create Reservation</span>
-                                    </button>
-                                  )}
-
-                                  {/* Housekeeping toggles */}
-                                  <div className="border-t border-slate-100 my-1"></div>
-                                  <button
-                                    onClick={() => handleRoomAction(room, room.effectiveStatus === 'DIRTY' ? 'clean' : 'dirty')}
-                                    className="w-full px-3.5 py-2 text-left hover:bg-slate-50 flex items-center space-x-2 transition-colors"
-                                  >
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" />
-                                    <span>Mark as {room.effectiveStatus === 'DIRTY' ? 'Clean' : 'Dirty'}</span>
-                                  </button>
-
-                                  <button
-                                    onClick={() => handleRoomAction(room, 'block')}
-                                    className="w-full px-3.5 py-2 text-left hover:bg-rose-50 hover:text-rose-900 flex items-center space-x-2 transition-colors"
-                                  >
-                                    <Wrench className="w-3.5 h-3.5 text-rose-600" />
-                                    <span>{isBlocked ? 'Unblock Room' : 'Block for Maintenance'}</span>
-                                  </button>
-
-                                  <button
-                                    onClick={() => handleRoomAction(room, 'fnb')}
-                                    className="w-full px-3.5 py-2 text-left hover:bg-slate-50 flex items-center space-x-2 transition-colors"
-                                  >
-                                    <Utensils className="w-3.5 h-3.5 text-amber-600" />
-                                    <span>Copy Digital Menu URL</span>
-                                  </button>
-
-                                  <div className="border-t border-slate-100 my-1"></div>
-                                  <button
-                                    onClick={() => handleRoomAction(room, 'delete')}
-                                    className="w-full px-3.5 py-2 text-left text-rose-600 hover:bg-rose-50 flex items-center space-x-2 transition-colors"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                    <span>Delete Room</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                            {/* 3-Dot Quick Action Modal Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActionModalRoom(room);
+                              }}
+                              className="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-200/80 flex items-center justify-center shadow-xs transition-colors"
+                              title="Room Operations & Actions"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
                           </div>
 
                           {/* Middle Card Details */}
@@ -882,7 +768,17 @@ export default function DashboardView() {
         )}
       </div>
 
+      {/* Today At A Glance Revenue & Yield Overview Card */}
+      <TodayGlanceRevenueCard enrichedRooms={enrichedRooms} />
+
       {/* 5. Modals Mounted Dynamically */}
+      <RoomActionsModal
+        isOpen={!!actionModalRoom}
+        onClose={() => setActionModalRoom(null)}
+        room={actionModalRoom}
+        onAction={handleRoomAction}
+      />
+
       <ShiftRoomModal
         isOpen={isShiftModalOpen}
         onClose={() => setIsShiftModalOpen(false)}
