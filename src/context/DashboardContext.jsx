@@ -72,12 +72,26 @@ export function DashboardProvider({ children }) {
   const [data, setData] = useState(() => {
     try {
       const version = localStorage.getItem('aurastay_data_version');
-      if (version === 'v2_clean_zero') {
+      if (version === 'v3_zero_static') {
         const saved = localStorage.getItem('aurastay_suite_data');
         if (saved) return JSON.parse(saved);
       } else {
         localStorage.removeItem('aurastay_suite_data');
-        localStorage.setItem('aurastay_data_version', 'v2_clean_zero');
+        localStorage.setItem('aurastay_data_version', 'v3_zero_static');
+        const legacyKeys = [
+          'aurastay_hk_tasks',
+          'aurastay_lost_found',
+          'aurastay_banquet_venues',
+          'aurastay_banquet_menus',
+          'aurastay_inventory_items',
+          'aurastay_purchase_orders',
+          'aurastay_dept_requisitions',
+          'aurastay_hotel_expenses',
+          'aurastay_housekeepers'
+        ];
+        legacyKeys.forEach(k => {
+          try { localStorage.removeItem(k); } catch(e){}
+        });
       }
     } catch (e) {
       console.warn('Could not load from localStorage, using initial clean data', e);

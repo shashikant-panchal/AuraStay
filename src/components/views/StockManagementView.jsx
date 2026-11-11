@@ -60,47 +60,34 @@ export default function StockManagementView() {
   const [isNewReqModalOpen, setIsNewReqModalOpen] = useState(false);
 
   const [selectedItemForAdjust, setSelectedItemForAdjust] = useState(null);
-  const [adjustType, setAdjustType] = useState('IN'); // 'IN' (Receive) or 'OUT' (Issue)
+  const [adjustType, setAdjustType] = useState('IN');
   const [adjustQty, setAdjustQty] = useState('10');
 
-  // Stock List State
+  // Stock List State (Clean empty slate for real hotel creation)
   const [stockList, setStockList] = useState(() => {
     try {
-      const saved = localStorage.getItem('aurastay_inventory_items');
+      const saved = localStorage.getItem('aurastay_inventory_items_v2');
       if (saved) return JSON.parse(saved);
     } catch (e) {}
-    return [
-      { id: 'SKU-101', name: 'Fresh Full Cream Milk', category: 'F&B Raw Materials', unit: 'Liters', currentStock: 45, minThreshold: 20, costPerUnit: 64, supplier: 'Amul Fresh Dairy', status: 'IN_STOCK' },
-      { id: 'SKU-102', name: 'Single-Source Arabica Coffee Beans', category: 'Beverage & Bar', unit: 'Kg', currentStock: 8, minThreshold: 15, costPerUnit: 850, supplier: 'Blue Tokai Roasters', status: 'LOW_STOCK' },
-      { id: 'SKU-103', name: 'Luxury Cotton Bath Towels (650 GSM)', category: 'Housekeeping Linens', unit: 'Pieces', currentStock: 120, minThreshold: 30, costPerUnit: 480, supplier: 'Trident Hospitality', status: 'IN_STOCK' },
-      { id: 'SKU-104', name: 'Eco Dental Kits & Wooden Comb Sets', category: 'Guest Amenities', unit: 'Packs', currentStock: 250, minThreshold: 50, costPerUnit: 24, supplier: 'GreenStay Amenities', status: 'IN_STOCK' }
-    ];
+    return [];
   });
 
-  // Purchase Orders State
+  // Purchase Orders State (Clean empty slate)
   const [purchaseOrders, setPurchaseOrders] = useState(() => {
     try {
-      const saved = localStorage.getItem('aurastay_purchase_orders');
+      const saved = localStorage.getItem('aurastay_purchase_orders_v2');
       if (saved) return JSON.parse(saved);
     } catch (e) {}
-    return [
-      { id: 'PO-9021', supplier: 'Amul Fresh Dairy', items: 'Milk 100L, Butter 20Kg, Paneer 30Kg', totalAmount: 18400, orderDate: '09-11-2026', status: 'DISPATCHED' },
-      { id: 'PO-9022', supplier: 'Blue Tokai Roasters', items: 'Arabica Roasted Beans 25Kg', totalAmount: 21250, orderDate: '10-11-2026', status: 'RECEIVED' },
-      { id: 'PO-9023', supplier: 'Trident Hospitality', items: 'Bed Linen 50 sets, Pillows 40 pcs', totalAmount: 48000, orderDate: '11-11-2026', status: 'DISPATCHED' }
-    ];
+    return [];
   });
 
-  // Department Requisitions & Transfers State
+  // Department Requisitions & Transfers State (Clean empty slate)
   const [requisitions, setRequisitions] = useState(() => {
     try {
-      const saved = localStorage.getItem('aurastay_dept_requisitions');
+      const saved = localStorage.getItem('aurastay_dept_requisitions_v2');
       if (saved) return JSON.parse(saved);
     } catch(e){}
-    return [
-      { id: 'REQ-501', department: 'Housekeeping', requestedBy: 'Sunita Devi', skuId: 'SKU-103', itemName: 'Luxury Cotton Bath Towels (650 GSM)', qty: 25, reqDate: '11-11-2026', status: 'PENDING', notes: 'Turnover linen for 2nd Floor suites' },
-      { id: 'REQ-502', department: 'F&B Restaurant Kitchen', requestedBy: 'Chef Sanjeev', skuId: 'SKU-101', itemName: 'Fresh Full Cream Milk', qty: 20, reqDate: '11-11-2026', status: 'APPROVED_ISSUED', notes: 'Breakfast buffet preparation' },
-      { id: 'REQ-503', department: 'Front Desk / Lobby', requestedBy: 'Aakash Verma', skuId: 'SKU-104', itemName: 'Eco Dental Kits & Wooden Comb Sets', qty: 50, reqDate: '10-11-2026', status: 'APPROVED_ISSUED', notes: 'VIP welcome gift bags' }
-    ];
+    return [];
   });
 
   // Form State: Add Item
@@ -113,33 +100,34 @@ export default function StockManagementView() {
   const [newItemSupplier, setNewItemSupplier] = useState('');
 
   // Form State: PO
-  const [poSupplier, setPoSupplier] = useState('Amul Fresh Dairy');
+  const [poSupplier, setPoSupplier] = useState('');
   const [poItems, setPoItems] = useState('');
   const [poAmount, setPoAmount] = useState('15000');
 
   // Form State: Requisition
   const [reqDept, setReqDept] = useState('Housekeeping');
-  const [reqBy, setReqBy] = useState('Sunita Devi');
-  const [reqSkuId, setReqSkuId] = useState(stockList[0]?.id || 'SKU-101');
+  const [reqBy, setReqBy] = useState('Staff Requester');
+  const [reqSkuId, setReqSkuId] = useState('');
+  const [reqCustomItem, setReqCustomItem] = useState('');
   const [reqQty, setReqQty] = useState('10');
   const [reqNotes, setReqNotes] = useState('');
 
   // Persist State
   useEffect(() => {
     try {
-      localStorage.setItem('aurastay_inventory_items', JSON.stringify(stockList));
+      localStorage.setItem('aurastay_inventory_items_v2', JSON.stringify(stockList));
     } catch (e) {}
   }, [stockList]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('aurastay_purchase_orders', JSON.stringify(purchaseOrders));
+      localStorage.setItem('aurastay_purchase_orders_v2', JSON.stringify(purchaseOrders));
     } catch (e) {}
   }, [purchaseOrders]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('aurastay_dept_requisitions', JSON.stringify(requisitions));
+      localStorage.setItem('aurastay_dept_requisitions_v2', JSON.stringify(requisitions));
     } catch(e){}
   }, [requisitions]);
 
@@ -156,7 +144,7 @@ export default function StockManagementView() {
       currentStock: Number(newItemStock) || 0,
       minThreshold: Number(newItemThreshold) || 10,
       costPerUnit: Number(newItemCost) || 0,
-      supplier: newItemSupplier || 'Local Wholesale Vendor',
+      supplier: newItemSupplier || 'Vendor',
       status: Number(newItemStock) <= Number(newItemThreshold) ? 'LOW_STOCK' : 'IN_STOCK'
     };
 
@@ -164,12 +152,16 @@ export default function StockManagementView() {
     setIsAddItemModalOpen(false);
     showNotification(`Added item ${newItem.name} to inventory.`);
     setNewItemName('');
+    setNewItemSupplier('');
   };
 
   // Handle Create PO
   const handleCreatePo = (e) => {
     e.preventDefault();
-    if (!poSupplier || !poItems) return;
+    if (!poSupplier || !poItems) {
+      showNotification('Please enter supplier name and items list.', 'error');
+      return;
+    }
 
     const newPo = {
       id: `PO-${Date.now().toString().slice(-4)}`,
@@ -183,6 +175,7 @@ export default function StockManagementView() {
     setPurchaseOrders(prev => [newPo, ...prev]);
     setIsPoModalOpen(false);
     showNotification(`Purchase Order #${newPo.id} sent to ${poSupplier}.`);
+    setPoSupplier('');
     setPoItems('');
   };
 
@@ -190,12 +183,14 @@ export default function StockManagementView() {
   const handleCreateRequisition = (e) => {
     e.preventDefault();
     const selItem = stockList.find(s => s.id === reqSkuId);
+    const itemName = selItem?.name || reqCustomItem || 'Store Items';
+
     const newReq = {
       id: `REQ-${Date.now().toString().slice(-4)}`,
       department: reqDept,
-      requestedBy: reqBy,
-      skuId: reqSkuId,
-      itemName: selItem?.name || 'Store Item',
+      requestedBy: reqBy || 'Department Staff',
+      skuId: reqSkuId || 'CUSTOM-SKU',
+      itemName: itemName,
       qty: Number(reqQty) || 1,
       reqDate: new Date().toLocaleDateString('en-GB'),
       status: 'PENDING',
@@ -205,12 +200,12 @@ export default function StockManagementView() {
     setRequisitions(prev => [newReq, ...prev]);
     setIsNewReqModalOpen(false);
     showNotification(`Requisition #${newReq.id} created for ${reqDept}.`);
+    setReqCustomItem('');
     setReqNotes('');
   };
 
   // Approve Requisition & Deduct Stock
   const handleApproveRequisition = (req) => {
-    // Deduct stock from item
     setStockList(prev => prev.map(s => {
       if (s.id === req.skuId) {
         const updatedStock = Math.max(0, s.currentStock - req.qty);
@@ -432,74 +427,92 @@ export default function StockManagementView() {
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                  <tr>
-                    <th className="py-3.5 px-4">SKU Code</th>
-                    <th className="py-3.5 px-4">Item Name</th>
-                    <th className="py-3.5 px-4">Category</th>
-                    <th className="py-3.5 px-4">Current Stock</th>
-                    <th className="py-3.5 px-4">Min Threshold</th>
-                    <th className="py-3.5 px-4">Unit Cost</th>
-                    <th className="py-3.5 px-4">Total Value</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredItems.map(item => (
-                    <tr key={item.id} className="hover:bg-slate-50/60 transition">
-                      <td className="py-3.5 px-4 font-mono font-bold text-emerald-900">{item.id}</td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
-                        {item.name}
-                        <span className="block text-[10px] text-slate-400 font-normal">{item.supplier}</span>
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-600">{item.category}</td>
-                      <td className="py-3.5 px-4 font-mono font-black text-slate-900 text-sm">
-                        {item.currentStock} <span className="text-xs font-normal text-slate-400">{item.unit}</span>
-                      </td>
-                      <td className="py-3.5 px-4 font-mono text-slate-500">{item.minThreshold} {item.unit}</td>
-                      <td className="py-3.5 px-4 font-mono font-semibold text-slate-900">₹{item.costPerUnit}</td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900">₹{(item.currentStock * item.costPerUnit).toLocaleString()}</td>
-                      <td className="py-3.5 px-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                          item.status === 'IN_STOCK' ? 'bg-emerald-100 text-emerald-800' :
-                          item.status === 'LOW_STOCK' ? 'bg-amber-100 text-amber-800 animate-pulse' :
-                          'bg-rose-100 text-rose-800'
-                        }`}>
-                          {item.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right space-x-1">
-                        <button
-                          onClick={() => {
-                            setSelectedItemForAdjust(item);
-                            setAdjustType('IN');
-                            setIsAdjustStockModalOpen(true);
-                          }}
-                          className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-200 text-xs transition cursor-pointer"
-                        >
-                          + Receive
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedItemForAdjust(item);
-                            setAdjustType('OUT');
-                            setIsAdjustStockModalOpen(true);
-                          }}
-                          className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg border border-amber-200 text-xs transition cursor-pointer"
-                        >
-                          - Issue
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {filteredItems.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
+              <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-3">
+                <Warehouse className="w-8 h-8" />
+              </div>
+              <h3 className="font-serif text-lg font-bold text-slate-800">No Inventory Items Recorded</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                Your central store is clean. Click below to add hotel inventory items, amenities, or raw materials.
+              </p>
+              <button
+                onClick={() => setIsAddItemModalOpen(true)}
+                className="mt-4 px-4 py-2 bg-[#24433a] text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
+              >
+                + Add Stock Item (SKU)
+              </button>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th className="py-3.5 px-4">SKU Code</th>
+                      <th className="py-3.5 px-4">Item Name</th>
+                      <th className="py-3.5 px-4">Category</th>
+                      <th className="py-3.5 px-4">Current Stock</th>
+                      <th className="py-3.5 px-4">Min Threshold</th>
+                      <th className="py-3.5 px-4">Unit Cost</th>
+                      <th className="py-3.5 px-4">Total Value</th>
+                      <th className="py-3.5 px-4">Status</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredItems.map(item => (
+                      <tr key={item.id} className="hover:bg-slate-50/60 transition">
+                        <td className="py-3.5 px-4 font-mono font-bold text-emerald-900">{item.id}</td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900">
+                          {item.name}
+                          <span className="block text-[10px] text-slate-400 font-normal">{item.supplier}</span>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-600">{item.category}</td>
+                        <td className="py-3.5 px-4 font-mono font-black text-slate-900 text-sm">
+                          {item.currentStock} <span className="text-xs font-normal text-slate-400">{item.unit}</span>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-slate-500">{item.minThreshold} {item.unit}</td>
+                        <td className="py-3.5 px-4 font-mono font-semibold text-slate-900">₹{item.costPerUnit}</td>
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900">₹{(item.currentStock * item.costPerUnit).toLocaleString()}</td>
+                        <td className="py-3.5 px-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            item.status === 'IN_STOCK' ? 'bg-emerald-100 text-emerald-800' :
+                            item.status === 'LOW_STOCK' ? 'bg-amber-100 text-amber-800 animate-pulse' :
+                            'bg-rose-100 text-rose-800'
+                          }`}>
+                            {item.status.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right space-x-1">
+                          <button
+                            onClick={() => {
+                              setSelectedItemForAdjust(item);
+                              setAdjustType('IN');
+                              setIsAdjustStockModalOpen(true);
+                            }}
+                            className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-200 text-xs transition cursor-pointer"
+                          >
+                            + Receive
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedItemForAdjust(item);
+                              setAdjustType('OUT');
+                              setIsAdjustStockModalOpen(true);
+                            }}
+                            className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg border border-amber-200 text-xs transition cursor-pointer"
+                          >
+                            - Issue
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -522,53 +535,71 @@ export default function StockManagementView() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {purchaseOrders.map(po => (
-              <div key={po.id} className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-2xs hover:shadow-md transition space-y-3 flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
-                        {po.id}
-                      </span>
-                      <h4 className="font-bold text-slate-900 text-sm mt-1">{po.supplier}</h4>
-                    </div>
-                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                      po.status === 'RECEIVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800'
-                    }`}>
-                      {po.status}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-2xl border border-slate-100 mt-2">
-                    {po.items}
-                  </p>
-
-                  <div className="flex justify-between items-center pt-2 text-xs">
-                    <span className="text-slate-400 font-mono">Date: {po.orderDate}</span>
-                    <span className="font-mono font-black text-slate-900 text-sm">₹{po.totalAmount.toLocaleString()}</span>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                  {po.status !== 'RECEIVED' ? (
-                    <button
-                      onClick={() => handleMarkPoReceived(po)}
-                      className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 cursor-pointer"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Mark Received (GRN) ✓</span>
-                    </button>
-                  ) : (
-                    <span className="text-emerald-700 font-bold text-xs flex items-center space-x-1">
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Stock Inward Completed</span>
-                    </span>
-                  )}
-                </div>
+          {purchaseOrders.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
+              <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-3">
+                <Truck className="w-8 h-8" />
               </div>
-            ))}
-          </div>
+              <h3 className="font-serif text-lg font-bold text-slate-800">No Purchase Orders Created</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                You haven't dispatched any vendor orders yet. Click below to generate an official Purchase Order.
+              </p>
+              <button
+                onClick={() => setIsPoModalOpen(true)}
+                className="mt-4 px-4 py-2 bg-[#24433a] text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
+              >
+                + Create Purchase Order
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {purchaseOrders.map(po => (
+                <div key={po.id} className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-2xs hover:shadow-md transition space-y-3 flex flex-col justify-between">
+                  <div>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
+                          {po.id}
+                        </span>
+                        <h4 className="font-bold text-slate-900 text-sm mt-1">{po.supplier}</h4>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                        po.status === 'RECEIVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800'
+                      }`}>
+                        {po.status}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-2xl border border-slate-100 mt-2">
+                      {po.items}
+                    </p>
+
+                    <div className="flex justify-between items-center pt-2 text-xs">
+                      <span className="text-slate-400 font-mono">Date: {po.orderDate}</span>
+                      <span className="font-mono font-black text-slate-900 text-sm">₹{po.totalAmount.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    {po.status !== 'RECEIVED' ? (
+                      <button
+                        onClick={() => handleMarkPoReceived(po)}
+                        className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 cursor-pointer"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Mark Received (GRN) ✓</span>
+                      </button>
+                    ) : (
+                      <span className="text-emerald-700 font-bold text-xs flex items-center space-x-1">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Stock Inward Completed</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -591,62 +622,80 @@ export default function StockManagementView() {
             </button>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                  <tr>
-                    <th className="py-3.5 px-4">Req #</th>
-                    <th className="py-3.5 px-4">Requesting Department</th>
-                    <th className="py-3.5 px-4">Requested By</th>
-                    <th className="py-3.5 px-4">Item & SKU</th>
-                    <th className="py-3.5 px-4">Requested Qty</th>
-                    <th className="py-3.5 px-4">Date</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {requisitions.map(req => (
-                    <tr key={req.id} className="hover:bg-slate-50/60 transition">
-                      <td className="py-3.5 px-4 font-mono font-bold text-emerald-900">{req.id}</td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
-                        {req.department}
-                        {req.notes && <span className="block text-[10px] text-slate-400 font-normal italic">{req.notes}</span>}
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-700 font-medium">{req.requestedBy}</td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-800">
-                        {req.itemName}
-                        <span className="block text-[10px] text-slate-400 font-mono">{req.skuId}</span>
-                      </td>
-                      <td className="py-3.5 px-4 font-mono font-black text-slate-900 text-sm">{req.qty} units</td>
-                      <td className="py-3.5 px-4 text-slate-500 font-mono">{req.reqDate}</td>
-                      <td className="py-3.5 px-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                          req.status === 'APPROVED_ISSUED' ? 'bg-emerald-100 text-emerald-800' :
-                          'bg-amber-100 text-amber-800'
-                        }`}>
-                          {req.status === 'APPROVED_ISSUED' ? 'ISSUED ✓' : 'PENDING'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right space-x-1">
-                        {req.status === 'PENDING' ? (
-                          <button
-                            onClick={() => handleApproveRequisition(req)}
-                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition shadow-2xs cursor-pointer"
-                          >
-                            Approve & Issue ✓
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-emerald-700 font-semibold">Stock Issued</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {requisitions.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
+              <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-3">
+                <Layers className="w-8 h-8" />
+              </div>
+              <h3 className="font-serif text-lg font-bold text-slate-800">No Requisitions Logged</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                No internal stock requests have been raised yet. Click below to submit a department material requisition.
+              </p>
+              <button
+                onClick={() => setIsNewReqModalOpen(true)}
+                className="mt-4 px-4 py-2 bg-[#24433a] text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
+              >
+                + New Material Requisition
+              </button>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th className="py-3.5 px-4">Req #</th>
+                      <th className="py-3.5 px-4">Requesting Department</th>
+                      <th className="py-3.5 px-4">Requested By</th>
+                      <th className="py-3.5 px-4">Item & SKU</th>
+                      <th className="py-3.5 px-4">Requested Qty</th>
+                      <th className="py-3.5 px-4">Date</th>
+                      <th className="py-3.5 px-4">Status</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {requisitions.map(req => (
+                      <tr key={req.id} className="hover:bg-slate-50/60 transition">
+                        <td className="py-3.5 px-4 font-mono font-bold text-emerald-900">{req.id}</td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900">
+                          {req.department}
+                          {req.notes && <span className="block text-[10px] text-slate-400 font-normal italic">{req.notes}</span>}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-700 font-medium">{req.requestedBy}</td>
+                        <td className="py-3.5 px-4 font-semibold text-slate-800">
+                          {req.itemName}
+                          <span className="block text-[10px] text-slate-400 font-mono">{req.skuId}</span>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono font-black text-slate-900 text-sm">{req.qty} units</td>
+                        <td className="py-3.5 px-4 text-slate-500 font-mono">{req.reqDate}</td>
+                        <td className="py-3.5 px-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            req.status === 'APPROVED_ISSUED' ? 'bg-emerald-100 text-emerald-800' :
+                            'bg-amber-100 text-amber-800'
+                          }`}>
+                            {req.status === 'APPROVED_ISSUED' ? 'ISSUED ✓' : 'PENDING'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right space-x-1">
+                          {req.status === 'PENDING' ? (
+                            <button
+                              onClick={() => handleApproveRequisition(req)}
+                              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition shadow-2xs cursor-pointer"
+                            >
+                              Approve & Issue ✓
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-emerald-700 font-semibold">Stock Issued</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -668,7 +717,7 @@ export default function StockManagementView() {
                 <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Item Description / Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. Single-Origin Arabica Coffee, Luxury Linens"
+                  placeholder="e.g. Arabica Coffee, Bath Towels, Milk"
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"
@@ -738,7 +787,7 @@ export default function StockManagementView() {
                 <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Primary Vendor / Supplier</label>
                 <input
                   type="text"
-                  placeholder="e.g. Amul, Metro Cash & Carry, Local Distributor"
+                  placeholder="e.g. Metro Cash & Carry, Local Distributor"
                   value={newItemSupplier}
                   onChange={(e) => setNewItemSupplier(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300"
@@ -865,17 +914,29 @@ export default function StockManagementView() {
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Select Store SKU Item</label>
-                <select
-                  value={reqSkuId}
-                  onChange={(e) => setReqSkuId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold"
-                >
-                  {stockList.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.id}) - In Stock: {s.currentStock} {s.unit}
-                    </option>
-                  ))}
-                </select>
+                {stockList.length > 0 ? (
+                  <select
+                    value={reqSkuId}
+                    onChange={(e) => setReqSkuId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold"
+                  >
+                    <option value="">Select an Item</option>
+                    {stockList.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.id}) - Stock: {s.currentStock} {s.unit}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Enter item description (e.g. Linen Sets, Tea Bags)"
+                    value={reqCustomItem}
+                    onChange={(e) => setReqCustomItem(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-semibold"
+                    required
+                  />
+                )}
               </div>
 
               <div>
@@ -894,7 +955,7 @@ export default function StockManagementView() {
                 <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Reason / Usage</label>
                 <textarea
                   rows={2}
-                  placeholder="e.g. Replenish room amenities, dinner buffet ingredients..."
+                  placeholder="e.g. Replenish room amenities, breakfast buffet ingredients..."
                   value={reqNotes}
                   onChange={(e) => setReqNotes(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300"
@@ -939,7 +1000,7 @@ export default function StockManagementView() {
                 <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Vendor / Supplier</label>
                 <input
                   type="text"
-                  placeholder="e.g. Amul Fresh, Trident Hospitality"
+                  placeholder="e.g. Metro Cash & Carry, Amul, Local Vendor"
                   value={poSupplier}
                   onChange={(e) => setPoSupplier(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"

@@ -66,37 +66,31 @@ export default function HousekeepingView() {
     }
   };
 
-  // Housekeeper staff roster
-  const [housekeepers, setHousekeepers] = useState([
-    { id: 'hk-1', name: 'Sunita Devi', phone: '+91 98450 11223', shift: 'Morning (07:00 - 15:30)', assignedRooms: ['101', '102'] },
-    { id: 'hk-2', name: 'Rajesh Kumar', phone: '+91 98450 44556', shift: 'Morning (07:00 - 15:30)', assignedRooms: ['201', '202'] },
-    { id: 'hk-3', name: 'Manish Verma', phone: '+91 97712 33445', shift: 'Evening (15:00 - 23:30)', assignedRooms: [] },
-    { id: 'hk-4', name: 'Pooja Sharma', phone: '+91 98823 55667', shift: 'General (09:00 - 17:30)', assignedRooms: [] }
-  ]);
-
-  // Housekeeping Tasks State (loaded from localStorage / Supabase)
-  const [tasks, setTasks] = useState(() => {
+  // Housekeeper staff roster (Clean empty slate for real hotel creation)
+  const [housekeepers, setHousekeepers] = useState(() => {
     try {
-      const saved = localStorage.getItem('aurastay_hk_tasks');
+      const saved = localStorage.getItem('aurastay_housekeepers_v2');
       if (saved) return JSON.parse(saved);
     } catch(e){}
-    return [
-      { id: 'TSK-101', room: '101', taskType: 'Full Linen Change & Sanitization', priority: 'High', assignedTo: 'Sunita Devi', status: 'IN_PROGRESS', createdAt: '10:15 AM', notes: 'VIP Guest arriving at 2:00 PM.' },
-      { id: 'TSK-102', room: '201', taskType: 'Deep Clean & Minibar Restock', priority: 'Normal', assignedTo: 'Rajesh Kumar', status: 'PENDING', createdAt: '11:00 AM', notes: 'Check AC remote batteries.' }
-    ];
+    return [];
   });
 
-  // Lost & Found Registry State (loaded from localStorage / Supabase)
-  const [lostFoundItems, setLostFoundItems] = useState(() => {
+  // Housekeeping Tasks State (Clean empty slate)
+  const [tasks, setTasks] = useState(() => {
     try {
-      const saved = localStorage.getItem('aurastay_lost_found');
+      const saved = localStorage.getItem('aurastay_hk_tasks_v2');
       if (saved) return JSON.parse(saved);
     } catch(e){}
-    return [
-      { id: 'LF-201', itemName: 'Titan Gold Analog Wristwatch', category: 'Jewelry & Watches', roomNumber: '204', location: 'Bedside Nightstand Drawer', foundBy: 'Sunita Devi', foundDate: '10-11-2026', status: 'UNCLAIMED', claimedBy: '', claimantPhone: '', notes: 'In safe custody with Front Desk Cashier.' },
-      { id: 'LF-202', itemName: 'Apple iPad Pro with Smart Folio', category: 'Electronics', roomNumber: '102', location: 'Under Desk Chair', foundBy: 'Rajesh Kumar', foundDate: '09-11-2026', status: 'CLAIMED', claimedBy: 'Dr. Ramesh Patel', claimantPhone: '+91 98765 43210', notes: 'Handed over after verifying lock-screen pin.' },
-      { id: 'LF-203', itemName: 'Brown Leather Travel Wallet & Aadhaar Card', category: 'Documents & Wallets', roomNumber: 'Lobby Sofa', location: 'Reception Waiting Area', foundBy: 'Front Desk Team', foundDate: '11-11-2026', status: 'UNCLAIMED', claimedBy: '', claimantPhone: '', notes: 'Cash Rs 2,400 + ID cards.' }
-    ];
+    return [];
+  });
+
+  // Lost & Found Registry State (Clean empty slate)
+  const [lostFoundItems, setLostFoundItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aurastay_lost_found_v2');
+      if (saved) return JSON.parse(saved);
+    } catch(e){}
+    return [];
   });
 
   // Modals state
@@ -104,7 +98,7 @@ export default function HousekeepingView() {
   const [taskRoom, setTaskRoom] = useState('');
   const [taskType, setTaskType] = useState('Daily Turnover Clean');
   const [taskPriority, setTaskPriority] = useState('Normal');
-  const [taskAssignee, setTaskAssignee] = useState('Sunita Devi');
+  const [taskAssignee, setTaskAssignee] = useState('');
   const [taskNotes, setTaskNotes] = useState('');
 
   // Lost and found modals state
@@ -119,23 +113,35 @@ export default function HousekeepingView() {
   const [lostCategory, setLostCategory] = useState('Electronics');
   const [lostRoom, setLostRoom] = useState('');
   const [lostLocation, setLostLocation] = useState('Room Nightstand');
-  const [lostFoundBy, setLostFoundBy] = useState('Sunita Devi');
+  const [lostFoundBy, setLostFoundBy] = useState('');
   const [lostNotes, setLostNotes] = useState('');
 
-  // Save tasks and lost items to localStorage
+  // New Staff Modal State
+  const [isNewStaffModalOpen, setIsNewStaffModalOpen] = useState(false);
+  const [staffName, setStaffName] = useState('');
+  const [staffPhone, setStaffPhone] = useState('');
+  const [staffShift, setStaffShift] = useState('Morning (07:00 - 15:30)');
+
+  // Save state to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('aurastay_hk_tasks', JSON.stringify(tasks));
+      localStorage.setItem('aurastay_housekeepers_v2', JSON.stringify(housekeepers));
+    } catch(e){}
+  }, [housekeepers]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aurastay_hk_tasks_v2', JSON.stringify(tasks));
     } catch(e){}
   }, [tasks]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('aurastay_lost_found', JSON.stringify(lostFoundItems));
+      localStorage.setItem('aurastay_lost_found_v2', JSON.stringify(lostFoundItems));
     } catch(e){}
   }, [lostFoundItems]);
 
-  // Load live tasks from Supabase
+  // Load live tasks from Supabase if configured
   useEffect(() => {
     async function loadTasksFromSupabase() {
       if (!isSupabaseConfigured()) return;
@@ -207,7 +213,7 @@ export default function HousekeepingView() {
       room: taskRoom,
       taskType,
       priority: taskPriority,
-      assignedTo: taskAssignee,
+      assignedTo: taskAssignee || 'Unassigned Staff',
       status: 'PENDING',
       createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       notes: taskNotes
@@ -217,7 +223,6 @@ export default function HousekeepingView() {
     setIsNewTaskModalOpen(false);
     showNotification(`Cleaning task created for Room ${taskRoom}`);
 
-    // Sync to Supabase
     if (isSupabaseConfigured()) {
       try {
         await supabase.from('housekeeping_tasks').insert([{
@@ -226,7 +231,7 @@ export default function HousekeepingView() {
           room_number: taskRoom,
           task_type: taskType,
           priority: taskPriority,
-          assigned_to: taskAssignee,
+          assigned_to: taskAssignee || 'Unassigned Staff',
           status: 'PENDING',
           notes: taskNotes
         }]);
@@ -236,6 +241,7 @@ export default function HousekeepingView() {
     }
 
     setTaskRoom('');
+    setTaskAssignee('');
     setTaskNotes('');
   };
 
@@ -263,7 +269,7 @@ export default function HousekeepingView() {
       category: lostCategory,
       roomNumber: lostRoom,
       location: lostLocation,
-      foundBy: lostFoundBy,
+      foundBy: lostFoundBy || 'Housekeeping Staff',
       foundDate: new Date().toLocaleDateString('en-GB'),
       status: 'UNCLAIMED',
       claimedBy: '',
@@ -275,6 +281,7 @@ export default function HousekeepingView() {
     showNotification(`Lost & found item "${lostName}" logged in registry.`);
     setLostName('');
     setLostRoom('');
+    setLostFoundBy('');
     setLostNotes('');
   };
 
@@ -297,6 +304,24 @@ export default function HousekeepingView() {
     setClaimantName('');
     setClaimantPhone('');
     showNotification(`Item marked as Claimed & handed over to ${claimantName}.`);
+  };
+
+  // Add Staff Member
+  const handleAddStaff = (e) => {
+    e.preventDefault();
+    if (!staffName) return;
+    const newStaff = {
+      id: `hk-${Date.now().toString().slice(-3)}`,
+      name: staffName,
+      phone: staffPhone || '+91 98000 00000',
+      shift: staffShift,
+      assignedRooms: []
+    };
+    setHousekeepers(prev => [...prev, newStaff]);
+    setIsNewStaffModalOpen(false);
+    showNotification(`Added ${staffName} to housekeeping roster.`);
+    setStaffName('');
+    setStaffPhone('');
   };
 
   return (
@@ -350,6 +375,16 @@ export default function HousekeepingView() {
             </button>
           )}
 
+          {activeTab === 'housekeepers' && (
+            <button
+              onClick={() => setIsNewStaffModalOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center space-x-2 transition shadow-md cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Housekeeper</span>
+            </button>
+          )}
+
           <button
             onClick={() => navigateTo('rate-plans')}
             className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center space-x-1.5 transition border border-white/20 cursor-pointer"
@@ -381,9 +416,9 @@ export default function HousekeepingView() {
         </div>
 
         <div className="bg-white rounded-3xl p-4.5 border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">LOST & FOUND REGISTRY</span>
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">LOST & FOUND ITEMS</span>
           <div className="text-2xl font-black text-purple-700 mt-1">{lostFoundItems.filter(i => i.status === 'UNCLAIMED').length} Unclaimed</div>
-          <span className="text-[11px] font-bold text-purple-800 mt-1 block">Safe custody custody</span>
+          <span className="text-[11px] font-bold text-purple-800 mt-1 block">In safe custody</span>
         </div>
       </div>
 
@@ -443,7 +478,6 @@ export default function HousekeepingView() {
       {/* ========================================================================= */}
       {activeTab === 'rooms-grid' && (
         <div className="space-y-4">
-          {/* Controls Bar */}
           <div className="bg-white rounded-2xl p-4 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
             <div className="flex items-center space-x-2 w-full sm:w-auto">
               <div className="relative flex-1 sm:w-64">
@@ -486,7 +520,6 @@ export default function HousekeepingView() {
             </div>
           </div>
 
-          {/* Rooms Grid Cards */}
           {filteredRooms.length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
               <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
@@ -494,13 +527,13 @@ export default function HousekeepingView() {
               </div>
               <h3 className="font-serif text-lg font-bold text-slate-800">No Rooms Found</h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                No rooms match your filter. You can add new rooms in Rates & Plans.
+                No rooms configured yet. You can create room categories and add room numbers in Rates & Plans.
               </p>
               <button
                 onClick={() => navigateTo('rate-plans')}
-                className="mt-4 px-4 py-2 bg-[#0e4860] text-white rounded-xl text-xs font-bold shadow-sm"
+                className="mt-4 px-4 py-2 bg-[#0e4860] text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
               >
-                Go to Rates & Plans
+                Go to Rates & Plans to Add Rooms
               </button>
             </div>
           ) : (
@@ -510,7 +543,6 @@ export default function HousekeepingView() {
                 const isClean = room.status === 'VACANT_READY' || room.status === 'AVAILABLE' || room.housekeeping === 'CLEAN';
                 const isDirty = room.status === 'DIRTY' || room.housekeeping === 'DIRTY';
                 const isOccupied = room.status === 'OCCUPIED';
-                const isMaintenance = room.status === 'MAINTENANCE' || room.status === 'BLOCKED';
 
                 return (
                   <div
@@ -558,7 +590,6 @@ export default function HousekeepingView() {
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-1.5">
                       {isDirty ? (
                         <button
@@ -616,72 +647,90 @@ export default function HousekeepingView() {
             </button>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                  <tr>
-                    <th className="py-3.5 px-4">Task ID</th>
-                    <th className="py-3.5 px-4">Room #</th>
-                    <th className="py-3.5 px-4">Task Type</th>
-                    <th className="py-3.5 px-4">Priority</th>
-                    <th className="py-3.5 px-4">Assigned To</th>
-                    <th className="py-3.5 px-4">Created Time</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {tasks.map(t => (
-                    <tr key={t.id} className="hover:bg-slate-50/60 transition">
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{t.id}</td>
-                      <td className="py-3.5 px-4 font-bold text-sky-800">Room {t.room}</td>
-                      <td className="py-3.5 px-4 font-medium text-slate-700">
-                        {t.taskType}
-                        {t.notes && <span className="block text-[10px] text-slate-400 italic">{t.notes}</span>}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          t.priority === 'High' ? 'bg-rose-100 text-rose-800' :
-                          t.priority === 'Urgent' ? 'bg-red-200 text-red-900 font-black' :
-                          'bg-slate-100 text-slate-700'
-                        }`}>
-                          {t.priority}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-800">{t.assignedTo}</td>
-                      <td className="py-3.5 px-4 text-slate-500 font-mono">{t.createdAt}</td>
-                      <td className="py-3.5 px-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                          t.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
-                          t.status === 'IN_PROGRESS' ? 'bg-sky-100 text-sky-800' :
-                          'bg-amber-100 text-amber-800'
-                        }`}>
-                          {t.status}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right space-x-1">
-                        {t.status !== 'COMPLETED' && (
-                          <button
-                            onClick={() => handleUpdateTaskStatus(t.id, 'COMPLETED')}
-                            className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 text-xs transition cursor-pointer"
-                          >
-                            Mark Done ✓
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setTasks(prev => prev.filter(item => item.id !== t.id))}
-                          className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {tasks.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
+              <div className="w-16 h-16 rounded-3xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3">
+                <FileText className="w-8 h-8" />
+              </div>
+              <h3 className="font-serif text-lg font-bold text-slate-800">No Cleaning Tasks Queued</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                All rooms are clean and inspected. Click the button below to assign a new cleaning task or maintenance work order.
+              </p>
+              <button
+                onClick={() => setIsNewTaskModalOpen(true)}
+                className="mt-4 px-4 py-2 bg-[#0e4860] text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
+              >
+                + Create Cleaning Task
+              </button>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th className="py-3.5 px-4">Task ID</th>
+                      <th className="py-3.5 px-4">Room #</th>
+                      <th className="py-3.5 px-4">Task Type</th>
+                      <th className="py-3.5 px-4">Priority</th>
+                      <th className="py-3.5 px-4">Assigned To</th>
+                      <th className="py-3.5 px-4">Created Time</th>
+                      <th className="py-3.5 px-4">Status</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {tasks.map(t => (
+                      <tr key={t.id} className="hover:bg-slate-50/60 transition">
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{t.id}</td>
+                        <td className="py-3.5 px-4 font-bold text-sky-800">Room {t.room}</td>
+                        <td className="py-3.5 px-4 font-medium text-slate-700">
+                          {t.taskType}
+                          {t.notes && <span className="block text-[10px] text-slate-400 italic">{t.notes}</span>}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            t.priority === 'High' ? 'bg-rose-100 text-rose-800' :
+                            t.priority === 'Urgent' ? 'bg-red-200 text-red-900 font-black' :
+                            'bg-slate-100 text-slate-700'
+                          }`}>
+                            {t.priority}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold text-slate-800">{t.assignedTo}</td>
+                        <td className="py-3.5 px-4 text-slate-500 font-mono">{t.createdAt}</td>
+                        <td className="py-3.5 px-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            t.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
+                            t.status === 'IN_PROGRESS' ? 'bg-sky-100 text-sky-800' :
+                            'bg-amber-100 text-amber-800'
+                          }`}>
+                            {t.status}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right space-x-1">
+                          {t.status !== 'COMPLETED' && (
+                            <button
+                              onClick={() => handleUpdateTaskStatus(t.id, 'COMPLETED')}
+                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 text-xs transition cursor-pointer"
+                            >
+                              Mark Done ✓
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setTasks(prev => prev.filter(item => item.id !== t.id))}
+                            className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -704,79 +753,97 @@ export default function HousekeepingView() {
             </button>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                  <tr>
-                    <th className="py-3.5 px-4">Register #</th>
-                    <th className="py-3.5 px-4">Item Description</th>
-                    <th className="py-3.5 px-4">Category</th>
-                    <th className="py-3.5 px-4">Room / Location</th>
-                    <th className="py-3.5 px-4">Found By</th>
-                    <th className="py-3.5 px-4">Date Logged</th>
-                    <th className="py-3.5 px-4">Claim Status</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {lostFoundItems.map(item => (
-                    <tr key={item.id} className="hover:bg-slate-50/60 transition">
-                      <td className="py-3.5 px-4 font-mono font-bold text-purple-900">{item.id}</td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
-                        {item.itemName}
-                        {item.notes && <span className="block text-[10px] text-slate-400 font-normal italic">{item.notes}</span>}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold">
-                          {item.category}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-800 font-semibold">
-                        Room {item.roomNumber}
-                        <span className="block text-[10px] text-slate-400 font-normal">{item.location}</span>
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-700">{item.foundBy}</td>
-                      <td className="py-3.5 px-4 text-slate-500 font-mono">{item.foundDate}</td>
-                      <td className="py-3.5 px-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                          item.status === 'CLAIMED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                        }`}>
-                          {item.status}
-                        </span>
-                        {item.claimedBy && (
-                          <span className="block text-[10px] text-emerald-800 font-semibold mt-0.5">
-                            to {item.claimedBy}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-right space-x-1">
-                        {item.status === 'UNCLAIMED' ? (
-                          <button
-                            onClick={() => {
-                              setSelectedLostItem(item);
-                              setIsClaimModalOpen(true);
-                            }}
-                            className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold rounded-lg border border-purple-200 text-xs transition cursor-pointer"
-                          >
-                            Claim Item ✓
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 italic">Handed Over</span>
-                        )}
-                        <button
-                          onClick={() => setLostFoundItems(prev => prev.filter(i => i.id !== item.id))}
-                          className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {lostFoundItems.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
+              <div className="w-16 h-16 rounded-3xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-3">
+                <Archive className="w-8 h-8" />
+              </div>
+              <h3 className="font-serif text-lg font-bold text-slate-800">No Lost & Found Items Recorded</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                The registry is clean. When a guest item or valuable is found in a room or premises, click below to log it into custody.
+              </p>
+              <button
+                onClick={() => setIsNewLostModalOpen(true)}
+                className="mt-4 px-4 py-2 bg-purple-900 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
+              >
+                + Log Found Item
+              </button>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th className="py-3.5 px-4">Register #</th>
+                      <th className="py-3.5 px-4">Item Description</th>
+                      <th className="py-3.5 px-4">Category</th>
+                      <th className="py-3.5 px-4">Room / Location</th>
+                      <th className="py-3.5 px-4">Found By</th>
+                      <th className="py-3.5 px-4">Date Logged</th>
+                      <th className="py-3.5 px-4">Claim Status</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {lostFoundItems.map(item => (
+                      <tr key={item.id} className="hover:bg-slate-50/60 transition">
+                        <td className="py-3.5 px-4 font-mono font-bold text-purple-900">{item.id}</td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900">
+                          {item.itemName}
+                          {item.notes && <span className="block text-[10px] text-slate-400 font-normal italic">{item.notes}</span>}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold">
+                            {item.category}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-800 font-semibold">
+                          Room {item.roomNumber}
+                          <span className="block text-[10px] text-slate-400 font-normal">{item.location}</span>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-700">{item.foundBy}</td>
+                        <td className="py-3.5 px-4 text-slate-500 font-mono">{item.foundDate}</td>
+                        <td className="py-3.5 px-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            item.status === 'CLAIMED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {item.status}
+                          </span>
+                          {item.claimedBy && (
+                            <span className="block text-[10px] text-emerald-800 font-semibold mt-0.5">
+                              to {item.claimedBy}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-right space-x-1">
+                          {item.status === 'UNCLAIMED' ? (
+                            <button
+                              onClick={() => {
+                                setSelectedLostItem(item);
+                                setIsClaimModalOpen(true);
+                              }}
+                              className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold rounded-lg border border-purple-200 text-xs transition cursor-pointer"
+                            >
+                              Claim Item ✓
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">Handed Over</span>
+                          )}
+                          <button
+                            onClick={() => setLostFoundItems(prev => prev.filter(i => i.id !== item.id))}
+                            className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -784,34 +851,68 @@ export default function HousekeepingView() {
       {/* TAB 4: HOUSEKEEPING STAFF */}
       {/* ========================================================================= */}
       {activeTab === 'housekeepers' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          {housekeepers.map(hk => (
-            <div key={hk.id} className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-700 flex items-center justify-center font-bold">
-                  <User className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm">{hk.name}</h4>
-                  <span className="text-xs text-slate-400 font-mono">{hk.phone}</span>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 text-xs space-y-1">
-                <div className="text-slate-500">Shift:</div>
-                <div className="font-semibold text-slate-800 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                  {hk.shift}
-                </div>
-              </div>
-
-              <div className="text-xs text-slate-500">
-                <span>Assigned Rooms: </span>
-                <span className="font-bold text-slate-800">
-                  {hk.assignedRooms.length > 0 ? hk.assignedRooms.join(', ') : 'None'}
-                </span>
-              </div>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Housekeeping Team Roster</h3>
+              <p className="text-xs text-slate-500">Staff shift schedules and floor/room allocations.</p>
             </div>
-          ))}
+            <button
+              onClick={() => setIsNewStaffModalOpen(true)}
+              className="px-3.5 py-2 bg-[#0e4860] hover:bg-[#0b3347] text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 transition shadow-sm cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Housekeeper</span>
+            </button>
+          </div>
+
+          {housekeepers.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
+              <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                <User className="w-8 h-8" />
+              </div>
+              <h3 className="font-serif text-lg font-bold text-slate-800">No Housekeepers Registered</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                Register housekeeping staff members to assign room cleaning rosters and work orders.
+              </p>
+              <button
+                onClick={() => setIsNewStaffModalOpen(true)}
+                className="mt-4 px-4 py-2 bg-[#0e4860] text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
+              >
+                + Add Housekeeper
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              {housekeepers.map(hk => (
+                <div key={hk.id} className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-700 flex items-center justify-center font-bold">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">{hk.name}</h4>
+                      <span className="text-xs text-slate-400 font-mono">{hk.phone}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 text-xs space-y-1">
+                    <div className="text-slate-500">Shift:</div>
+                    <div className="font-semibold text-slate-800 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                      {hk.shift}
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-slate-500">
+                    <span>Assigned Rooms: </span>
+                    <span className="font-bold text-slate-800">
+                      {hk.assignedRooms && hk.assignedRooms.length > 0 ? hk.assignedRooms.join(', ') : 'None'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -871,16 +972,14 @@ export default function HousekeepingView() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Assignee</label>
-                  <select
+                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Assignee (Staff Name)</label>
+                  <input
+                    type="text"
+                    placeholder="Staff name"
                     value={taskAssignee}
                     onChange={(e) => setTaskAssignee(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
-                  >
-                    {housekeepers.map(h => (
-                      <option key={h.id} value={h.name}>{h.name}</option>
-                    ))}
-                  </select>
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-semibold"
+                  />
                 </div>
               </div>
 
@@ -933,7 +1032,7 @@ export default function HousekeepingView() {
                 <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Item Name / Description</label>
                 <input
                   type="text"
-                  placeholder="e.g. Dell XPS Laptop, Gold Ring, Red Leather Bag"
+                  placeholder="e.g. Dell XPS Laptop, Gold Watch, Brown Leather Wallet"
                   value={lostName}
                   onChange={(e) => setLostName(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 font-semibold"
@@ -984,17 +1083,14 @@ export default function HousekeepingView() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Found By (Staff)</label>
-                  <select
+                  <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Found By (Staff / Finder)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Sunita Devi or Reception"
                     value={lostFoundBy}
                     onChange={(e) => setLostFoundBy(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
-                  >
-                    {housekeepers.map(h => (
-                      <option key={h.id} value={h.name}>{h.name}</option>
-                    ))}
-                    <option value="Front Desk Team">Front Desk Team</option>
-                  </select>
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300"
+                  />
                 </div>
               </div>
 
@@ -1022,6 +1118,77 @@ export default function HousekeepingView() {
                   className="px-4 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold shadow-md cursor-pointer"
                 >
                   Save to Registry
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: ADD HOUSEKEEPER */}
+      {/* ========================================================================= */}
+      {isNewStaffModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-serif font-black text-lg text-slate-900">Add Housekeeping Staff</h3>
+              <button onClick={() => setIsNewStaffModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddStaff} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Full Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Sunita Devi"
+                  value={staffName}
+                  onChange={(e) => setStaffName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Mobile Phone</label>
+                <input
+                  type="tel"
+                  placeholder="e.g. +91 98450 11223"
+                  value={staffPhone}
+                  onChange={(e) => setStaffPhone(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1 uppercase text-[10px]">Working Shift</label>
+                <select
+                  value={staffShift}
+                  onChange={(e) => setStaffShift(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                >
+                  <option value="Morning (07:00 - 15:30)">Morning (07:00 - 15:30)</option>
+                  <option value="Evening (15:00 - 23:30)">Evening (15:00 - 23:30)</option>
+                  <option value="Night (23:00 - 07:30)">Night (23:00 - 07:30)</option>
+                  <option value="General (09:00 - 17:30)">General (09:00 - 17:30)</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsNewStaffModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-[#0e4860] hover:bg-[#0b3347] text-white font-bold shadow-md cursor-pointer"
+                >
+                  Add Housekeeper
                 </button>
               </div>
             </form>
