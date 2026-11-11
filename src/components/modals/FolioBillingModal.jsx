@@ -91,7 +91,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
     setNewDescription('');
     setNewAmount('');
     setIsPostingCharge(false);
-    showNotification(`Added ${newCategory} charge of â‚¹${newAmount} to Folio.`);
+    showNotification(`Added ${newCategory} charge of ₹${newAmount} to Folio.`);
   };
 
   const handleRecordPayment = (e) => {
@@ -114,12 +114,12 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
     setPaymentEntries(prev => [...prev, newPayment]);
     setPayAmount('');
     setPayRef('');
-    showNotification(`Payment of â‚¹${amt.toLocaleString('en-IN')} recorded successfully.`);
+    showNotification(`Payment of ₹${amt.toLocaleString('en-IN')} recorded successfully.`);
   };
 
   const handleCheckoutAndClose = async () => {
     if (balanceDue > 0) {
-      if (!window.confirm(`There is an outstanding balance of â‚¹${balanceDue.toLocaleString('en-IN')}. Are you sure you want to proceed with Checkout?`)) {
+      if (!window.confirm(`There is an outstanding balance of ₹${balanceDue.toLocaleString('en-IN')}. Are you sure you want to proceed with Checkout?`)) {
         return;
       }
     }
@@ -150,7 +150,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
                   FOL-2026-{roomNum}
                 </span>
               </div>
-              <p className="text-xs text-indigo-200/80">Room #{roomNum} â€¢ {guestName} â€¢ {phone}</p>
+              <p className="text-xs text-indigo-200/80">Room #{roomNum} • {guestName} • {phone}</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -210,7 +210,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
             <span className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
               balanceDue > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
             }`}>
-              â‚¹{balanceDue.toLocaleString('en-IN')}
+              ₹{balanceDue.toLocaleString('en-IN')}
             </span>
           </div>
         </div>
@@ -259,7 +259,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Amount (â‚¹)</label>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Amount (₹)</label>
                     <div className="flex space-x-2">
                       <input
                         type="number"
@@ -291,7 +291,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
                       <th className="px-4 py-3">Description</th>
                       <th className="px-4 py-3 text-right">Rate</th>
                       <th className="px-4 py-3 text-right">GST %</th>
-                      <th className="px-4 py-3 text-right">Total (â‚¹)</th>
+                      <th className="px-4 py-3 text-right">Total (₹)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
@@ -304,9 +304,9 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
                           </span>
                         </td>
                         <td className="px-4 py-3 font-semibold text-slate-800">{item.description}</td>
-                        <td className="px-4 py-3 text-right font-mono">â‚¹{item.rate.toLocaleString('en-IN')}</td>
+                        <td className="px-4 py-3 text-right font-mono">₹{item.rate.toLocaleString('en-IN')}</td>
                         <td className="px-4 py-3 text-right font-mono text-slate-500">{item.gst}%</td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">â‚¹{item.amount.toLocaleString('en-IN')}</td>
+                        <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">₹{item.amount.toLocaleString('en-IN')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -346,11 +346,11 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Amount (â‚¹)</label>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Amount (₹)</label>
                   <div className="flex space-x-2">
                     <input
                       type="number"
-                      placeholder={`Max â‚¹${balanceDue}`}
+                      placeholder={`Max ₹${balanceDue}`}
                       value={payAmount}
                       onChange={(e) => setPayAmount(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold font-mono bg-white"
@@ -390,7 +390,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
                         <td className="px-4 py-3 font-mono text-slate-700">{pay.ref}</td>
                         <td className="px-4 py-3 text-slate-600">{pay.note}</td>
                         <td className="px-4 py-3 text-right font-mono font-bold text-emerald-800">
-                          â‚¹{pay.amount.toLocaleString('en-IN')}
+                          ₹{pay.amount.toLocaleString('en-IN')}
                         </td>
                       </tr>
                     ))}
@@ -406,7 +406,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
                 <div>
                   <h2 className="text-xl font-black text-slate-900 tracking-tight">DEMO HOTEL</h2>
                   <p className="text-xs text-slate-500">MG Road, Central Business District, Bengaluru, Karnataka</p>
-                  <p className="text-xs text-slate-500 font-mono">GSTIN: 29AAACH7409R1ZZ â€¢ Phone: +91 80 2234 5678</p>
+                  <p className="text-xs text-slate-500 font-mono">GSTIN: 29AAACH7409R1ZZ • Phone: +91 80 2234 5678</p>
                 </div>
                 <div className="text-right">
                   <span className="text-xs font-black uppercase tracking-wider px-3 py-1 bg-slate-900 text-white rounded-full">
@@ -446,7 +446,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
                     <div key={item.id} className="px-3 py-2 grid grid-cols-12 text-slate-800">
                       <span className="col-span-6 font-semibold">{item.description}</span>
                       <span className="col-span-2 text-right font-mono text-slate-500">{item.gst}%</span>
-                      <span className="col-span-4 text-right font-mono font-bold">â‚¹{item.amount.toLocaleString('en-IN')}</span>
+                      <span className="col-span-4 text-right font-mono font-bold">₹{item.amount.toLocaleString('en-IN')}</span>
                     </div>
                   ))}
                 </div>
@@ -478,25 +478,25 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
             <div className="space-y-1 text-right text-xs">
               <div className="flex justify-between sm:justify-end space-x-6 text-slate-600">
                 <span>Subtotal:</span>
-                <span className="font-mono font-semibold">â‚¹{subtotalCharges.toLocaleString('en-IN')}</span>
+                <span className="font-mono font-semibold">₹{subtotalCharges.toLocaleString('en-IN')}</span>
               </div>
               {discountPercent > 0 && (
                 <div className="flex justify-between sm:justify-end space-x-6 text-amber-700">
                   <span>Discount ({discountPercent}%):</span>
-                  <span className="font-mono font-semibold">-â‚¹{discountAmount.toLocaleString('en-IN')}</span>
+                  <span className="font-mono font-semibold">-₹{discountAmount.toLocaleString('en-IN')}</span>
                 </div>
               )}
               <div className="flex justify-between sm:justify-end space-x-6 text-slate-600">
                 <span>Taxes (CGST + SGST 12%):</span>
-                <span className="font-mono font-semibold">â‚¹{(cgstAmount + sgstAmount).toLocaleString('en-IN')}</span>
+                <span className="font-mono font-semibold">₹{(cgstAmount + sgstAmount).toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between sm:justify-end space-x-6 border-t border-slate-200 pt-1 text-sm font-black text-slate-900">
                 <span>Total Amount:</span>
-                <span className="font-mono text-indigo-900">â‚¹{grandTotal.toLocaleString('en-IN')}</span>
+                <span className="font-mono text-indigo-900">₹{grandTotal.toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between sm:justify-end space-x-6 text-emerald-700 font-bold">
                 <span>Total Received:</span>
-                <span className="font-mono">â‚¹{totalPaid.toLocaleString('en-IN')}</span>
+                <span className="font-mono">₹{totalPaid.toLocaleString('en-IN')}</span>
               </div>
             </div>
           </div>

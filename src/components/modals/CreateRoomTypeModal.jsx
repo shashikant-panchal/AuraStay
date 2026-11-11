@@ -281,7 +281,7 @@ export default function CreateRoomTypeModal({ isOpen, onClose }) {
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-xs font-mono"
                     required
                   />
-                  <span className="text-[10px] text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 font-bold">â‚¹</span>
+                  <span className="text-[10px] text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 font-bold">₹</span>
                 </div>
               </div>
               <div>
@@ -294,7 +294,7 @@ export default function CreateRoomTypeModal({ isOpen, onClose }) {
                     onChange={(e) => setExtraBedPrice(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-xs font-mono"
                   />
-                  <span className="text-[10px] text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 font-bold">â‚¹</span>
+                  <span className="text-[10px] text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 font-bold">₹</span>
                 </div>
               </div>
               <div>
@@ -307,7 +307,7 @@ export default function CreateRoomTypeModal({ isOpen, onClose }) {
                     onChange={(e) => setChildPrice(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-xs font-mono"
                   />
-                  <span className="text-[10px] text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 font-bold">â‚¹</span>
+                  <span className="text-[10px] text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 font-bold">₹</span>
                 </div>
               </div>
             </div>

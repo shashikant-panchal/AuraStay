@@ -20,9 +20,9 @@ export default function Guest360Modal({ isOpen, onClose, room, reservation }) {
   const roomNum = String(room.room_number || room.roomNumber || room.number);
 
   const pastStays = [
-    { date: '14 Oct 2026', room: 'Suite #201', nights: 3, amount: 'â‚¹12,600', status: 'Completed' },
-    { date: '02 Aug 2026', room: 'Deluxe #105', nights: 2, amount: 'â‚¹6,800', status: 'Completed' },
-    { date: '19 May 2026', room: 'Deluxe #103', nights: 1, amount: 'â‚¹3,400', status: 'Completed' }
+    { date: '14 Oct 2026', room: 'Suite #201', nights: 3, amount: '₹12,600', status: 'Completed' },
+    { date: '02 Aug 2026', room: 'Deluxe #105', nights: 2, amount: '₹6,800', status: 'Completed' },
+    { date: '19 May 2026', room: 'Deluxe #103', nights: 1, amount: '₹3,400', status: 'Completed' }
   ];
 
   const handleSave = (e) => {
@@ -49,7 +49,7 @@ export default function Guest360Modal({ isOpen, onClose, room, reservation }) {
                   <span>{vipTier}</span>
                 </span>
               </div>
-              <p className="text-xs text-indigo-200/80">Room #{roomNum} â€¢ In-House Guest Profile</p>
+              <p className="text-xs text-indigo-200/80">Room #{roomNum} • In-House Guest Profile</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -235,7 +235,7 @@ export default function Guest360Modal({ isOpen, onClose, room, reservation }) {
                     <History className="w-4 h-4 text-slate-500" />
                     <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Stay History (3 Past Visits)</span>
                   </div>
-                  <span className="text-[11px] font-bold text-slate-500">Lifetime Revenue: â‚¹22,800</span>
+                  <span className="text-[11px] font-bold text-slate-500">Lifetime Revenue: ₹22,800</span>
                 </div>
 
                 <div className="space-y-2">
@@ -247,7 +247,7 @@ export default function Guest360Modal({ isOpen, onClose, room, reservation }) {
                         </div>
                         <div>
                           <p className="text-xs font-bold text-slate-900">{stay.room}</p>
-                          <p className="text-[11px] text-slate-500">{stay.date} â€¢ {stay.nights} Nights</p>
+                          <p className="text-[11px] text-slate-500">{stay.date} • {stay.nights} Nights</p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -265,7 +265,7 @@ export default function Guest360Modal({ isOpen, onClose, room, reservation }) {
         {/* Footer */}
         <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
           <p className="text-[11px] text-slate-500">
-            Registered at DEMO Hotel PMS â€¢ Guest UID: G-9082
+            Registered at DEMO Hotel PMS • Guest UID: G-9082
           </p>
           <button
             onClick={onClose}

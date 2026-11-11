@@ -367,7 +367,7 @@ export function DashboardProvider({ children }) {
           }
         } else if (payload.eventType === 'UPDATE' && payload.new) {
           if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
-            setRooms(prev => prev.map(r => r.roomNumber === payload.new.room_number ? {
+            setRooms(prev => prev.map(r => String(r.roomNumber || r.room_number) === String(payload.new.room_number) ? {
               ...r,
               status: payload.new.status,
               guest: payload.new.guest,
@@ -376,7 +376,7 @@ export function DashboardProvider({ children }) {
             } : r));
           }
         } else if (payload.eventType === 'DELETE' && payload.old) {
-          setRooms(prev => prev.filter(r => r.id !== payload.old.id && r.roomNumber !== payload.old.room_number));
+          setRooms(prev => prev.filter(r => r.id !== payload.old.id && String(r.roomNumber) !== String(payload.old.room_number)));
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, payload => {
@@ -395,7 +395,21 @@ export function DashboardProvider({ children }) {
               payment: payload.new.payment
             };
             setReservations(prev => [item, ...prev.filter(r => r.id !== item.id)]);
-            showNotification(`🎉 New Online Guest Booking #${payload.new.id} received from AuraStayBooking! Room ${payload.new.room} is locked.`);
+
+            // Immediately mark room as OCCUPIED in rooms state if matched
+            const rMatch = String(payload.new.room || '').match(/\b(\d+)\b/);
+            if (rMatch) {
+              const rNum = rMatch[1];
+              setRooms(prev => prev.map(rm => String(rm.roomNumber || rm.room_number) === rNum ? {
+                ...rm,
+                status: 'OCCUPIED',
+                guest: payload.new.guest,
+                bookingId: payload.new.id,
+                checkOut: payload.new.check_out
+              } : rm));
+            }
+
+            showNotification(`🎉 New Online Guest Booking #${payload.new.id} received! Room ${payload.new.room} is now reserved & locked.`);
           }
         } else if (payload.eventType === 'UPDATE' && payload.new) {
           if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {

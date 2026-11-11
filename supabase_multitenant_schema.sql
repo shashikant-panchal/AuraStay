@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS hotels (
     country TEXT DEFAULT 'India',
     total_rooms INT DEFAULT 20,
     currency TEXT DEFAULT 'INR',
-    currency_symbol TEXT DEFAULT 'â‚¹',
+    currency_symbol TEXT DEFAULT '₹',
     status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'SUSPENDED', 'PENDING')),
     plan TEXT NOT NULL DEFAULT 'Enterprise' CHECK (plan IN ('Starter', 'Professional', 'Enterprise')),
     commission_rate NUMERIC(5, 2) DEFAULT 10.00,
@@ -184,6 +184,27 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'notes') THEN
         ALTER TABLE reservations ADD COLUMN notes TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'nights') THEN
+        ALTER TABLE reservations ADD COLUMN nights INT DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'room_number') THEN
+        ALTER TABLE reservations ADD COLUMN room_number TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'room_type') THEN
+        ALTER TABLE reservations ADD COLUMN room_type TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'special_requests') THEN
+        ALTER TABLE reservations ADD COLUMN special_requests TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'advance_paid') THEN
+        ALTER TABLE reservations ADD COLUMN advance_paid NUMERIC(10, 2) DEFAULT 0.00;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'billing_mode') THEN
+        ALTER TABLE reservations ADD COLUMN billing_mode TEXT DEFAULT 'Guest Direct';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'organisation') THEN
+        ALTER TABLE reservations ADD COLUMN organisation TEXT;
     END IF;
 END $$;
 

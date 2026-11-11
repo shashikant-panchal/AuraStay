@@ -134,7 +134,7 @@ export default function DashboardView() {
         effectiveStatus,
         activeReservation: activeRes,
         guestName: activeRes?.guest || activeRes?.name || r.guest || (isOccupied ? 'In-House Guest' : null),
-        stayDates: activeRes ? `${activeRes.check_in || 'Today'} â†’ ${activeRes.check_out || 'Tomorrow'}` : null,
+        stayDates: activeRes ? `${activeRes.check_in || 'Today'} → ${activeRes.check_out || 'Tomorrow'}` : null,
         tariff: Number(r.price || r.tariff || activeRes?.price || 2500),
         balanceDue: activeRes ? Math.max(0, (Number(activeRes.amount) || 4500) - (Number(activeRes.paid) || 0)) : 0
       };
@@ -269,7 +269,7 @@ export default function DashboardView() {
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            DEMO HOTEL Operational PMS â€¢ Real-time room status, reservation synchronization, and guest billing ledger
+            DEMO HOTEL Operational PMS • Real-time room status, reservation synchronization, and guest billing ledger
           </p>
         </div>
 
@@ -355,7 +355,7 @@ export default function DashboardView() {
             <span className="text-2xl font-black text-indigo-900 font-mono">{occupiedCount}</span>
             <span className="text-[11px] font-bold text-indigo-600">In-House</span>
           </div>
-          <p className="text-[10px] font-semibold text-slate-400 mt-2">â‚¹{totalRevenue.toLocaleString('en-IN')} Day Revenue</p>
+          <p className="text-[10px] font-semibold text-slate-400 mt-2">₹{totalRevenue.toLocaleString('en-IN')} Day Revenue</p>
         </div>
 
         {/* Vacant Rooms (Soft Emerald Mint Glow) */}
@@ -562,7 +562,7 @@ export default function DashboardView() {
                       ({catTotal} Room{catTotal > 1 ? 's' : ''})
                     </span>
                     <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-                      {catOccupied} Occupied â€¢ {catTotal - catOccupied} Available
+                      {catOccupied} Occupied • {catTotal - catOccupied} Available
                     </span>
                   </div>
 
@@ -793,7 +793,7 @@ export default function DashboardView() {
 
                                 <div className="pt-1 flex items-center justify-between text-xs">
                                   <span className="text-[10px] font-bold text-slate-400 uppercase">Tariff:</span>
-                                  <span className="font-mono font-bold text-slate-800">â‚¹{room.tariff.toLocaleString('en-IN')}/n</span>
+                                  <span className="font-mono font-bold text-slate-800">₹{room.tariff.toLocaleString('en-IN')}/n</span>
                                 </div>
 
                                 <div className="flex items-center justify-between text-xs bg-slate-50 p-2 rounded-xl border border-slate-100">
@@ -801,7 +801,7 @@ export default function DashboardView() {
                                   <span className={`font-mono font-black text-[11px] ${
                                     room.balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'
                                   }`}>
-                                    {room.balanceDue > 0 ? `Due â‚¹${room.balanceDue.toLocaleString('en-IN')}` : 'Settled âœ“'}
+                                    {room.balanceDue > 0 ? `Due ₹${room.balanceDue.toLocaleString('en-IN')}` : 'Settled âœ“'}
                                   </span>
                                 </div>
                               </div>
@@ -814,7 +814,7 @@ export default function DashboardView() {
                                 <div className="bg-emerald-50/70 border border-emerald-100 p-2.5 rounded-xl">
                                   <span className="text-[10px] font-bold text-emerald-800 uppercase block">Daily Tariff</span>
                                   <span className="text-sm font-black text-emerald-950 font-mono mt-0.5 block">
-                                    â‚¹{room.tariff.toLocaleString('en-IN')} <span className="text-[10px] font-normal text-slate-500">/ night</span>
+                                    ₹{room.tariff.toLocaleString('en-IN')} <span className="text-[10px] font-normal text-slate-500">/ night</span>
                                   </span>
                                 </div>
                               </div>

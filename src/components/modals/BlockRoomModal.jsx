@@ -59,7 +59,7 @@ export default function BlockRoomModal({ isOpen, onClose, room }) {
               <h3 className="text-base font-black tracking-wide">
                 {isCurrentlyBlocked ? 'Unblock Room' : 'Block Room for Maintenance'}
               </h3>
-              <p className="text-xs text-white/80">Room #{roomNum} â€¢ {room.category || room.type || 'Standard'}</p>
+              <p className="text-xs text-white/80">Room #{roomNum} • {room.category || room.type || 'Standard'}</p>
             </div>
           </div>
           <button

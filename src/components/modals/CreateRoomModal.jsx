@@ -234,7 +234,7 @@ export default function CreateRoomModal() {
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Tariff Per Night (â‚¹)
+                  Tariff Per Night (₹)
                 </label>
                 <input
                   type="number"
@@ -359,12 +359,12 @@ export default function CreateRoomModal() {
                           {rt.label || 'Room'}
                         </span>
                         <p className="text-[11px] text-slate-500 mt-0.5">
-                          {rt.beddingType} â€¢ Max {rt.maxAdults} Adults, {rt.maxChildren} Children â€¢ {rt.areaSqft} sq.ft.
+                          {rt.beddingType} • Max {rt.maxAdults} Adults, {rt.maxChildren} Children • {rt.areaSqft} sq.ft.
                         </p>
                       </div>
                       <div className="text-right">
                         <span className="text-sm font-black text-indigo-900 font-mono">
-                          â‚¹{rt.basePrice?.toLocaleString('en-IN') || 2500}
+                          ₹{rt.basePrice?.toLocaleString('en-IN') || 2500}
                         </span>
                         <span className="text-[10px] text-slate-400 block">/ night</span>
                       </div>
@@ -408,7 +408,7 @@ export default function CreateRoomModal() {
                         <td className="px-4 py-2.5 font-bold font-mono text-slate-900">#{rNum}</td>
                         <td className="px-4 py-2.5 text-slate-700">{r.type || r.category || 'Standard Room'}</td>
                         <td className="px-4 py-2.5 text-slate-500">{r.floor || 'Floor 1'}</td>
-                        <td className="px-4 py-2.5 font-mono font-bold text-slate-800">â‚¹{r.price || 2000}</td>
+                        <td className="px-4 py-2.5 font-mono font-bold text-slate-800">₹{r.price || 2000}</td>
                         <td className="px-4 py-2.5 text-right">
                           <button
                             onClick={() => {

@@ -283,7 +283,7 @@ export default function Header() {
                   >
                     <div>
                       <p className="font-bold text-slate-900">{p.name}</p>
-                      <p className="text-[10px] text-slate-500">{p.city} â€¢ {p.rooms} Rooms</p>
+                      <p className="text-[10px] text-slate-500">{p.city} • {p.rooms} Rooms</p>
                     </div>
                     {currentHotel?.name?.includes(p.name) && (
                       <Check className="w-4 h-4 text-emerald-600" />

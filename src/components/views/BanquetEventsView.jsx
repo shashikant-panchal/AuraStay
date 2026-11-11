@@ -200,17 +200,17 @@ export default function BanquetEventsView() {
         </div>
         <div className="bg-white rounded-3xl p-4 border border-purple-100 shadow-[0_10px_25px_-5px_rgba(168,85,247,0.06)]">
           <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 block">Total Revenue</span>
-          <p className="text-2xl font-black text-purple-950 font-mono mt-1">â‚¹{totalRevenue.toLocaleString('en-IN')}</p>
+          <p className="text-2xl font-black text-purple-950 font-mono mt-1">₹{totalRevenue.toLocaleString('en-IN')}</p>
           <span className="text-[11px] font-semibold text-slate-400 mt-1 block">Banquet & Catering</span>
         </div>
         <div className="bg-white rounded-3xl p-4 border border-emerald-100 shadow-[0_10px_25px_-5px_rgba(16,185,129,0.06)]">
           <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">Advance Collected</span>
-          <p className="text-2xl font-black text-emerald-900 font-mono mt-1">â‚¹{totalCollected.toLocaleString('en-IN')}</p>
+          <p className="text-2xl font-black text-emerald-900 font-mono mt-1">₹{totalCollected.toLocaleString('en-IN')}</p>
           <span className="text-[11px] font-bold text-emerald-700 mt-1 block">Cleared in Bank</span>
         </div>
         <div className="bg-white rounded-3xl p-4 border border-rose-100 shadow-[0_10px_25px_-5px_rgba(244,63,94,0.06)]">
           <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 block">Pending Balance Due</span>
-          <p className="text-2xl font-black text-rose-900 font-mono mt-1">â‚¹{totalDue.toLocaleString('en-IN')}</p>
+          <p className="text-2xl font-black text-rose-900 font-mono mt-1">₹{totalDue.toLocaleString('en-IN')}</p>
           <span className="text-[11px] font-semibold text-slate-400 mt-1 block">Due on Event Day</span>
         </div>
       </div>
@@ -295,7 +295,7 @@ export default function BanquetEventsView() {
                   </p>
                   <p className="flex items-center space-x-2">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{b.date} â€¢ {b.timeSlot}</span>
+                    <span>{b.date} • {b.timeSlot}</span>
                   </p>
                   <p className="flex items-center space-x-2">
                     <Users className="w-3.5 h-3.5 text-slate-400" />
@@ -310,11 +310,11 @@ export default function BanquetEventsView() {
                 <div className="flex items-center justify-between pt-1 text-xs">
                   <div>
                     <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Amount</span>
-                    <span className="font-mono font-black text-slate-900 text-sm">â‚¹{b.totalAmount.toLocaleString('en-IN')}</span>
+                    <span className="font-mono font-black text-slate-900 text-sm">₹{b.totalAmount.toLocaleString('en-IN')}</span>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] text-emerald-600 uppercase font-bold block">Advance Paid</span>
-                    <span className="font-mono font-bold text-emerald-700 text-xs">â‚¹{b.paidAmount.toLocaleString('en-IN')}</span>
+                    <span className="font-mono font-bold text-emerald-700 text-xs">₹{b.paidAmount.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
               </div>
@@ -331,7 +331,7 @@ export default function BanquetEventsView() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-base font-black text-slate-900">{v.name}</h3>
-                  <p className="text-xs text-slate-500">{v.floor} â€¢ {v.type}</p>
+                  <p className="text-xs text-slate-500">{v.floor} • {v.type}</p>
                 </div>
                 <span className="text-xs font-black bg-purple-100 text-purple-800 px-3 py-1 rounded-full">
                   {v.capacity}
@@ -339,7 +339,7 @@ export default function BanquetEventsView() {
               </div>
               <div className="bg-purple-50/50 p-3 rounded-2xl border border-purple-100 flex items-center justify-between text-xs">
                 <span className="text-purple-900 font-semibold">Standard Venue Rental Fee:</span>
-                <span className="font-mono font-black text-slate-900 text-sm">â‚¹{v.rate.toLocaleString('en-IN')} / Slot</span>
+                <span className="font-mono font-black text-slate-900 text-sm">₹{v.rate.toLocaleString('en-IN')} / Slot</span>
               </div>
             </div>
           ))}
@@ -355,7 +355,7 @@ export default function BanquetEventsView() {
                 <div className="flex justify-between items-baseline">
                   <h3 className="text-sm font-black text-slate-900">{m.name}</h3>
                 </div>
-                <p className="text-base font-black text-purple-950 font-mono mt-1">â‚¹{m.pricePerPax} <span className="text-xs font-normal text-slate-500">/ Person</span></p>
+                <p className="text-base font-black text-purple-950 font-mono mt-1">₹{m.pricePerPax} <span className="text-xs font-normal text-slate-500">/ Person</span></p>
                 <p className="text-xs text-slate-600 leading-relaxed mt-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
                   {m.items}
                 </p>
@@ -471,14 +471,14 @@ export default function BanquetEventsView() {
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium outline-none text-xs"
                   >
                     {presetMenus.map((m, idx) => (
-                      <option key={idx} value={m.name}>{m.name} (â‚¹{m.pricePerPax}/pax)</option>
+                      <option key={idx} value={m.name}>{m.name} (₹{m.pricePerPax}/pax)</option>
                     ))}
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">Advance Token (â‚¹)</label>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">Advance Token (₹)</label>
                 <input
                   type="number"
                   value={formAdvance}

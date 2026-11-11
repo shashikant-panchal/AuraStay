@@ -36,7 +36,7 @@ export default function QuickBalanceModal({ isOpen, onClose, room, reservation, 
           status: newPaid >= totalAmount ? 'CONFIRMED' : reservation?.status
         });
       }
-      showNotification(`Payment of â‚¹${amountToPay.toLocaleString('en-IN')} received via ${paymentMode} for Room #${roomNum}.`, 'success');
+      showNotification(`Payment of ₹${amountToPay.toLocaleString('en-IN')} received via ${paymentMode} for Room #${roomNum}.`, 'success');
       onClose();
     } catch (err) {
       showNotification('Failed to record payment.', 'error');
@@ -57,7 +57,7 @@ export default function QuickBalanceModal({ isOpen, onClose, room, reservation, 
             </div>
             <div>
               <h3 className="text-lg font-black tracking-wide">Quick Folio Balance</h3>
-              <p className="text-xs text-emerald-200/80">Room #{roomNum} â€¢ {guestName}</p>
+              <p className="text-xs text-emerald-200/80">Room #{roomNum} • {guestName}</p>
             </div>
           </div>
           <button
@@ -73,15 +73,15 @@ export default function QuickBalanceModal({ isOpen, onClose, room, reservation, 
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Bill</span>
-              <span className="text-sm font-black text-slate-900 font-mono mt-0.5 block">â‚¹{totalAmount.toLocaleString('en-IN')}</span>
+              <span className="text-sm font-black text-slate-900 font-mono mt-0.5 block">₹{totalAmount.toLocaleString('en-IN')}</span>
             </div>
             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-center">
               <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Paid</span>
-              <span className="text-sm font-black text-emerald-800 font-mono mt-0.5 block">â‚¹{advancePaid.toLocaleString('en-IN')}</span>
+              <span className="text-sm font-black text-emerald-800 font-mono mt-0.5 block">₹{advancePaid.toLocaleString('en-IN')}</span>
             </div>
             <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 text-center">
               <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">Due</span>
-              <span className="text-sm font-black text-rose-800 font-mono mt-0.5 block">â‚¹{balanceDue.toLocaleString('en-IN')}</span>
+              <span className="text-sm font-black text-rose-800 font-mono mt-0.5 block">₹{balanceDue.toLocaleString('en-IN')}</span>
             </div>
           </div>
 
@@ -95,7 +95,7 @@ export default function QuickBalanceModal({ isOpen, onClose, room, reservation, 
                 <div className="mt-2.5 space-y-3">
                   <div>
                     <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                      Amount to Collect (â‚¹)
+                      Amount to Collect (₹)
                     </label>
                     <input
                       type="number"

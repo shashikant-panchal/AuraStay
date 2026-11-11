@@ -365,7 +365,7 @@ export default function CreateReservationModal() {
                     const rNum = String(r.room_number || r.roomNumber);
                     return (
                       <option key={rNum} value={rNum}>
-                        Room #{rNum} ({r.type || 'Deluxe'}) - â‚¹{r.price || 2500}/n
+                        Room #{rNum} ({r.type || 'Deluxe'}) - ₹{r.price || 2500}/n
                       </option>
                     );
                   })}
@@ -426,26 +426,26 @@ export default function CreateReservationModal() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div>
                 <span className="text-[10px] text-slate-500 font-bold uppercase block">Daily Tariff</span>
-                <span className="font-mono font-bold text-slate-900">â‚¹{tariffRate.toLocaleString('en-IN')}</span>
+                <span className="font-mono font-bold text-slate-900">₹{tariffRate.toLocaleString('en-IN')}</span>
               </div>
               <div>
                 <span className="text-[10px] text-slate-500 font-bold uppercase block">Room Subtotal</span>
-                <span className="font-mono font-bold text-slate-900">â‚¹{subtotal.toLocaleString('en-IN')}</span>
+                <span className="font-mono font-bold text-slate-900">₹{subtotal.toLocaleString('en-IN')}</span>
               </div>
               <div>
                 <span className="text-[10px] text-slate-500 font-bold uppercase block">GST (12%)</span>
-                <span className="font-mono font-bold text-slate-900">â‚¹{taxes.toLocaleString('en-IN')}</span>
+                <span className="font-mono font-bold text-slate-900">₹{taxes.toLocaleString('en-IN')}</span>
               </div>
               <div>
                 <span className="text-[10px] text-indigo-700 font-bold uppercase block">Total Amount</span>
-                <span className="font-mono font-black text-indigo-950 text-sm">â‚¹{totalTariff.toLocaleString('en-IN')}</span>
+                <span className="font-mono font-black text-indigo-950 text-sm">₹{totalTariff.toLocaleString('en-IN')}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-amber-200/60">
               <div>
                 <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
-                  Advance Payment Amount (â‚¹)
+                  Advance Payment Amount (₹)
                 </label>
                 <input
                   type="number"

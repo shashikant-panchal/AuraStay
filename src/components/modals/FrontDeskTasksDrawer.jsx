@@ -61,7 +61,7 @@ export default function FrontDeskTasksDrawer({ isOpen, onClose }) {
           {/* Shift stats */}
           <div className="bg-slate-50 border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0 text-xs">
             <span className="text-slate-600 font-bold">
-              {pendingCount} Pending â€¢ {completedCount} Done
+              {pendingCount} Pending • {completedCount} Done
             </span>
             <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full">
               Morning Shift

@@ -83,7 +83,7 @@ export default function NightAuditModal({ isOpen, onClose }) {
                   Step {currentStep} of 5
                 </span>
               </div>
-              <p className="text-xs text-indigo-200/80">Working Date: <strong className="text-white">{workingDate}</strong> â€¢ DEMO HOTEL</p>
+              <p className="text-xs text-indigo-200/80">Working Date: <strong className="text-white">{workingDate}</strong> • DEMO HOTEL</p>
             </div>
           </div>
           <button
@@ -143,7 +143,7 @@ export default function NightAuditModal({ isOpen, onClose }) {
                     <div key={res.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs">
                       <div>
                         <p className="font-bold text-slate-900">{res.guest} ({res.room})</p>
-                        <p className="text-slate-500 text-[11px]">Advance Paid: â‚¹{res.paid || 0} â€¢ Phone: {res.phone || 'N/A'}</p>
+                        <p className="text-slate-500 text-[11px]">Advance Paid: ₹{res.paid || 0} • Phone: {res.phone || 'N/A'}</p>
                       </div>
                       <span className="text-amber-800 font-bold bg-amber-100 px-2.5 py-1 rounded-lg text-[10px]">
                         Pending Arrival
@@ -237,11 +237,11 @@ export default function NightAuditModal({ isOpen, onClose }) {
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-600 font-medium">Estimated Room Revenue Posting:</span>
-                  <span className="font-mono font-bold text-emerald-700 text-sm">â‚¹{totalTariffPosting.toLocaleString('en-IN')}</span>
+                  <span className="font-mono font-bold text-emerald-700 text-sm">₹{totalTariffPosting.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs border-t border-slate-200 pt-2">
                   <span className="text-slate-600 font-medium">Blended GST (12%):</span>
-                  <span className="font-mono font-bold text-slate-900">â‚¹{Math.round(totalTariffPosting * 0.12).toLocaleString('en-IN')}</span>
+                  <span className="font-mono font-bold text-slate-900">₹{Math.round(totalTariffPosting * 0.12).toLocaleString('en-IN')}</span>
                 </div>
               </div>
             </div>

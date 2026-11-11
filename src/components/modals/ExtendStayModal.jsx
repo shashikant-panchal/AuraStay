@@ -83,7 +83,7 @@ export default function ExtendStayModal({ isOpen, onClose, room, reservation }) 
             </div>
             <div>
               <h3 className="text-lg font-black tracking-wide">Extend Stay</h3>
-              <p className="text-xs text-amber-200/80">Room #{roomNum} â€¢ {guestName}</p>
+              <p className="text-xs text-amber-200/80">Room #{roomNum} • {guestName}</p>
             </div>
           </div>
           <button
@@ -109,7 +109,7 @@ export default function ExtendStayModal({ isOpen, onClose, room, reservation }) 
             </div>
             <div className="text-right">
               <span className="text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2.5 py-1 rounded-full border border-amber-200">
-                Tariff: â‚¹{roomPrice.toLocaleString('en-IN')}/night
+                Tariff: ₹{roomPrice.toLocaleString('en-IN')}/night
               </span>
             </div>
           </div>
@@ -140,7 +140,7 @@ export default function ExtendStayModal({ isOpen, onClose, room, reservation }) 
           {/* Additional Tariff */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Additional Tariff (â‚¹)
+              Additional Tariff (₹)
             </label>
             <div className="relative">
               <input
@@ -153,7 +153,7 @@ export default function ExtendStayModal({ isOpen, onClose, room, reservation }) 
               />
               <span className="text-xs text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 font-bold">INR</span>
             </div>
-            <p className="text-[11px] text-slate-500">Auto-calculated: {extraNights} nights Ã— â‚¹{roomPrice.toLocaleString('en-IN')}. Can be modified for discounts.</p>
+            <p className="text-[11px] text-slate-500">Auto-calculated: {extraNights} nights Ã— ₹{roomPrice.toLocaleString('en-IN')}. Can be modified for discounts.</p>
           </div>
 
           {/* Reason */}
