@@ -218,13 +218,22 @@ export function DashboardProvider({ children }) {
               id: r.id,
               hotelId: r.hotel_id || currentHotel.id,
               guest: r.guest,
+              guestEmail: r.guest_email || '',
+              guestPhone: r.guest_phone || '',
               room: r.room,
               checkIn: r.check_in,
               checkOut: r.check_out,
-              source: r.source,
-              amount: Number(r.amount),
-              status: r.status,
-              payment: r.payment
+              source: r.source || 'Direct',
+              amount: Number(r.amount) || 0,
+              paid: Number(r.paid) || (r.payment === 'PAID' ? Number(r.amount) || 0 : 0),
+              paymentMode: r.payment_mode || 'UPI',
+              status: r.status || 'CONFIRMED',
+              payment: r.payment || 'PENDING',
+              createdAt: r.created_at,
+              ratePlan: r.rate_plan || 'EP - Room Only',
+              adults: Number(r.adults) || 2,
+              children: Number(r.children) || 0,
+              notes: r.notes || ''
             })));
           }
           if (fnbRes.data) {

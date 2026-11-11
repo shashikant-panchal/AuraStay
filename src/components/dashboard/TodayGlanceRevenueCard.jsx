@@ -12,7 +12,12 @@ import {
 import { useDashboard } from '../../context/DashboardContext';
 
 export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
-  const { workingDate = '11-Nov-2026', showNotification } = useDashboard();
+  const { 
+    workingDate = new Date().toISOString().split('T')[0], 
+    showNotification,
+    rooms = [],
+    reservations = []
+  } = useDashboard();
 
   // Active view filters
   const [timeframe, setTimeframe] = useState('TODAY'); // 'TODAY' | 'MTD'
@@ -20,97 +25,255 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
   const [sourcePeriod, setSourcePeriod] = useState('MONTH'); // 'MONTH' | 'TONIGHT'
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Compute live room stats if available, with graceful defaults matching dashboard metrics
-  const stats = useMemo(() => {
-    const totalRoomsCount = enrichedRooms.length || 29;
-    const occupiedCount = enrichedRooms.filter(r => r.effectiveStatus === 'OCCUPIED').length || 21;
-    const totalRevenue = enrichedRooms
-      .filter(r => r.effectiveStatus === 'OCCUPIED')
-      .reduce((sum, r) => sum + (Number(r.tariff) || 0), 0) || 71252;
+  // Pool of active rooms to evaluate
+  const effectiveRooms = enrichedRooms.length > 0 ? enrichedRooms : rooms;
+  const totalRoomsCount = effectiveRooms.length;
 
-    const occupancyPct = totalRoomsCount > 0 ? ((occupiedCount / totalRoomsCount) * 100).toFixed(1) : '72.4';
-    const arrVal = occupiedCount > 0 ? Math.round(totalRevenue / occupiedCount) : 3393;
-    const revparVal = totalRoomsCount > 0 ? Math.round(totalRevenue / totalRoomsCount) : 2457;
+  // Normalized today's date string (YYYY-MM-DD)
+  const todayDateStr = useMemo(() => {
+    if (workingDate && /^\d{4}-\d{2}-\d{2}/.test(workingDate)) {
+      return workingDate.slice(0, 10);
+    }
+    try {
+      const parsed = new Date(workingDate);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toISOString().slice(0, 10);
+      }
+    } catch (e) { }
+    return new Date().toISOString().slice(0, 10);
+  }, [workingDate]);
+
+  const isReservationToday = (r) => {
+    if (r.status === 'CANCELLED') return false;
+    const cIn = String(r.checkIn || r.check_in || '').slice(0, 10);
+    const cOut = String(r.checkOut || r.check_out || '').slice(0, 10);
+    const created = String(r.createdAt || r.created_at || '').slice(0, 10);
+
+    // Active stay covering today
+    if (cIn && cOut && cIn <= todayDateStr && cOut >= todayDateStr) return true;
+    // Checked in or checked out on today
+    if (cIn === todayDateStr || cOut === todayDateStr) return true;
+    // Created today
+    if (created === todayDateStr) return true;
+    // Currently checked in
+    if (r.status === 'CHECKED_IN') return true;
+    return false;
+  };
+
+  // Live occupied physical rooms
+  const occupiedRooms = useMemo(() => {
+    return effectiveRooms.filter(r => 
+      r.effectiveStatus === 'OCCUPIED' || r.status === 'OCCUPIED'
+    );
+  }, [effectiveRooms]);
+
+  // Real-time KPI calculations derived 100% from live room matrix and reservations
+  const stats = useMemo(() => {
+    // 1. All reservations active or generated today
+    const todayResList = (reservations || []).filter(isReservationToday);
+
+    // Sum of revenue from today's reservations
+    let liveTodayRevenue = todayResList.reduce((sum, r) => {
+      return sum + (Number(r.amount) || Number(r.paid) || Number(r.price) || 0);
+    }, 0);
+
+    // Add revenue from any currently occupied room not already covered by reservations
+    occupiedRooms.forEach(r => {
+      const roomNum = String(r.roomNumber || r.room_number || r.id);
+      const isCovered = todayResList.some(res => 
+        (res.room && String(res.room).includes(roomNum)) ||
+        (r.bookingId && res.id === r.bookingId)
+      );
+      if (!isCovered) {
+        liveTodayRevenue += (Number(r.tariff) || Number(r.price) || 0);
+      }
+    });
+
+    // Rooms utilized today
+    const roomSet = new Set();
+    occupiedRooms.forEach(r => roomSet.add(String(r.roomNumber || r.room_number || r.id)));
+    todayResList.forEach(res => {
+      if (res.room) {
+        const m = String(res.room).match(/\b(\d+)\b/);
+        if (m) roomSet.add(m[1]);
+        else roomSet.add(String(res.room));
+      }
+    });
+    const utilizedCount = Math.min(totalRoomsCount, roomSet.size);
+
+    const occupancyPct = totalRoomsCount > 0 ? ((utilizedCount / totalRoomsCount) * 100).toFixed(1) : '0.0';
+    const arrVal = utilizedCount > 0 ? Math.round(liveTodayRevenue / utilizedCount) : (liveTodayRevenue > 0 ? liveTodayRevenue : 0);
+    const revparVal = totalRoomsCount > 0 ? Math.round(liveTodayRevenue / totalRoomsCount) : 0;
+
+    // Month to date calculations from real reservations
+    const currentMonthPrefix = todayDateStr.slice(0, 7); // e.g. "2026-11"
+    const mtdReservations = (reservations || []).filter(r => {
+      if (r.status === 'CANCELLED') return false;
+      const cIn = String(r.checkIn || r.check_in || '');
+      const created = String(r.createdAt || r.created_at || '');
+      return cIn.startsWith(currentMonthPrefix) || created.startsWith(currentMonthPrefix);
+    });
+
+    const mtdRevenue = mtdReservations.reduce((sum, r) => sum + (Number(r.amount) || Number(r.paid) || Number(r.price) || 0), 0);
+    const mtdNights = mtdReservations.reduce((sum, r) => sum + (Number(r.nights) || 1), 0);
+    const daysInMonthSoFar = Math.max(1, parseInt(todayDateStr.slice(8, 10), 10) || 1);
+    const totalAvailableNights = totalRoomsCount * daysInMonthSoFar;
+    const mtdOccupancyPct = totalAvailableNights > 0 ? Math.min(100, (mtdNights / totalAvailableNights) * 100).toFixed(1) : '0.0';
+    const mtdArr = mtdNights > 0 ? Math.round(mtdRevenue / mtdNights) : (mtdReservations.length > 0 ? Math.round(mtdRevenue / mtdReservations.length) : 0);
+    const mtdRevpar = totalAvailableNights > 0 ? Math.round(mtdRevenue / totalAvailableNights) : 0;
 
     if (timeframe === 'TODAY') {
       return {
         occupancy: `${occupancyPct}%`,
-        occupancySub: `${occupiedCount}/${totalRoomsCount} · LY 48.3%`,
-        occupancyChange: '▲ 24 pts',
-        occupancyIsPos: true,
+        occupancySub: `${utilizedCount}/${totalRoomsCount} rooms active today`,
+        occupancyChange: Number(occupancyPct) > 0 ? `▲ ${occupancyPct}%` : 'Optimal',
+        occupancyIsPos: Number(occupancyPct) > 0,
 
-        arr: `Rs. ${arrVal.toLocaleString('en-IN')}`,
-        arrSub: 'LY Rs. 4,213',
-        arrChange: '▼ 19%',
-        arrIsPos: false,
+        arr: `₹${arrVal.toLocaleString('en-IN')}`,
+        arrSub: utilizedCount > 0 ? `Average across ${utilizedCount} room stay(s)` : (liveTodayRevenue > 0 ? 'Single booking yield' : 'No active stays'),
+        arrChange: arrVal > 0 ? `₹${arrVal.toLocaleString('en-IN')}` : 'Optimal',
+        arrIsPos: arrVal > 0,
 
-        revpar: `Rs. ${revparVal.toLocaleString('en-IN')}`,
-        revparSub: 'LY Rs. 2,034',
-        revparChange: '▲ 21%',
-        revparIsPos: true,
+        revpar: `₹${revparVal.toLocaleString('en-IN')}`,
+        revparSub: `Yield across ${totalRoomsCount} rooms in inventory`,
+        revparChange: revparVal > 0 ? `₹${revparVal.toLocaleString('en-IN')}` : 'Optimal',
+        revparIsPos: revparVal > 0,
 
-        revenue: `Rs. ${totalRevenue.toLocaleString('en-IN')}`,
-        revenueSub: 'LY Rs. 58,988',
-        revenueChange: '▲ 21%',
-        revenueIsPos: true
+        revenue: `₹${liveTodayRevenue.toLocaleString('en-IN')}`,
+        revenueSub: todayResList.length > 0 ? `${todayResList.length} booking(s) active today` : (occupiedRooms.length > 0 ? `${occupiedRooms.length} room(s) occupied` : 'Real-time billing counter'),
+        revenueChange: liveTodayRevenue > 0 ? `+₹${liveTodayRevenue.toLocaleString('en-IN')}` : '₹0',
+        revenueIsPos: liveTodayRevenue > 0
       };
     } else {
       // Month to date numbers
       return {
-        occupancy: '68.9%',
-        occupancySub: '580/841 · LY 54.2%',
-        occupancyChange: '▲ 14.7 pts',
-        occupancyIsPos: true,
+        occupancy: `${mtdOccupancyPct}%`,
+        occupancySub: `${mtdNights} room nights booked this month`,
+        occupancyChange: Number(mtdOccupancyPct) > 0 ? `▲ ${mtdOccupancyPct}%` : 'Optimal',
+        occupancyIsPos: Number(mtdOccupancyPct) > 0,
 
-        arr: 'Rs. 3,650',
-        arrSub: 'LY Rs. 3,890',
-        arrChange: '▼ 6%',
-        arrIsPos: false,
+        arr: `₹${mtdArr.toLocaleString('en-IN')}`,
+        arrSub: `MTD Realized ADR (${mtdReservations.length} bookings)`,
+        arrChange: mtdArr > 0 ? `₹${mtdArr.toLocaleString('en-IN')}` : 'Optimal',
+        arrIsPos: mtdArr > 0,
 
-        revpar: 'Rs. 2,514',
-        revparSub: 'LY Rs. 2,108',
-        revparChange: '▲ 19%',
-        revparIsPos: true,
+        revpar: `₹${mtdRevpar.toLocaleString('en-IN')}`,
+        revparSub: `MTD RevPAR (${daysInMonthSoFar} days evaluated)`,
+        revparChange: mtdRevpar > 0 ? `₹${mtdRevpar.toLocaleString('en-IN')}` : 'Optimal',
+        revparIsPos: mtdRevpar > 0,
 
-        revenue: 'Rs. 21,17,000',
-        revenueSub: 'LY Rs. 17,70,720',
-        revenueChange: '▲ 19%',
-        revenueIsPos: true
+        revenue: `₹${mtdRevenue.toLocaleString('en-IN')}`,
+        revenueSub: `${mtdReservations.length} confirmed bookings this month`,
+        revenueChange: mtdRevenue > 0 ? `+₹${mtdRevenue.toLocaleString('en-IN')}` : '₹0',
+        revenueIsPos: mtdRevenue > 0
       };
     }
-  }, [enrichedRooms, timeframe]);
+  }, [effectiveRooms, reservations, todayDateStr, timeframe, totalRoomsCount, occupiedRooms]);
 
-  // Donut chart distribution data
+  // Donut chart distribution data derived 100% from real reservations
   const sourcesData = useMemo(() => {
-    if (sourceMetric === 'NIGHTS') {
-      if (sourcePeriod === 'MONTH') {
-        return {
-          total: 71,
-          label: 'NIGHTS',
-          direct: { count: 40, pct: 56 },
-          walkIn: { count: 28, pct: 39 },
-          bookingEngine: { count: 3, pct: 4 }
-        };
+    const currentMonthPrefix = todayDateStr.slice(0, 7);
+    const pool = (reservations || []).filter(r => {
+      if (r.status === 'CANCELLED') return false;
+      if (sourcePeriod === 'TONIGHT') {
+        return isReservationToday(r);
       } else {
-        return {
-          total: 21,
-          label: 'NIGHTS',
-          direct: { count: 12, pct: 57 },
-          walkIn: { count: 8, pct: 38 },
-          bookingEngine: { count: 1, pct: 5 }
-        };
+        const cIn = String(r.checkIn || r.check_in || '');
+        const created = String(r.createdAt || r.created_at || '');
+        return cIn.startsWith(currentMonthPrefix) || created.startsWith(currentMonthPrefix);
       }
-    } else {
-      // Bookings count
-      return {
-        total: 48,
-        label: 'BOOKINGS',
-        direct: { count: 26, pct: 54 },
-        walkIn: { count: 19, pct: 40 },
-        bookingEngine: { count: 3, pct: 6 }
-      };
-    }
-  }, [sourceMetric, sourcePeriod]);
+    });
+
+    let directCount = 0;
+    let walkInCount = 0;
+    let bookingEngineCount = 0;
+
+    let directNights = 0;
+    let walkInNights = 0;
+    let bookingEngineNights = 0;
+
+    pool.forEach(r => {
+      const src = String(r.source || '').toLowerCase();
+      const nights = Number(r.nights) || 1;
+
+      if (src.includes('walk-in') || src.includes('walkin')) {
+        walkInCount += 1;
+        walkInNights += nights;
+      } else if (src.includes('booking engine') || src.includes('ota') || src.includes('makemytrip') || src.includes('agoda') || src.includes('expedia') || src.includes('online')) {
+        bookingEngineCount += 1;
+        bookingEngineNights += nights;
+      } else {
+        directCount += 1;
+        directNights += nights;
+      }
+    });
+
+    const isNights = (sourceMetric === 'NIGHTS');
+    const directVal = isNights ? directNights : directCount;
+    const walkInVal = isNights ? walkInNights : walkInCount;
+    const bookingEngineVal = isNights ? bookingEngineNights : bookingEngineCount;
+    const totalVal = directVal + walkInVal + bookingEngineVal;
+
+    const directPct = totalVal > 0 ? Math.round((directVal / totalVal) * 100) : 0;
+    const walkInPct = totalVal > 0 ? Math.round((walkInVal / totalVal) * 100) : 0;
+    const bookingEnginePct = totalVal > 0 ? Math.max(0, 100 - directPct - walkInPct) : 0;
+
+    return {
+      total: totalVal,
+      label: isNights ? 'NIGHTS' : 'BOOKINGS',
+      direct: { count: directVal, pct: directPct },
+      walkIn: { count: walkInVal, pct: walkInPct },
+      bookingEngine: { count: bookingEngineVal, pct: bookingEnginePct }
+    };
+  }, [reservations, sourceMetric, sourcePeriod, todayDateStr]);
+
+  // Real-time Pickup stats
+  const pickupStats = useMemo(() => {
+    const list = reservations || [];
+
+    // Booked today
+    const bookedTodayList = list.filter(r => {
+      const created = String(r.createdAt || r.created_at || '').slice(0, 10);
+      const cIn = String(r.checkIn || r.check_in || '').slice(0, 10);
+      return created === todayDateStr || cIn === todayDateStr;
+    });
+    const bookedTodayCount = bookedTodayList.length;
+    const bookedTodayNights = bookedTodayList.reduce((sum, r) => sum + (Number(r.nights) || 1), 0);
+    const bookedTodayRevenue = bookedTodayList.reduce((sum, r) => sum + (Number(r.amount) || Number(r.paid) || Number(r.price) || 0), 0);
+    const directCount = bookedTodayList.filter(r => !String(r.source || '').toLowerCase().includes('ota') && !String(r.source || '').toLowerCase().includes('walk')).length;
+
+    // Cancelled bookings
+    const cancelledCount = list.filter(r => r.status === 'CANCELLED').length;
+
+    // On the books (Next 7 days)
+    const todayObj = new Date(todayDateStr);
+    const next7Obj = new Date(todayObj);
+    next7Obj.setDate(next7Obj.getDate() + 7);
+    const next7Str = next7Obj.toISOString().slice(0, 10);
+
+    const upcomingList = list.filter(r => {
+      if (r.status === 'CANCELLED') return false;
+      const cIn = String(r.checkIn || r.check_in || '').slice(0, 10);
+      return cIn > todayDateStr && cIn <= next7Str;
+    });
+    const upcomingCount = upcomingList.length;
+    const upcomingNights = upcomingList.reduce((sum, r) => sum + (Number(r.nights) || 1), 0);
+    const upcomingRevenue = upcomingList.reduce((sum, r) => sum + (Number(r.amount) || Number(r.paid) || Number(r.price) || 0), 0);
+    const upcomingCapacity = (totalRoomsCount || 1) * 7;
+    const upcomingOccupancyPct = upcomingCapacity > 0 ? Math.min(100, Math.round((upcomingNights / upcomingCapacity) * 100)) : 0;
+
+    return {
+      bookedTodayCount,
+      bookedTodayNights,
+      bookedTodayRevenue,
+      directCount,
+      cancelledCount,
+      upcomingCount,
+      upcomingNights,
+      upcomingRevenue,
+      upcomingOccupancyPct
+    };
+  }, [reservations, todayDateStr, totalRoomsCount]);
 
   // Manual refresh action
   const handleRefresh = () => {
@@ -120,7 +283,7 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
       if (showNotification) {
         showNotification('Daily revenue metrics synchronized with live front desk matrix.');
       }
-    }, 600);
+    }, 400);
   };
 
   return (
@@ -138,14 +301,14 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
 
         <div className="flex items-center space-x-2.5">
           <span className="text-xs font-semibold text-slate-500 hidden md:inline">
-            {workingDate}
+            {todayDateStr}
           </span>
 
           {/* Today | Month to date Pill Toggle */}
           <div className="bg-slate-100 p-1 rounded-2xl flex items-center space-x-1 border border-slate-200/80">
             <button
               onClick={() => setTimeframe('TODAY')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 timeframe === 'TODAY'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -155,7 +318,7 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
             </button>
             <button
               onClick={() => setTimeframe('MTD')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 timeframe === 'MTD'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -168,9 +331,9 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
           {/* Revenue Action Pill */}
           <button
             onClick={() => {
-              if (showNotification) showNotification('Yield & Revenue report preview generated.');
+              if (showNotification) showNotification('Yield & Revenue live performance active.');
             }}
-            className="px-3 py-1.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs font-bold flex items-center space-x-1.5 shadow-2xs transition"
+            className="px-3 py-1.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs font-bold flex items-center space-x-1.5 shadow-2xs transition cursor-pointer"
           >
             <TrendingUp className="w-3.5 h-3.5 text-indigo-600" />
             <span>Revenue</span>
@@ -179,7 +342,7 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
           {/* Refresh Button */}
           <button
             onClick={handleRefresh}
-            className={`w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition ${
+            className={`w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer ${
               isRefreshing ? 'animate-spin' : ''
             }`}
             title="Refresh metrics"
@@ -199,137 +362,159 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
           <p className="text-2xl font-black text-slate-900 mt-1">
             {stats.occupancy}
           </p>
-          <div className="flex items-center justify-between mt-2 pt-1">
-            <span className="text-[11px] text-slate-500 font-medium">
-              {stats.occupancySub}
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            {stats.occupancySub}
+          </p>
+          <div className="flex items-center space-x-1.5 mt-2.5">
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+              stats.occupancyIsPos
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'bg-slate-50 text-slate-600 border border-slate-200'
+            }`}>
+              {stats.occupancyChange}
             </span>
-            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-black text-[11px] px-2 py-0.5 rounded-md inline-flex items-center space-x-0.5">
-              <span>{stats.occupancyChange}</span>
-            </span>
+            <span className="text-[10px] text-slate-400 font-semibold">vs capacity</span>
           </div>
         </div>
 
         {/* Metric 2: ARR */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs hover:shadow-xs transition">
           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-            ARR
+            ARR (AVG ROOM RATE)
           </p>
           <p className="text-2xl font-black text-slate-900 mt-1">
             {stats.arr}
           </p>
-          <div className="flex items-center justify-between mt-2 pt-1">
-            <span className="text-[11px] text-slate-500 font-medium">
-              {stats.arrSub}
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            {stats.arrSub}
+          </p>
+          <div className="flex items-center space-x-1.5 mt-2.5">
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+              stats.arrIsPos
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'bg-slate-50 text-slate-600 border border-slate-200'
+            }`}>
+              {stats.arrChange}
             </span>
-            <span className="bg-rose-50 text-rose-700 border border-rose-200/60 font-black text-[11px] px-2 py-0.5 rounded-md inline-flex items-center space-x-0.5">
-              <span>{stats.arrChange}</span>
-            </span>
+            <span className="text-[10px] text-slate-400 font-semibold">average realized</span>
           </div>
         </div>
 
         {/* Metric 3: REVPAR */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs hover:shadow-xs transition">
           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-            REVPAR
+            REVPAR (YIELD)
           </p>
           <p className="text-2xl font-black text-slate-900 mt-1">
             {stats.revpar}
           </p>
-          <div className="flex items-center justify-between mt-2 pt-1">
-            <span className="text-[11px] text-slate-500 font-medium">
-              {stats.revparSub}
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            {stats.revparSub}
+          </p>
+          <div className="flex items-center space-x-1.5 mt-2.5">
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+              stats.revparIsPos
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'bg-slate-50 text-slate-600 border border-slate-200'
+            }`}>
+              {stats.revparChange}
             </span>
-            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-black text-[11px] px-2 py-0.5 rounded-md inline-flex items-center space-x-0.5">
-              <span>{stats.revparChange}</span>
-            </span>
+            <span className="text-[10px] text-slate-400 font-semibold">per available room</span>
           </div>
         </div>
 
         {/* Metric 4: REVENUE */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs hover:shadow-xs transition">
           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-            REVENUE
+            TOTAL ROOM REVENUE
           </p>
-          <p className="text-2xl font-black text-slate-900 mt-1">
+          <p className="text-2xl font-black text-emerald-700 mt-1">
             {stats.revenue}
           </p>
-          <div className="flex items-center justify-between mt-2 pt-1">
-            <span className="text-[11px] text-slate-500 font-medium">
-              {stats.revenueSub}
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            {stats.revenueSub}
+          </p>
+          <div className="flex items-center space-x-1.5 mt-2.5">
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+              stats.revenueIsPos
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'bg-slate-50 text-slate-600 border border-slate-200'
+            }`}>
+              {stats.revenueChange}
             </span>
-            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-black text-[11px] px-2 py-0.5 rounded-md inline-flex items-center space-x-0.5">
-              <span>{stats.revenueChange}</span>
-            </span>
+            <span className="text-[10px] text-slate-400 font-semibold">realized total</span>
           </div>
         </div>
       </div>
 
-      {/* 3. Bottom Columns: BOOKING SOURCES & PICKUP */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4 border-t border-slate-100">
-        {/* Left Column: BOOKING SOURCES */}
+      {/* 3. Bottom Row: 2 Columns (Source Breakdown & Pickup) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+        {/* Left Column: SOURCE OF BUSINESS */}
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="flex items-center space-x-2">
-              <span className="w-1 h-3.5 bg-amber-500 rounded-full inline-block"></span>
+              <span className="w-1 h-3.5 bg-indigo-600 rounded-full inline-block"></span>
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
-                BOOKING SOURCES
+                SOURCE OF BUSINESS
               </h3>
             </div>
 
-            {/* Filter Toggle Pills */}
-            <div className="flex items-center space-x-2">
-              <div className="bg-slate-100 p-0.5 rounded-xl flex items-center space-x-0.5 border border-slate-200/70">
+            {/* Sub-Filters: Nights/Bookings & Month/Tonight */}
+            <div className="flex items-center space-x-1.5 self-start sm:self-auto">
+              {/* Nights | Bookings */}
+              <div className="bg-slate-100 p-0.5 rounded-xl flex items-center text-[10px] font-bold border border-slate-200/60">
                 <button
                   onClick={() => setSourceMetric('NIGHTS')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                  className={`px-2 py-0.5 rounded-lg transition cursor-pointer ${
                     sourceMetric === 'NIGHTS'
                       ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  Room nights
+                  Nights
                 </button>
                 <button
                   onClick={() => setSourceMetric('BOOKINGS')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                  className={`px-2 py-0.5 rounded-lg transition cursor-pointer ${
                     sourceMetric === 'BOOKINGS'
                       ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   Bookings
                 </button>
               </div>
 
-              <div className="bg-slate-100 p-0.5 rounded-xl flex items-center space-x-0.5 border border-slate-200/70">
+              {/* Month | Tonight */}
+              <div className="bg-slate-100 p-0.5 rounded-xl flex items-center text-[10px] font-bold border border-slate-200/60">
                 <button
                   onClick={() => setSourcePeriod('MONTH')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                  className={`px-2 py-0.5 rounded-lg transition cursor-pointer ${
                     sourcePeriod === 'MONTH'
                       ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  This month
+                  Month
                 </button>
                 <button
                   onClick={() => setSourcePeriod('TONIGHT')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                  className={`px-2 py-0.5 rounded-lg transition cursor-pointer ${
                     sourcePeriod === 'TONIGHT'
                       ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  Tonight
+                  Today
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Donut Chart & Legend Row */}
-          <div className="flex items-center space-x-6 pt-2">
-            {/* Donut SVG Chart */}
-            <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
+          {/* SVG Donut Chart + Legend */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-1">
+            {/* Donut SVG */}
+            <div className="relative w-40 h-40 flex items-center justify-center shrink-0">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 160 160">
                 {/* Background Ring */}
                 <circle
@@ -341,41 +526,55 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
                   fill="transparent"
                 />
 
-                {/* Direct: 56% Blue */}
-                <circle
-                  cx="80"
-                  cy="80"
-                  r="62"
-                  className="stroke-blue-500"
-                  strokeWidth="16"
-                  fill="transparent"
-                  strokeDasharray={`${(sourcesData.direct.pct / 100) * 389.5} 389.5`}
-                  strokeDashoffset="0"
-                />
+                {sourcesData.total === 0 ? (
+                  /* Empty state ring */
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r="62"
+                    className="stroke-slate-200"
+                    strokeWidth="16"
+                    fill="transparent"
+                  />
+                ) : (
+                  <>
+                    {/* Direct: Blue */}
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="62"
+                      className="stroke-blue-500 transition-all duration-500"
+                      strokeWidth="16"
+                      fill="transparent"
+                      strokeDasharray={`${(sourcesData.direct.pct / 100) * 389.5} 389.5`}
+                      strokeDashoffset="0"
+                    />
 
-                {/* Walk-In: 39% Amber */}
-                <circle
-                  cx="80"
-                  cy="80"
-                  r="62"
-                  className="stroke-amber-500"
-                  strokeWidth="16"
-                  fill="transparent"
-                  strokeDasharray={`${(sourcesData.walkIn.pct / 100) * 389.5} 389.5`}
-                  strokeDashoffset={`-${(sourcesData.direct.pct / 100) * 389.5}`}
-                />
+                    {/* Walk-In: Amber */}
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="62"
+                      className="stroke-amber-500 transition-all duration-500"
+                      strokeWidth="16"
+                      fill="transparent"
+                      strokeDasharray={`${(sourcesData.walkIn.pct / 100) * 389.5} 389.5`}
+                      strokeDashoffset={`-${(sourcesData.direct.pct / 100) * 389.5}`}
+                    />
 
-                {/* Booking Engine: 4% Red */}
-                <circle
-                  cx="80"
-                  cy="80"
-                  r="62"
-                  className="stroke-rose-500"
-                  strokeWidth="16"
-                  fill="transparent"
-                  strokeDasharray={`${(sourcesData.bookingEngine.pct / 100) * 389.5} 389.5`}
-                  strokeDashoffset={`-${((sourcesData.direct.pct + sourcesData.walkIn.pct) / 100) * 389.5}`}
-                />
+                    {/* Booking Engine / OTAs: Rose */}
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="62"
+                      className="stroke-rose-500 transition-all duration-500"
+                      strokeWidth="16"
+                      fill="transparent"
+                      strokeDasharray={`${(sourcesData.bookingEngine.pct / 100) * 389.5} 389.5`}
+                      strokeDashoffset={`-${((sourcesData.direct.pct + sourcesData.walkIn.pct) / 100) * 389.5}`}
+                    />
+                  </>
+                )}
               </svg>
 
               {/* Centered Donut Label */}
@@ -384,18 +583,18 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
                   {sourcesData.total}
                 </span>
                 <span className="text-[10px] font-bold text-slate-400 tracking-wider block">
-                  {sourcesData.label}
+                  {sourcesData.total > 0 ? sourcesData.label : 'NO STAYS'}
                 </span>
               </div>
             </div>
 
             {/* Legend Breakdown */}
-            <div className="flex-1 space-y-3 text-xs">
+            <div className="flex-1 w-full space-y-3 text-xs">
               {/* Direct */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
-                  <span className="font-bold text-slate-700">Direct</span>
+                  <span className="font-bold text-slate-700">Direct / Front Desk</span>
                 </div>
                 <div className="flex items-center space-x-4">
                   <span className="font-mono font-bold text-slate-900 w-8 text-right">
@@ -427,7 +626,7 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
-                  <span className="font-bold text-slate-700">Booking Engine</span>
+                  <span className="font-bold text-slate-700">Online / OTAs</span>
                 </div>
                 <div className="flex items-center space-x-4">
                   <span className="font-mono font-bold text-slate-900 w-8 text-right">
@@ -442,12 +641,12 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
           </div>
         </div>
 
-        {/* Right Column: PICKUP */}
+        {/* Right Column: PICKUP & FORECAST */}
         <div className="space-y-4">
           <div className="flex items-center space-x-2">
             <span className="w-1 h-3.5 bg-amber-500 rounded-full inline-block"></span>
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
-              PICKUP
+              PICKUP & FORECAST
             </h3>
           </div>
 
@@ -461,12 +660,12 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
                 <div>
                   <h4 className="text-xs font-bold text-slate-800">Booked today</h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Rs. 60,752 · 11 direct
+                    ₹{pickupStats.bookedTodayRevenue.toLocaleString('en-IN')} revenue · {pickupStats.directCount} direct
                   </p>
                 </div>
               </div>
               <span className="text-sm font-black text-slate-900">
-                11 · 16 nights
+                {pickupStats.bookedTodayCount} · {pickupStats.bookedTodayNights} nights
               </span>
             </div>
 
@@ -478,11 +677,13 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-slate-800">Cancelled today</h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">None</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {pickupStats.cancelledCount > 0 ? `${pickupStats.cancelledCount} booking(s) cancelled` : 'None'}
+                  </p>
                 </div>
               </div>
               <span className="text-sm font-black text-slate-900">
-                0
+                {pickupStats.cancelledCount}
               </span>
             </div>
 
@@ -493,14 +694,14 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
                   <Calendar className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800">On the books</h4>
+                  <h4 className="text-xs font-bold text-slate-800">On the books (Next 7 Days)</h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Next 7 days · Rs. 26,581
+                    {pickupStats.upcomingRevenue > 0 ? `₹${pickupStats.upcomingRevenue.toLocaleString('en-IN')} expected revenue` : 'No upcoming bookings'}
                   </p>
                 </div>
               </div>
               <span className="text-sm font-black text-slate-900">
-                9 nights · 4%
+                {pickupStats.upcomingNights} nights · {pickupStats.upcomingOccupancyPct}%
               </span>
             </div>
           </div>
@@ -509,4 +710,3 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
     </div>
   );
 }
-
