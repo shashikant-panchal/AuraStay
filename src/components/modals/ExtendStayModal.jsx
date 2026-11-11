@@ -206,3 +206,4 @@ export default function ExtendStayModal({ isOpen, onClose, room, reservation }) 
     </div>
   );
 }
+

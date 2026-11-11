@@ -201,3 +201,4 @@ export default function QuickBalanceModal({ isOpen, onClose, room, reservation, 
     </div>
   );
 }
+

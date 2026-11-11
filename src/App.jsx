@@ -28,6 +28,8 @@ import RevenueInsightsView from './components/views/RevenueInsightsView';
 import AuditLogsView from './components/views/AuditLogsView';
 import RestaurantPosView from './components/views/RestaurantPosView';
 import ProductSetupView from './components/views/ProductSetupView';
+import BanquetEventsView from './components/views/BanquetEventsView';
+import StayViewCalendar from './components/views/StayViewCalendar';
 import GlossaryModal from './components/modals/GlossaryModal';
 import ConfigurationModal from './components/modals/ConfigurationModal';
 import EvidenceModal from './components/modals/EvidenceModal';
@@ -76,6 +78,10 @@ export default function App() {
         );
       case 'front-office':
         return <FrontOfficeView />;
+      case 'stay-view-calendar':
+        return <StayViewCalendar />;
+      case 'banquet-events':
+        return <BanquetEventsView />;
       case 'reservation-management':
         return <ReservationManagementView />;
       case 'food-beverages':

@@ -319,3 +319,4 @@ export default function NightAuditModal({ isOpen, onClose }) {
     </div>
   );
 }
+

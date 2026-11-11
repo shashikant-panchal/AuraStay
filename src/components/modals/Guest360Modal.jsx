@@ -279,3 +279,4 @@ export default function Guest360Modal({ isOpen, onClose, room, reservation }) {
     </div>
   );
 }
+

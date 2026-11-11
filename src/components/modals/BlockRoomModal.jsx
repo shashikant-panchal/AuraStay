@@ -173,3 +173,4 @@ export default function BlockRoomModal({ isOpen, onClose, room }) {
     </div>
   );
 }
+

@@ -526,3 +526,4 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
     </div>
   );
 }
+
