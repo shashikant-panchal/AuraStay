@@ -266,6 +266,12 @@ ALTER TABLE IF EXISTS banquet_bookings DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS fnb_orders DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS super_admins DISABLE ROW LEVEL SECURITY;
 
+-- 11. Clean Reset: Clear all old test reservations and reset room inventory
+DELETE FROM reservations;
+UPDATE rooms SET status = 'VACANT_READY', guest = NULL, booking_id = NULL, check_out = NULL;
+DELETE FROM banquet_bookings;
+DELETE FROM fnb_orders;
+
 -- 11. Initial Seed Data (Exceed HMS Room Category Master & Demo Property)
 INSERT INTO hotels (id, slug, name, short_name, owner_name, email, password, mobile, total_rooms, plan)
 VALUES ('hotel_aurastay_01', 'demo-hotel-property-1', 'DEMO HOTEL Property 1', 'DEMO', 'SHIVANANDI', 'shivanandi@aurastay.com', '12345', '7978578046', 20, 'Enterprise')
