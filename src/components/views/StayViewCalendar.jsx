@@ -255,7 +255,7 @@ export default function StayViewCalendar() {
           {/* Action Buttons */}
           <div className="flex items-center space-x-1.5">
             <button
-              onClick={() => showNotification('Stayview synchronized with latest PMS inventory.')}
+              onClick={() => showNotification('Stayview synchronized with latest room inventory.')}
               className="w-8 h-8 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 transition shadow-2xs"
               title="Refresh Matrix"
             >

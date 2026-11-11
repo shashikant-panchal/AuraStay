@@ -510,7 +510,7 @@ export function DashboardProvider({ children }) {
       console.warn('Refresh error:', err);
     } finally {
       setIsRefreshing(false);
-      showNotification('AuraStay Suite synchronized with live database.');
+      showNotification('Inventory synchronized successfully.');
     }
   };
 

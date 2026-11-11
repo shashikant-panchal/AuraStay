@@ -92,7 +92,7 @@ export default function DeleteRoomModal() {
         <div className="bg-rose-50/70 rounded-2xl p-4 border border-rose-200/60 flex items-start space-x-3">
           <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
           <div className="text-xs text-rose-900 leading-relaxed font-medium">
-            <span className="font-bold">Permanent Action:</span> Deleting Room <strong className="font-mono font-bold">#{roomNum}</strong> will immediately remove it from the PMS Stayview timeline, Dayview operations, and guest booking catalogs. Active reservations for this room should be reassigned first.
+            <span className="font-bold">Permanent Action:</span> Deleting Room <strong className="font-mono font-bold">#{roomNum}</strong> will immediately remove it from the Stayview calendar, Dayview operations, and guest booking catalogs. Active reservations for this room should be reassigned first.
           </div>
         </div>
 
