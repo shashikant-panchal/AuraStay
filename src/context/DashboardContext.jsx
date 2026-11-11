@@ -50,77 +50,8 @@ const VALID_VIEWS = new Set([
   'hr-payroll'
 ]);
 
-// Exceed HMS Room Categories Mock Master
-const defaultMockRoomTypes = [
-  {
-    id: 'rt-deluxe',
-    name: 'Deluxe Room',
-    label: 'Room',
-    beddingType: 'King Bed',
-    maxAdults: 2,
-    maxExtra: 1,
-    maxChildren: 1,
-    areaSqft: 350,
-    basePrice: 2500,
-    extraBedPrice: 800,
-    childPrice: 400,
-    amenities: ['Air conditioning', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Private bathroom', 'Electric kettle', 'Daily housekeeping'],
-    description: 'Spacious deluxe room featuring plush king bedding, work desk, and ensuite bath.',
-    notes: 'Standard deluxe inventory on 1st & 2nd floors.',
-    isBookingEngine: true
-  },
-  {
-    id: 'rt-exec',
-    name: 'Executive Suite',
-    label: 'Suite',
-    beddingType: 'Suite',
-    maxAdults: 3,
-    maxExtra: 1,
-    maxChildren: 2,
-    areaSqft: 550,
-    basePrice: 4500,
-    extraBedPrice: 1000,
-    childPrice: 500,
-    amenities: ['Air conditioning', 'Balcony', 'City view', 'Bathtub', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Minibar', 'Tea/Coffee machine', 'Safe'],
-    description: 'Luxury executive suite with dedicated living room area, private balcony, and panoramic city views.',
-    notes: 'Premium suite allocation with VIP welcome drinks.',
-    isBookingEngine: true
-  },
-  {
-    id: 'rt-pres',
-    name: 'Presidential Suite',
-    label: 'Suite',
-    beddingType: '2 King Bed(s)',
-    maxAdults: 4,
-    maxExtra: 2,
-    maxChildren: 2,
-    areaSqft: 850,
-    basePrice: 8000,
-    extraBedPrice: 1500,
-    childPrice: 800,
-    amenities: ['Air conditioning', 'Balcony', 'Terrace', 'Bathtub', 'Hot tub', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Minibar', 'Dining area', 'Kitchenette', 'Safe'],
-    description: 'Top-tier luxury penthouse suite with two master bedrooms, private terrace jacuzzi, and 24/7 personal butler service.',
-    notes: 'Requires GM approval for complimentary upgrades.',
-    isBookingEngine: true
-  },
-  {
-    id: 'rt-std',
-    name: 'Standard Room',
-    label: 'Room',
-    beddingType: 'Queen Bed',
-    maxAdults: 2,
-    maxExtra: 0,
-    maxChildren: 1,
-    areaSqft: 280,
-    basePrice: 1800,
-    extraBedPrice: 600,
-    childPrice: 300,
-    amenities: ['Air conditioning', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Private bathroom', 'Daily housekeeping'],
-    description: 'Comfortable standard accommodation ideal for business travelers and short transit stays.',
-    notes: 'Compact cozy room layout.',
-    isBookingEngine: true
-  }
-];
+// Room Categories Master (Empty by default for fresh creation)
+const defaultMockRoomTypes = [];
 
 export function DashboardProvider({ children }) {
   // Multi-tenant Hotel Authentication State
@@ -191,7 +122,7 @@ export function DashboardProvider({ children }) {
       const saved = localStorage.getItem('aurastay_room_types');
       if (saved) return JSON.parse(saved);
     } catch (e) { }
-    return defaultMockRoomTypes;
+    return [];
   });
 
   const [isCreateRoomTypeModalOpen, setIsCreateRoomTypeModalOpen] = useState(false);
@@ -305,28 +236,28 @@ export function DashboardProvider({ children }) {
               commission: c.commission
             })));
           }
-          if (roomTypesRes?.data && roomTypesRes.data.length > 0) {
+          if (roomTypesRes?.data) {
             const hotelRt = roomTypesRes.data.filter(t => !t.hotel_id || t.hotel_id === currentHotel.id);
-            if (hotelRt.length > 0) {
-              setRoomTypes(hotelRt.map(t => ({
-                id: t.id,
-                hotelId: t.hotel_id || currentHotel.id,
-                name: t.name,
-                label: t.label || 'Room',
-                beddingType: t.bedding_type || 'King Bed',
-                maxAdults: Number(t.max_adults) || 2,
-                maxExtra: Number(t.max_extra) || 1,
-                maxChildren: Number(t.max_children) || 1,
-                areaSqft: Number(t.area_sqft) || 350,
-                basePrice: Number(t.base_price) || 2500,
-                extraBedPrice: Number(t.extra_bed_price) || 800,
-                childPrice: Number(t.child_price) || 400,
-                amenities: t.amenities || ['Free High-Speed Wi-Fi', 'Air conditioning'],
-                description: t.description || '',
-                notes: t.notes || '',
-                isBookingEngine: t.is_booking_engine !== false
-              })));
-            }
+            setRoomTypes(hotelRt.map(t => ({
+              id: t.id,
+              hotelId: t.hotel_id || currentHotel.id,
+              name: t.name,
+              label: t.label || 'Room',
+              beddingType: t.bedding_type || 'King Bed',
+              maxAdults: Number(t.max_adults) || 2,
+              maxExtra: Number(t.max_extra) || 1,
+              maxChildren: Number(t.max_children) || 1,
+              areaSqft: Number(t.area_sqft) || 350,
+              basePrice: Number(t.base_price) || 2500,
+              extraBedPrice: Number(t.extra_bed_price) || 800,
+              childPrice: Number(t.child_price) || 400,
+              amenities: t.amenities || ['Free High-Speed Wi-Fi', 'Air conditioning'],
+              description: t.description || '',
+              notes: t.notes || '',
+              isBookingEngine: t.is_booking_engine !== false
+            })));
+          } else {
+            setRoomTypes([]);
           }
 
           if (tablesFound) {
@@ -714,18 +645,20 @@ export function DashboardProvider({ children }) {
 
   const resetToDefaults = () => {
     setData(initialMockData);
-    setRooms(mockRooms);
-    setReservations(mockReservations);
-    setFnbOrders(mockFnbOrders);
+    setRooms([]);
+    setReservations([]);
+    setFnbOrders([]);
+    setRoomTypes([]);
     setCurrentView('dashboard');
     localStorage.removeItem('aurastay_suite_data');
     localStorage.removeItem('aurastay_current_view');
     localStorage.removeItem('aurastay_active_tab');
     localStorage.removeItem('aurastay_front_office_subtab');
+    localStorage.removeItem('aurastay_room_types');
     try {
       window.location.hash = 'dashboard';
     } catch (e) { }
-    showNotification('Suite reset to official AuraStay demo state.');
+    showNotification('System reset to clean state. Ready for fresh creation.');
   };
 
   const navigateTo = (view, subItem = '') => {
