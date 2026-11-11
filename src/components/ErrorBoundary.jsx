@@ -15,6 +15,13 @@ export default class ErrorBoundary extends React.Component {
     console.error('AuraStay ErrorBoundary caught an exception:', error, errorInfo);
   }
 
+  componentDidUpdate(prevProps) {
+    // If viewKey or children changed, automatically clear error state so module recovers smoothly
+    if (this.state.hasError && (prevProps.viewKey !== this.props.viewKey || prevProps.children !== this.props.children)) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
   handleReset = () => {
     this.setState({ hasError: false, error: null });
     window.location.hash = '';
@@ -44,13 +51,13 @@ export default class ErrorBoundary extends React.Component {
           <div className="flex items-center justify-center space-x-2 pt-2">
             <button
               onClick={() => this.setState({ hasError: false, error: null })}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition"
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
             >
               Try Again
             </button>
             <button
               onClick={this.handleReset}
-              className="flex items-center space-x-1.5 px-4 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white text-xs font-semibold rounded-lg shadow-sm transition"
+              className="flex items-center space-x-1.5 px-4 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white text-xs font-semibold rounded-lg shadow-sm transition cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reload AuraStay</span>

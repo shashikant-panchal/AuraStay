@@ -52,25 +52,26 @@ export default function BookingVoucher({
   currentHotel = {},
   voucherType = 'BOOKING VOUCHER',
   voucherNo,
-  voucherDate
+  voucherDate,
+  onClose
 }) {
-  // Currency state (defaults to hotel currency or GHC / INR)
+  // Currency state (defaults to Indian Rupee ₹)
   const [selectedCurrency, setSelectedCurrency] = useState(
-    currentHotel?.currency === 'GHC' ? 'GHC.' : (currentHotel?.currencySymbol || '₹')
+    currentHotel?.currencySymbol || '₹'
   );
 
   const roomNum = String(room?.room_number || room?.roomNumber || room?.number || '101');
   const roomCategory = String(room?.category || room?.type || 'DELUXE ROOM').toUpperCase();
-  const guestName = reservation?.guest || reservation?.name || room?.guest || 'Mr. musah';
-  const phone = reservation?.phone || '+91-0556965350';
-  const email = reservation?.email || 'HAMIDATUMUSAH8@gmail.com';
-  const address = reservation?.address || currentHotel?.city || 'KOLKATA';
+  const guestName = reservation?.guest || reservation?.name || room?.guest || 'Valued Guest';
+  const phone = reservation?.phone || reservation?.guestPhone || '';
+  const email = reservation?.email || '';
+  const address = reservation?.address || currentHotel?.city || 'Bengaluru';
   const organisation = reservation?.organisation || reservation?.company || 'Direct Guest';
   const gstin = reservation?.gstin || reservation?.gst || '29AAACH7409R1ZZ';
 
   // Dates & Times
-  const checkInRaw = reservation?.check_in || reservation?.checkIn || '2026-10-20';
-  const checkOutRaw = reservation?.check_out || reservation?.checkOut || '2026-10-30';
+  const checkInRaw = reservation?.check_in || reservation?.checkIn || new Date().toISOString().split('T')[0];
+  const checkOutRaw = reservation?.check_out || reservation?.checkOut || new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
   // Calculate nights
   const calculateNights = (start, end) => {
@@ -78,9 +79,9 @@ export default function BookingVoucher({
       const d1 = new Date(start);
       const d2 = new Date(end);
       const diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
-      return diffDays > 0 ? diffDays : (reservation?.nights || 10);
+      return diffDays > 0 ? diffDays : (reservation?.nights || 1);
     } catch {
-      return reservation?.nights || 10;
+      return reservation?.nights || 1;
     }
   };
   const nights = calculateNights(checkInRaw, checkOutRaw);
@@ -89,42 +90,42 @@ export default function BookingVoucher({
   const formatDateDDMMMYYYY = (dateInput) => {
     try {
       const d = dateInput ? new Date(dateInput) : new Date();
-      if (isNaN(d.getTime())) return '11-Nov-2026';
+      if (isNaN(d.getTime())) return new Date().toLocaleDateString('en-GB');
       const day = String(d.getDate()).padStart(2, '0');
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const month = months[d.getMonth()];
       const year = d.getFullYear();
       return `${day}-${month}-${year}`;
     } catch {
-      return '11-Nov-2026';
+      return new Date().toLocaleDateString('en-GB');
     }
   };
 
-  // Format date with time: "Oct 20, 2026 12:00 PM"
+  // Format date with time
   const formatDateTime = (dateInput, defaultTime = '12:00 PM') => {
     try {
       const d = dateInput ? new Date(dateInput) : new Date();
-      if (isNaN(d.getTime())) return `Oct 20, 2026 ${defaultTime}`;
+      if (isNaN(d.getTime())) return `${formatDateDDMMMYYYY(new Date())} ${defaultTime}`;
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const month = months[d.getMonth()];
       const day = String(d.getDate()).padStart(2, '0');
       const year = d.getFullYear();
       return `${month} ${day}, ${year} ${defaultTime}`;
     } catch {
-      return `Oct 20, 2026 ${defaultTime}`;
+      return `${formatDateDDMMMYYYY(new Date())} ${defaultTime}`;
     }
   };
 
   const displayDate = voucherDate || formatDateDDMMMYYYY(new Date());
-  const displayVoucherNo = voucherNo || reservation?.id || `007646`;
+  const displayVoucherNo = voucherNo || reservation?.id || `VOUCH-${roomNum}`;
 
-  // Hotel Info (Matching Image 2 / Image 3)
-  const hotelName = currentHotel?.name || 'DEMO HOTEL';
-  const operatingUnit = currentHotel?.operatingUnit || 'A Unit of Operating : "HOTEL ABC"';
-  const hotelAddress = currentHotel?.address || '23, VIKARABAD LANE,, KOLKATA';
-  const hotelPhone = currentHotel?.mobile || currentHotel?.phone || '9381601731';
-  const hotelEmail = currentHotel?.email || 'opsmanager@clubbbg.com';
-  const hotelWebsite = currentHotel?.website || 'https://www.vikarabad.clubbbg.com';
+  // Hotel Info
+  const hotelName = currentHotel?.name || 'SHIVANANDI VISTA';
+  const operatingUnit = currentHotel?.operatingUnit || 'A Unit of AuraStay Hospitality Suite';
+  const hotelAddress = currentHotel?.address || 'Main Road, Karnataka, India';
+  const hotelPhone = currentHotel?.mobile || currentHotel?.phone || '+91 98765 43210';
+  const hotelEmail = currentHotel?.email || 'admin@aurastay.com';
+  const hotelWebsite = currentHotel?.website || 'https://aurastay.com';
 
   // --- DETAILED FINANCIAL CALCULATIONS ---
   // 1. Room Tariff
@@ -182,7 +183,7 @@ export default function BookingVoucher({
       <div className="no-print flex items-center justify-between pb-3 mb-2 border-b border-slate-100 text-xs">
         <span className="text-slate-500 font-semibold">Display Currency:</span>
         <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl">
-          {['₹', 'GHC.', '$'].map((cur) => (
+          {['₹', '$'].map((cur) => (
             <button
               key={cur}
               onClick={() => setSelectedCurrency(cur)}
@@ -190,7 +191,7 @@ export default function BookingVoucher({
                 selectedCurrency === cur ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              {cur === '₹' ? '₹ INR' : cur === 'GHC.' ? 'GHC (Cedi)' : '$ USD'}
+              {cur === '₹' ? '₹ INR (Rupee)' : '$ USD'}
             </button>
           ))}
         </div>

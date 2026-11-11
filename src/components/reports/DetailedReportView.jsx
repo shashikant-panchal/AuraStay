@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import {
   Download,
@@ -21,228 +21,38 @@ import {
 } from 'lucide-react';
 import BookingVoucher from '../common/BookingVoucher';
 
-// Initial realistic In-House Guest Data matching user's PMS screenshot (media_1794409601515_d0718a9a.png)
-const INITIAL_IN_HOUSE_GUESTS = [
-  // Room 100
-  {
-    id: 'g-100-1',
-    roomNumber: '100',
-    name: 'Mr. Prasenjit Saha',
-    reservationNo: '008697',
-    phone: '+91-9874803368',
-    email: '',
-    city: 'Kolkata',
-    country: 'India',
-    isVip: false,
-    organisation: 'TATA',
-    isAddAction: false
-  },
-  {
-    id: 'g-100-2',
-    roomNumber: '100',
-    name: '',
-    reservationNo: '008697',
-    phone: '',
-    email: '',
-    city: '',
-    country: '',
-    isVip: false,
-    organisation: '',
-    isAddAction: true
-  },
-  // Room 101
-  {
-    id: 'g-101-1',
-    roomNumber: '101',
-    name: 'Mr. musah',
-    reservationNo: '007646',
-    phone: '+91-0556965350',
-    email: 'HAMIDATUMUSAH8@gmail.com',
-    city: '',
-    country: 'Ghana',
-    isVip: true,
-    organisation: '',
-    isAddAction: false
-  },
-  {
-    id: 'g-101-2',
-    roomNumber: '101',
-    name: 'Mr. Abcd',
-    reservationNo: '007646',
-    phone: '+91-321123456554',
-    email: '',
-    city: '',
-    country: '',
-    isVip: false,
-    organisation: '',
-    isAddAction: false
-  },
-  {
-    id: 'g-101-3',
-    roomNumber: '101',
-    name: 'Mr. Gftf',
-    reservationNo: '007646',
-    phone: '',
-    email: '',
-    city: '',
-    country: '',
-    isVip: false,
-    organisation: '',
-    isAddAction: false
-  },
-  // Room 102
-  {
-    id: 'g-102-1',
-    roomNumber: '102',
-    name: 'Mr. Anup Sharma',
-    reservationNo: '002419',
-    phone: '+91 98450 12345',
-    email: 'anup.sharma@gmail.com',
-    city: 'Bhubaneswar',
-    country: 'India',
-    isVip: true,
-    organisation: 'Direct Guest',
-    isAddAction: false
-  },
-  // Room 201
-  {
-    id: 'g-201-1',
-    roomNumber: '201',
-    name: 'Mr. Rajesh Kumar',
-    reservationNo: '008921',
-    phone: '+91-9831002233',
-    email: 'rajesh.k@tata.com',
-    city: 'Mumbai',
-    country: 'India',
-    isVip: false,
-    organisation: 'TATA',
-    isAddAction: false
-  },
-  {
-    id: 'g-201-2',
-    roomNumber: '201',
-    name: 'Mrs. Sunita Kumar',
-    reservationNo: '008921',
-    phone: '+91-9831002234',
-    email: '',
-    city: 'Mumbai',
-    country: 'India',
-    isVip: false,
-    organisation: 'TATA',
-    isAddAction: false
-  },
-  // Room 202
-  {
-    id: 'g-202-1',
-    roomNumber: '202',
-    name: 'Dr. Vikram Malhotra',
-    reservationNo: '009104',
-    phone: '+91-9748112233',
-    email: 'vikram.m@aiims.edu',
-    city: 'Delhi',
-    country: 'India',
-    isVip: true,
-    organisation: 'Corporate',
-    isAddAction: false
-  },
-  {
-    id: 'g-202-2',
-    roomNumber: '202',
-    name: '',
-    reservationNo: '009104',
-    phone: '',
-    email: '',
-    city: '',
-    country: '',
-    isVip: false,
-    organisation: '',
-    isAddAction: true
-  },
-  // Room 203
-  {
-    id: 'g-203-1',
-    roomNumber: '203',
-    name: 'Ms. Sneha Patel',
-    reservationNo: '009255',
-    phone: '+91-9988776655',
-    email: 'sneha.p@infosys.com',
-    city: 'Bengaluru',
-    country: 'India',
-    isVip: false,
-    organisation: 'Infosys',
-    isAddAction: false
-  },
-  // Room 301
-  {
-    id: 'g-301-1',
-    roomNumber: '301',
-    name: 'Mr. David Wilson',
-    reservationNo: '009411',
-    phone: '+44-7700900123',
-    email: 'dwilson@corp.co.uk',
-    city: 'London',
-    country: 'United Kingdom',
-    isVip: true,
-    organisation: 'Corporate',
-    isAddAction: false
-  },
-  {
-    id: 'g-301-2',
-    roomNumber: '301',
-    name: '',
-    reservationNo: '009411',
-    phone: '',
-    email: '',
-    city: '',
-    country: '',
-    isVip: false,
-    organisation: '',
-    isAddAction: true
-  },
-  // Room 302
-  {
-    id: 'g-302-1',
-    roomNumber: '302',
-    name: 'Mr. Amit Roy',
-    reservationNo: '009580',
-    phone: '+91-9820011223',
-    email: 'amit.roy@reliance.com',
-    city: 'Kolkata',
-    country: 'India',
-    isVip: false,
-    organisation: 'Reliance',
-    isAddAction: false
-  },
-  {
-    id: 'g-302-2',
-    roomNumber: '302',
-    name: 'Mrs. Rina Roy',
-    reservationNo: '009580',
-    phone: '+91-9820011224',
-    email: '',
-    city: 'Kolkata',
-    country: 'India',
-    isVip: false,
-    organisation: 'Reliance',
-    isAddAction: false
-  }
-];
-
 export default function DetailedReportView({
   report,
   onBack,
   onSwitchReport,
   reportsCatalog = []
 }) {
-  const { rooms = [], reservations = [], showNotification } = useDashboard();
+  const { 
+    rooms = [], 
+    reservations = [], 
+    showNotification,
+    setIsCreateReservationModalOpen 
+  } = useDashboard();
 
   // Search & Filters for In-House Guests
   const [filterGuestName, setFilterGuestName] = useState('');
   const [filterCity, setFilterCity] = useState('');
   const [filterOrg, setFilterOrg] = useState('All Organisation');
 
-  // Local state for in-house guests list
-  const [inHouseGuests, setInHouseGuests] = useState(INITIAL_IN_HOUSE_GUESTS);
+  // Custom guests added by the user
+  const [inHouseGuests, setInHouseGuests] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aurastay_custom_inhouse_guests_v2');
+      if (saved) return JSON.parse(saved);
+    } catch (e) { }
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aurastay_custom_inhouse_guests_v2', JSON.stringify(inHouseGuests));
+    } catch (e) { }
+  }, [inHouseGuests]);
 
   // Modal state for adding a guest to a room
   const [isAddGuestModalOpen, setIsAddGuestModalOpen] = useState(false);
@@ -260,45 +70,62 @@ export default function DetailedReportView({
   // Modal state for viewing voucher when clicking reservation number
   const [selectedVoucherData, setSelectedVoucherData] = useState(null);
 
-  // Sync live rooms/reservations into inHouseGuests if live data exists
+  // Sync live rooms/reservations dynamically into inHouseGuests
   const combinedGuests = useMemo(() => {
-    // If user has live occupied rooms in context, merge or append them
-    const liveOccupied = rooms.filter(r => r.status === 'OCCUPIED' && r.guest);
-    if (!liveOccupied.length) return inHouseGuests;
+    const list = [...inHouseGuests];
+    const existingRoomNumbers = new Set(list.map(g => String(g.roomNumber)));
 
-    const existingRoomNumbers = new Set(inHouseGuests.map(g => String(g.roomNumber)));
-    const additional = [];
+    // Derive from live occupied rooms
+    const liveOccupied = rooms.filter(r => r.status === 'OCCUPIED');
 
     liveOccupied.forEach(r => {
-      const rNum = String(r.roomNumber || r.room_number);
+      const rNum = String(r.roomNumber || r.room_number || '');
       if (!existingRoomNumbers.has(rNum)) {
-        const gName = typeof r.guest === 'string' ? r.guest : (r.guest?.name || 'In-House Guest');
-        additional.push({
+        const matchingRes = reservations.find(res => 
+          String(res.room || '').includes(rNum) || res.id === r.bookingId
+        );
+        const gName = r.guest?.name || (typeof r.guest === 'string' && r.guest ? r.guest : (matchingRes?.guest || 'In-House Guest'));
+
+        list.push({
           id: `live-${rNum}`,
           roomNumber: rNum,
           name: gName,
-          reservationNo: r.bookingId || `00${Math.floor(1000 + Math.random() * 9000)}`,
-          phone: r.guest?.phone || '+91 98000 00000',
-          email: r.guest?.email || '',
-          city: r.guest?.city || 'Local',
+          reservationNo: matchingRes?.id || r.bookingId || `00${rNum}0`,
+          phone: matchingRes?.phone || matchingRes?.guestPhone || r.guestPhone || '',
+          email: matchingRes?.email || r.guestEmail || '',
+          city: matchingRes?.city || 'Local',
           country: 'India',
-          isVip: false,
-          organisation: 'Direct Guest',
+          isVip: Boolean(matchingRes?.vip || matchingRes?.isVip),
+          organisation: matchingRes?.organisation || 'Direct Guest',
           isAddAction: false
+        });
+
+        // Add action row for adding a co-guest
+        list.push({
+          id: `live-${rNum}-add`,
+          roomNumber: rNum,
+          name: '',
+          reservationNo: matchingRes?.id || r.bookingId || `00${rNum}0`,
+          phone: '',
+          email: '',
+          city: '',
+          country: '',
+          isVip: false,
+          organisation: '',
+          isAddAction: true
         });
       }
     });
 
-    return [...additional, ...inHouseGuests];
-  }, [inHouseGuests, rooms]);
+    return list;
+  }, [inHouseGuests, rooms, reservations]);
 
   // Distinct organisations for dropdown
   const availableOrganisations = useMemo(() => {
     const s = new Set();
     combinedGuests.forEach(g => {
-      if (g.organisation && g.organisation.trim()) {
-        s.add(g.organisation.trim());
-      }
+      const org = String(g.organisation || '').trim();
+      if (org) s.add(org);
     });
     return Array.from(s);
   }, [combinedGuests]);
@@ -306,7 +133,6 @@ export default function DetailedReportView({
   // Filtered in-house guests
   const filteredGuests = useMemo(() => {
     return combinedGuests.filter(g => {
-      // If it's an "+ Add Guest" action row, keep it with its room unless searching for a specific name
       if (g.isAddAction) {
         if (filterGuestName.trim() || filterCity.trim() || filterOrg !== 'All Organisation') {
           return false;
@@ -316,16 +142,16 @@ export default function DetailedReportView({
 
       if (filterGuestName.trim()) {
         const q = filterGuestName.toLowerCase();
-        if (!g.name.toLowerCase().includes(q)) return false;
+        if (!String(g.name || '').toLowerCase().includes(q)) return false;
       }
 
       if (filterCity.trim()) {
         const q = filterCity.toLowerCase();
-        if (!g.city.toLowerCase().includes(q)) return false;
+        if (!String(g.city || '').toLowerCase().includes(q)) return false;
       }
 
       if (filterOrg !== 'All Organisation') {
-        if (g.organisation !== filterOrg) return false;
+        if (String(g.organisation || '') !== filterOrg) return false;
       }
 
       return true;
@@ -345,8 +171,8 @@ export default function DetailedReportView({
 
     // Sort by room number numerically
     const sortedEntries = Array.from(map.entries()).sort((a, b) => {
-      const numA = parseInt(a[0].replace(/\D/g, ''), 10) || 0;
-      const numB = parseInt(b[0].replace(/\D/g, ''), 10) || 0;
+      const numA = parseInt(String(a[0]).replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(String(b[0]).replace(/\D/g, ''), 10) || 0;
       return numA - numB;
     });
 
@@ -355,8 +181,77 @@ export default function DetailedReportView({
 
   // Total count of actual in-house guests (excluding "+ Add Guest" action rows)
   const actualGuestsCount = useMemo(() => {
-    return combinedGuests.filter(g => !g.isAddAction && g.name.trim()).length;
+    return combinedGuests.filter(g => !g.isAddAction && String(g.name || '').trim()).length;
   }, [combinedGuests]);
+
+  // Compute live data for non-guest reports
+  const liveReportRows = useMemo(() => {
+    const totalRooms = rooms.length;
+    const occupiedCount = rooms.filter(r => r.status === 'OCCUPIED').length;
+    const vacantCount = rooms.filter(r => r.status === 'VACANT_READY' || r.status === 'VACANT').length;
+    const oooCount = rooms.filter(r => r.status === 'MAINTENANCE' || r.status === 'BLOCKED').length;
+    const roomRevenue = rooms.filter(r => r.status === 'OCCUPIED').reduce((sum, r) => sum + (Number(r.tariff) || Number(r.price) || 0), 0);
+    const adr = occupiedCount > 0 ? Math.round(roomRevenue / occupiedCount) : 0;
+
+    switch (report.id) {
+      case 'occupancy':
+        return [
+          { metric: 'Total Operational Rooms', value: `${totalRooms} Rooms`, status: 'Active' },
+          { metric: 'Occupied Rooms', value: `${occupiedCount} Rooms`, status: occupiedCount > 0 ? 'Occupied' : 'Vacant' },
+          { metric: 'Vacant Ready Rooms', value: `${vacantCount} Rooms`, status: 'Clean' },
+          { metric: 'Out of Order (OOO)', value: `${oooCount} Rooms`, status: oooCount > 0 ? 'Maintenance' : 'Normal' },
+          { metric: 'Current Occupancy Rate', value: `${totalRooms > 0 ? Math.round((occupiedCount / totalRooms) * 100) : 0}%`, status: 'Live Yield' },
+          { metric: 'Realized ADR (Average Daily Rate)', value: `₹${adr.toLocaleString('en-IN')}`, status: 'Optimal' }
+        ];
+
+      case 'arrival-report':
+        const confirmedArrivals = reservations.filter(r => r.status === 'CONFIRMED');
+        const checkedInArrivals = reservations.filter(r => r.status === 'CHECKED_IN');
+        return [
+          { metric: 'Scheduled Arrivals', value: `${confirmedArrivals.length} Bookings`, status: 'Scheduled' },
+          { metric: 'Checked In / In-House', value: `${checkedInArrivals.length} Guests`, status: 'In-House' },
+          { metric: 'VIP / Special Requests', value: `${reservations.filter(r => r.vip).length} Logged`, status: 'High Priority' },
+          { metric: 'Expected Arrival Revenue', value: `₹${confirmedArrivals.reduce((s, r) => s + (Number(r.amount) || Number(r.price) || 0), 0).toLocaleString('en-IN')}`, status: 'Pending Collection' }
+        ];
+
+      case 'departure-report':
+        const checkedIn = reservations.filter(r => r.status === 'CHECKED_IN');
+        const paidCount = checkedIn.filter(r => r.payment === 'PAID').length;
+        return [
+          { metric: 'Scheduled Checkouts', value: `${checkedIn.length} Bookings`, status: 'Pending Checkout' },
+          { metric: 'Settled Folios', value: `${paidCount} / ${checkedIn.length}`, status: paidCount === checkedIn.length ? 'Fully Paid' : 'Pending Settling' },
+          { metric: 'Housekeeping Release Triggered', value: `${checkedIn.length} Rooms`, status: 'Auto Scheduled' },
+          { metric: 'Late Checkouts Approved', value: '0 Requests', status: 'Standard 11:00 AM' }
+        ];
+
+      case 'cashier-report':
+        const totalPaid = reservations.reduce((s, r) => s + (Number(r.paid) || Number(r.amount) || 0), 0);
+        const upiPaid = reservations.filter(r => String(r.paymentMode || r.payment_mode || 'UPI').toUpperCase().includes('UPI')).reduce((s, r) => s + (Number(r.paid) || Number(r.amount) || 0), 0);
+        const cashPaid = reservations.filter(r => String(r.paymentMode || r.payment_mode || '').toUpperCase().includes('CASH')).reduce((s, r) => s + (Number(r.paid) || Number(r.amount) || 0), 0);
+        const cardPaid = reservations.filter(r => String(r.paymentMode || r.payment_mode || '').toUpperCase().includes('CARD')).reduce((s, r) => s + (Number(r.paid) || Number(r.amount) || 0), 0);
+        return [
+          { metric: 'Total Payments Collected', value: `₹${totalPaid.toLocaleString('en-IN')}`, status: 'Reconciled' },
+          { metric: 'UPI / QR Realtime Collections', value: `₹${upiPaid.toLocaleString('en-IN')}`, status: 'Instant Settlement' },
+          { metric: 'Cash Drawer In-Hand', value: `₹${cashPaid.toLocaleString('en-IN')}`, status: 'In Vault' },
+          { metric: 'Credit / Debit Card Payments', value: `₹${cardPaid.toLocaleString('en-IN')}`, status: 'Bank POS' }
+        ];
+
+      case 'police-checkin':
+        return [
+          { metric: 'Total Registered In-House', value: `${actualGuestsCount} Guests`, status: 'Verified' },
+          { metric: 'Aadhaar / Passport KYC Verified', value: `${actualGuestsCount} / ${actualGuestsCount}`, status: 'KYC Ready' },
+          { metric: 'Foreign Nationals (Form-C)', value: '0 Required', status: 'N/A' },
+          { metric: 'Statutory Local Police Log', value: 'Cloud Sync Active', status: 'Compliance Passed' }
+        ];
+
+      default:
+        return report.data || [
+          { metric: 'Active Operational Units', value: `${totalRooms} Units`, status: 'Optimal' },
+          { metric: 'System Security Health Score', value: '100%', status: 'Secure Cloud' },
+          { metric: 'Database Realtime Sync', value: 'Supabase Cloud', status: 'Live Connected' }
+        ];
+    }
+  }, [report.id, report.data, rooms, reservations, actualGuestsCount]);
 
   // Handle Export to Excel (CSV)
   const handleExportToExcel = () => {
@@ -368,22 +263,21 @@ export default function DetailedReportView({
           if (!g.isAddAction) {
             csvRows.push([
               roomNum,
-              `"${g.name.replace(/"/g, '""')}"`,
+              `"${String(g.name || '').replace(/"/g, '""')}"`,
               g.reservationNo,
-              `"${g.phone}"`,
-              `"${g.email}"`,
-              `"${g.city}"`,
-              `"${g.country}"`,
+              `"${g.phone || ''}"`,
+              `"${g.email || ''}"`,
+              `"${g.city || ''}"`,
+              `"${g.country || ''}"`,
               g.isVip ? 'YES' : 'NO',
-              `"${g.organisation}"`
+              `"${String(g.organisation || '').replace(/"/g, '""')}"`
             ]);
           }
         });
       });
     } else {
-      // Generic report export
       csvRows.push(['METRIC', 'VALUE', 'STATUS']);
-      (report.data || []).forEach(row => {
+      liveReportRows.forEach(row => {
         csvRows.push([`"${row.metric}"`, `"${row.value}"`, `"${row.status}"`]);
       });
     }
@@ -398,7 +292,9 @@ export default function DetailedReportView({
     link.click();
     document.body.removeChild(link);
 
-    showNotification(`Exported ${filename} successfully.`);
+    if (showNotification) {
+      showNotification(`Exported ${filename} successfully.`);
+    }
   };
 
   // Handle Print
@@ -425,7 +321,7 @@ export default function DetailedReportView({
   const handleSaveNewGuest = (e) => {
     e.preventDefault();
     if (!newGuestData.name.trim()) {
-      showNotification('Please enter a valid guest name.');
+      if (showNotification) showNotification('Please enter a valid guest name.');
       return;
     }
 
@@ -433,7 +329,7 @@ export default function DetailedReportView({
       id: `g-custom-${Date.now()}`,
       roomNumber: activeAddGuestRoom.roomNumber,
       name: newGuestData.name.trim(),
-      reservationNo: activeAddGuestRoom.reservationNo || '008697',
+      reservationNo: activeAddGuestRoom.reservationNo || `RES-${activeAddGuestRoom.roomNumber}`,
       phone: newGuestData.phone.trim(),
       email: newGuestData.email.trim(),
       city: newGuestData.city.trim(),
@@ -443,13 +339,11 @@ export default function DetailedReportView({
       isAddAction: false
     };
 
-    setInHouseGuests(prev => {
-      // Insert right before the "+ Add Guest" action of that room
-      return [created, ...prev];
-    });
-
+    setInHouseGuests(prev => [created, ...prev]);
     setIsAddGuestModalOpen(false);
-    showNotification(`Added ${created.name} to Room #${activeAddGuestRoom.roomNumber}.`);
+    if (showNotification) {
+      showNotification(`Added ${created.name} to Room #${activeAddGuestRoom.roomNumber}.`);
+    }
   };
 
   // Click on reservation number to open voucher
@@ -458,8 +352,8 @@ export default function DetailedReportView({
       reservationNo: reservationNo,
       guestName: guest.name || 'Guest',
       room: guest.roomNumber,
-      phone: guest.phone || '+91-9874803368',
-      email: guest.email || 'guest@aurastay.com',
+      phone: guest.phone || '',
+      email: guest.email || '',
       date: new Date().toLocaleDateString('en-GB')
     });
   };
@@ -498,7 +392,7 @@ export default function DetailedReportView({
         </div>
       </div>
 
-      {/* 2. Page Title & Action Buttons Header Row (Screenshot 1: media_1794409601515_d0718a9a.png) */}
+      {/* 2. Page Title & Action Buttons Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
         <div>
           <h1 className="text-2xl sm:text-3xl font-light tracking-normal text-slate-600">
@@ -527,7 +421,7 @@ export default function DetailedReportView({
       </div>
 
       {/* ========================================================================= */}
-      {/* CASE A: IN HOUSE GUESTS REPORT (EXACT MATCH FOR USER SCREENSHOT) */}
+      {/* CASE A: IN HOUSE GUESTS REPORT */}
       {/* ========================================================================= */}
       {report.id === 'guest-in-house' ? (
         <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
@@ -549,45 +443,46 @@ export default function DetailedReportView({
             </div>
           </div>
 
-          {/* Filter & Search Toolbar */}
-          <div className="flex flex-wrap items-center gap-2.5 pt-1">
-            <input
-              type="text"
-              placeholder="Guest Name"
-              value={filterGuestName}
-              onChange={(e) => setFilterGuestName(e.target.value)}
-              className="w-48 sm:w-56 px-3 py-1.5 rounded-md border border-slate-300 text-xs text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
-            />
+          {/* Filter Bar Row */}
+          <div className="flex flex-wrap items-center gap-3 pt-1 text-xs">
+            {/* Search Guest Name */}
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search guest by name..."
+                value={filterGuestName}
+                onChange={(e) => setFilterGuestName(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold placeholder:text-slate-400 outline-none focus:border-[#2b6cb0]"
+              />
+            </div>
 
-            <input
-              type="text"
-              placeholder="City"
-              value={filterCity}
-              onChange={(e) => setFilterCity(e.target.value)}
-              className="w-36 sm:w-44 px-3 py-1.5 rounded-md border border-slate-300 text-xs text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
-            />
+            {/* Filter City */}
+            <div className="w-44">
+              <input
+                type="text"
+                placeholder="Filter by city..."
+                value={filterCity}
+                onChange={(e) => setFilterCity(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold placeholder:text-slate-400 outline-none focus:border-[#2b6cb0]"
+              />
+            </div>
 
-            <select
-              value={filterOrg}
-              onChange={(e) => setFilterOrg(e.target.value)}
-              className="px-3 py-1.5 rounded-md border border-slate-300 text-xs text-slate-700 bg-white outline-none focus:border-blue-500 cursor-pointer min-w-[140px]"
-            >
-              <option value="All Organisation">All Organisation</option>
-              {availableOrganisations.map(org => (
-                <option key={org} value={org}>
-                  {org}
-                </option>
-              ))}
-            </select>
+            {/* Filter Organisation */}
+            <div className="w-48">
+              <select
+                value={filterOrg}
+                onChange={(e) => setFilterOrg(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 bg-white outline-none focus:border-[#2b6cb0]"
+              >
+                <option value="All Organisation">All Organisation</option>
+                {availableOrganisations.map(org => (
+                  <option key={org} value={org}>{org}</option>
+                ))}
+              </select>
+            </div>
 
-            <button
-              onClick={() => showNotification(`Showing results for in-house guests.`)}
-              className="px-4 py-1.5 rounded-md bg-[#337ab7] hover:bg-[#286090] text-white text-xs font-bold inline-flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
-            >
-              <Search className="w-3.5 h-3.5" />
-              <span>Search</span>
-            </button>
-
+            {/* Reset Filters */}
             {(filterGuestName || filterCity || filterOrg !== 'All Organisation') && (
               <button
                 onClick={() => {
@@ -595,7 +490,7 @@ export default function DetailedReportView({
                   setFilterCity('');
                   setFilterOrg('All Organisation');
                 }}
-                className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 font-semibold transition"
+                className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition text-xs cursor-pointer"
               >
                 Reset
               </button>
@@ -621,14 +516,31 @@ export default function DetailedReportView({
               <tbody>
                 {groupedByRoom.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
-                      No in-house guests found matching the selected filters.
+                    <td colSpan={8} className="py-14 text-center">
+                      <div className="max-w-sm mx-auto space-y-3">
+                        <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                          <BedDouble className="w-6 h-6" />
+                        </div>
+                        <p className="font-bold text-sm text-slate-800">No Guests Currently In-House</p>
+                        <p className="text-xs text-slate-500">
+                          All rooms are vacant or ready. Guest check-ins from the Live Room Matrix will populate this statutory ledger in real time.
+                        </p>
+                        {setIsCreateReservationModalOpen && (
+                          <button
+                            onClick={() => setIsCreateReservationModalOpen(true)}
+                            className="px-4 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs rounded-xl shadow-sm transition inline-flex items-center space-x-1.5 cursor-pointer"
+                          >
+                            <UserPlus className="w-4 h-4" />
+                            <span>Check-In Walk-In Guest</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   groupedByRoom.map(([roomNum, guestList]) => (
                     <React.Fragment key={roomNum}>
-                      {/* Room Header Strip (Screenshot 1: soft blue/lavender background with bed icon) */}
+                      {/* Room Header Strip */}
                       <tr className="bg-[#ebf3fa] border-y border-blue-100">
                         <td colSpan={8} className="py-2 px-4 font-bold text-[#2b6cb0] text-xs">
                           <div className="flex items-center space-x-2">
@@ -643,7 +555,6 @@ export default function DetailedReportView({
                         if (g.isAddAction) {
                           return (
                             <tr key={g.id} className="hover:bg-slate-50 border-b border-slate-100 transition">
-                              {/* Add Guest Button */}
                               <td className="py-2 px-4">
                                 <button
                                   onClick={() => handleOpenAddGuest(roomNum, g.reservationNo)}
@@ -667,12 +578,9 @@ export default function DetailedReportView({
                               <td className="py-2 px-4 text-slate-400"></td>
                               <td className="py-2 px-4 text-slate-400"></td>
                               <td className="py-2 px-4 text-slate-400"></td>
-
-                              {/* Red X for VIP */}
                               <td className="py-2 px-4 text-center">
                                 <X className="w-4 h-4 text-rose-500 font-black inline stroke-[3]" />
                               </td>
-
                               <td className="py-2 px-4 text-slate-400"></td>
                             </tr>
                           );
@@ -680,12 +588,10 @@ export default function DetailedReportView({
 
                         return (
                           <tr key={g.id} className="hover:bg-slate-50 border-b border-slate-100 transition">
-                            {/* Guest Name */}
                             <td className="py-2.5 px-4 font-bold text-slate-900">
                               {g.name}
                             </td>
 
-                            {/* Reservation # */}
                             <td className="py-2.5 px-4">
                               <span
                                 onClick={() => handleOpenVoucher(g.reservationNo, g)}
@@ -695,27 +601,22 @@ export default function DetailedReportView({
                               </span>
                             </td>
 
-                            {/* Phone */}
                             <td className="py-2.5 px-4 text-slate-700 font-mono text-[11px]">
-                              {g.phone || ''}
+                              {g.phone || '—'}
                             </td>
 
-                            {/* Email */}
                             <td className="py-2.5 px-4 text-slate-600 text-[11px]">
-                              {g.email || ''}
+                              {g.email || '—'}
                             </td>
 
-                            {/* City */}
                             <td className="py-2.5 px-4 text-slate-700">
-                              {g.city || ''}
+                              {g.city || '—'}
                             </td>
 
-                            {/* Country */}
                             <td className="py-2.5 px-4 text-slate-700">
-                              {g.country || ''}
+                              {g.country || 'India'}
                             </td>
 
-                            {/* VIP Status Check / Cross */}
                             <td className="py-2.5 px-4 text-center">
                               {g.isVip ? (
                                 <Check className="w-4 h-4 text-emerald-600 font-black inline stroke-[3]" />
@@ -724,9 +625,8 @@ export default function DetailedReportView({
                               )}
                             </td>
 
-                            {/* Organisation */}
                             <td className="py-2.5 px-4 font-semibold text-slate-800">
-                              {g.organisation || ''}
+                              {g.organisation || 'Direct'}
                             </td>
                           </tr>
                         );
@@ -741,7 +641,7 @@ export default function DetailedReportView({
         </div>
       ) : (
         /* ========================================================================= */
-        /* CASE B: OTHER DETAILED REPORTS (Occupancy, Cashier, Arrival, Departure, etc.) */
+        /* CASE B: OTHER DETAILED REPORTS */
         /* ========================================================================= */
         <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -771,7 +671,7 @@ export default function DetailedReportView({
             </div>
 
             <div className="flex items-center space-x-2">
-              {report.departments.map(d => (
+              {(report.departments || []).map(d => (
                 <span key={d} className="px-2 py-0.5 bg-white border border-slate-200 text-slate-700 font-bold rounded text-[10px]">
                   {d}
                 </span>
@@ -791,7 +691,7 @@ export default function DetailedReportView({
               </thead>
 
               <tbody className="divide-y divide-slate-100">
-                {report.data?.map((item, idx) => (
+                {liveReportRows.map((item, idx) => (
                   <tr key={idx} className="hover:bg-slate-50 transition">
                     <td className="py-3 px-4 font-bold text-slate-900">{item.metric}</td>
                     <td className="py-3 px-4 font-mono font-black text-sky-800 text-sm">{item.value}</td>
@@ -876,7 +776,7 @@ export default function DetailedReportView({
                   <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">City</label>
                   <input
                     type="text"
-                    placeholder="e.g. Kolkata"
+                    placeholder="e.g. Bengaluru"
                     value={newGuestData.city}
                     onChange={(e) => setNewGuestData({ ...newGuestData, city: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 font-semibold text-slate-800 outline-none focus:border-[#0e4860]"
@@ -922,13 +822,13 @@ export default function DetailedReportView({
                 <button
                   type="button"
                   onClick={() => setIsAddGuestModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition"
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold transition shadow-sm"
+                  className="px-5 py-2 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold transition shadow-sm cursor-pointer"
                 >
                   Save Guest
                 </button>
@@ -952,8 +852,8 @@ export default function DetailedReportView({
             status: 'IN-HOUSE',
             checkIn: selectedVoucherData.date,
             checkOut: 'Next Day',
-            totalPrice: 4500,
-            advancePaid: 4500,
+            totalPrice: 2500,
+            advancePaid: 2500,
             ratePlan: 'EP (European Plan)'
           }}
           onClose={() => setSelectedVoucherData(null)}

@@ -134,7 +134,7 @@ export default function App() {
           <Header />
 
           <main className="flex-1 p-4 sm:p-6 max-w-[1600px] w-full mx-auto">
-            <ErrorBoundary>
+            <ErrorBoundary key={currentView} viewKey={currentView}>
               {renderContent()}
             </ErrorBoundary>
           </main>

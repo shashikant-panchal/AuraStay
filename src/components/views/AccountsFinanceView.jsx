@@ -32,6 +32,7 @@ export default function AccountsFinanceView() {
     data,
     showNotification,
     reservations = [],
+    updateReservationPayment,
     currentHotel = { name: 'AuraStay Suite', id: 'hotel_aurastay_01' },
     activeTab: contextActiveTab,
     setActiveTab: setContextActiveTab
@@ -118,17 +119,21 @@ export default function AccountsFinanceView() {
   // Merge Live Reservations into Invoices
   const allInvoices = useMemo(() => {
     const reservationInvoices = reservations.map(r => {
-      const total = Number(r.totalPrice || r.totalAmount || r.paidAmount || 0);
-      const paid = Number(r.paidAmount || (r.paymentStatus === 'PAID' ? total : 0));
-      const isSettled = paid >= total || r.paymentStatus === 'PAID';
-      const guestName = r.guestName || (r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : 'Guest');
+      const total = Number(r.amount || r.price || r.totalPrice || r.totalAmount || 0);
+      const paid = Number(r.paid !== undefined ? r.paid : (r.payment === 'PAID' ? total : 0));
+      const isSettled = r.payment === 'PAID' || (total > 0 && paid >= total);
+      const guestName = typeof r.guest === 'string' && r.guest ? r.guest : (r.guestName || r.guest?.name || 'Valued Guest');
+      const guestPhone = r.phone || r.guestPhone || r.guest?.phone || '—';
+      const guestRoom = String(r.room_number || r.room || '101').replace(/Room\s*/i, '');
+      const paymentMode = r.payment_mode || r.paymentMode || r.paymentMethod || 'UPI';
+      const invDate = r.check_in || r.checkIn || r.checkInDate || new Date().toLocaleDateString('en-GB');
 
       return {
-        id: `INV-${String(r.id).slice(-4)}`,
+        id: `INV-${String(r.id).replace(/\D/g, '').slice(-4) || String(r.id).slice(-4)}`,
         refId: r.id,
         clientName: guestName,
-        clientPhone: r.phone || r.guest?.phone || '+91 98000 00000',
-        room: r.roomNumber || r.room || '101',
+        clientPhone: guestPhone,
+        room: guestRoom,
         category: 'Room Stay Accommodation',
         sacCode: '9963',
         subtotal: Math.round(total / 1.12),
@@ -137,9 +142,9 @@ export default function AccountsFinanceView() {
         total,
         paid,
         due: Math.max(0, total - paid),
-        paymentMode: r.paymentMethod || 'UPI',
+        paymentMode: paymentMode,
         status: isSettled ? 'PAID' : (paid > 0 ? 'PARTIAL' : 'PENDING'),
-        date: r.checkIn || r.checkInDate || new Date().toLocaleDateString('en-GB')
+        date: invDate
       };
     });
 
@@ -272,6 +277,9 @@ export default function AccountsFinanceView() {
       }
       return item;
     }));
+    if (inv.refId && updateReservationPayment) {
+      updateReservationPayment(inv.refId, { paid: inv.total, due: 0, paymentStatus: 'PAID' });
+    }
     showNotification(`Invoice #${inv.id} settled in full.`);
   };
 

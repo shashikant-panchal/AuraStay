@@ -23,8 +23,6 @@ import {
   TrendingUp,
   Tag
 } from 'lucide-react';
-import CreateRoomModal from '../modals/CreateRoomModal';
-import CreateRoomTypeModal from '../modals/CreateRoomTypeModal';
 
 export default function RatePlansView() {
   const {
@@ -608,10 +606,6 @@ export default function RatePlansView() {
           </div>
         </div>
       )}
-
-      {/* Render modals if triggered */}
-      {isCreateRoomModalOpen && <CreateRoomModal />}
-      {isCreateRoomTypeModalOpen && <CreateRoomTypeModal />}
 
     </div>
   );

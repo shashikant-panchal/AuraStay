@@ -12,7 +12,12 @@ import {
 import { useDashboard } from '../../context/DashboardContext';
 
 export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
-  const { workingDate = '11-Nov-2026', showNotification } = useDashboard();
+  const { 
+    workingDate = new Date().toISOString().split('T')[0], 
+    showNotification,
+    rooms = [],
+    reservations = []
+  } = useDashboard();
 
   // Active view filters
   const [timeframe, setTimeframe] = useState('TODAY'); // 'TODAY' | 'MTD'
@@ -20,97 +25,204 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
   const [sourcePeriod, setSourcePeriod] = useState('MONTH'); // 'MONTH' | 'TONIGHT'
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Compute live room stats if available, with graceful defaults matching dashboard metrics
-  const stats = useMemo(() => {
-    const totalRoomsCount = enrichedRooms.length || 29;
-    const occupiedCount = enrichedRooms.filter(r => r.effectiveStatus === 'OCCUPIED').length || 21;
-    const totalRevenue = enrichedRooms
-      .filter(r => r.effectiveStatus === 'OCCUPIED')
-      .reduce((sum, r) => sum + (Number(r.tariff) || 0), 0) || 71252;
+  // Pool of active rooms to evaluate
+  const effectiveRooms = enrichedRooms.length > 0 ? enrichedRooms : rooms;
 
-    const occupancyPct = totalRoomsCount > 0 ? ((occupiedCount / totalRoomsCount) * 100).toFixed(1) : '72.4';
-    const arrVal = occupiedCount > 0 ? Math.round(totalRevenue / occupiedCount) : 3393;
-    const revparVal = totalRoomsCount > 0 ? Math.round(totalRevenue / totalRoomsCount) : 2457;
+  // Real-time KPI calculations derived 100% from live room matrix and reservations
+  const stats = useMemo(() => {
+    const totalRoomsCount = effectiveRooms.length;
+    const occupiedRooms = effectiveRooms.filter(r => 
+      r.effectiveStatus === 'OCCUPIED' || r.status === 'OCCUPIED'
+    );
+    const occupiedCount = occupiedRooms.length;
+
+    // Today's live revenue from occupied rooms
+    const todayRevenue = occupiedRooms.reduce((sum, r) => {
+      const val = Number(r.tariff) || Number(r.price) || 0;
+      return sum + val;
+    }, 0);
+
+    const occupancyPct = totalRoomsCount > 0 ? ((occupiedCount / totalRoomsCount) * 100).toFixed(1) : '0.0';
+    const arrVal = occupiedCount > 0 ? Math.round(todayRevenue / occupiedCount) : 0;
+    const revparVal = totalRoomsCount > 0 ? Math.round(todayRevenue / totalRoomsCount) : 0;
+
+    // MTD (Month to Date) calculations derived from live reservations
+    const currentMonthPrefix = workingDate.slice(0, 7); // e.g. "2026-11"
+    const mtdReservations = (reservations || []).filter(r => {
+      const cIn = String(r.check_in || r.checkIn || '');
+      return cIn.startsWith(currentMonthPrefix) && r.status !== 'CANCELLED';
+    });
+    const mtdRevenue = mtdReservations.reduce((sum, r) => sum + (Number(r.amount) || Number(r.price) || 0), 0) + todayRevenue;
+    const mtdNights = mtdReservations.reduce((sum, r) => sum + (Number(r.nights) || 1), 0);
+    const mtdArr = mtdNights > 0 ? Math.round(mtdRevenue / mtdNights) : arrVal;
+    const daysInMonthSoFar = Math.max(1, parseInt(workingDate.slice(8, 10), 10) || 1);
+    const mtdRevpar = totalRoomsCount > 0 ? Math.round(mtdRevenue / (totalRoomsCount * daysInMonthSoFar)) : 0;
+    const mtdOccupancyPct = (totalRoomsCount * daysInMonthSoFar) > 0 
+      ? ((mtdNights / (totalRoomsCount * daysInMonthSoFar)) * 100).toFixed(1)
+      : '0.0';
 
     if (timeframe === 'TODAY') {
       return {
         occupancy: `${occupancyPct}%`,
-        occupancySub: `${occupiedCount}/${totalRoomsCount} · LY 48.3%`,
-        occupancyChange: '▲ 24 pts',
-        occupancyIsPos: true,
+        occupancySub: `${occupiedCount}/${totalRoomsCount} rooms active`,
+        occupancyChange: occupiedCount > 0 ? `▲ ${occupancyPct}%` : '—',
+        occupancyIsPos: occupiedCount > 0,
 
-        arr: `Rs. ${arrVal.toLocaleString('en-IN')}`,
-        arrSub: 'LY Rs. 4,213',
-        arrChange: '▼ 19%',
-        arrIsPos: false,
+        arr: `₹${arrVal.toLocaleString('en-IN')}`,
+        arrSub: occupiedCount > 0 ? `Avg per room (${occupiedCount} rooms)` : 'No active stays',
+        arrChange: arrVal > 0 ? `₹${arrVal}` : '—',
+        arrIsPos: arrVal > 0,
 
-        revpar: `Rs. ${revparVal.toLocaleString('en-IN')}`,
-        revparSub: 'LY Rs. 2,034',
-        revparChange: '▲ 21%',
-        revparIsPos: true,
+        revpar: `₹${revparVal.toLocaleString('en-IN')}`,
+        revparSub: `Yield across ${totalRoomsCount} total rooms`,
+        revparChange: revparVal > 0 ? `₹${revparVal}` : '—',
+        revparIsPos: revparVal > 0,
 
-        revenue: `Rs. ${totalRevenue.toLocaleString('en-IN')}`,
-        revenueSub: 'LY Rs. 58,988',
-        revenueChange: '▲ 21%',
-        revenueIsPos: true
+        revenue: `₹${todayRevenue.toLocaleString('en-IN')}`,
+        revenueSub: `${occupiedCount} occupied rooms today`,
+        revenueChange: todayRevenue > 0 ? `+₹${todayRevenue.toLocaleString('en-IN')}` : '₹0',
+        revenueIsPos: todayRevenue > 0
       };
     } else {
-      // Month to date numbers
+      // Month-to-date real data
       return {
-        occupancy: '68.9%',
-        occupancySub: '580/841 · LY 54.2%',
-        occupancyChange: '▲ 14.7 pts',
-        occupancyIsPos: true,
+        occupancy: `${mtdOccupancyPct}%`,
+        occupancySub: `${mtdNights} room nights booked`,
+        occupancyChange: Number(mtdOccupancyPct) > 0 ? `▲ ${mtdOccupancyPct}%` : '—',
+        occupancyIsPos: Number(mtdOccupancyPct) > 0,
 
-        arr: 'Rs. 3,650',
-        arrSub: 'LY Rs. 3,890',
-        arrChange: '▼ 6%',
-        arrIsPos: false,
+        arr: `₹${mtdArr.toLocaleString('en-IN')}`,
+        arrSub: `MTD Realized ADR`,
+        arrChange: mtdArr > 0 ? `₹${mtdArr}` : '—',
+        arrIsPos: mtdArr > 0,
 
-        revpar: 'Rs. 2,514',
-        revparSub: 'LY Rs. 2,108',
-        revparChange: '▲ 19%',
-        revparIsPos: true,
+        revpar: `₹${mtdRevpar.toLocaleString('en-IN')}`,
+        revparSub: `MTD RevPAR (${daysInMonthSoFar} days)`,
+        revparChange: mtdRevpar > 0 ? `₹${mtdRevpar}` : '—',
+        revparIsPos: mtdRevpar > 0,
 
-        revenue: 'Rs. 21,17,000',
-        revenueSub: 'LY Rs. 17,70,720',
-        revenueChange: '▲ 19%',
-        revenueIsPos: true
+        revenue: `₹${mtdRevenue.toLocaleString('en-IN')}`,
+        revenueSub: `${mtdReservations.length} reservations this month`,
+        revenueChange: `+₹${mtdRevenue.toLocaleString('en-IN')}`,
+        revenueIsPos: mtdRevenue > 0
       };
     }
-  }, [enrichedRooms, timeframe]);
+  }, [effectiveRooms, reservations, workingDate, timeframe]);
 
-  // Donut chart distribution data
+  // Donut chart distribution data derived 100% dynamically from real reservations
   const sourcesData = useMemo(() => {
-    if (sourceMetric === 'NIGHTS') {
-      if (sourcePeriod === 'MONTH') {
-        return {
-          total: 71,
-          label: 'NIGHTS',
-          direct: { count: 40, pct: 56 },
-          walkIn: { count: 28, pct: 39 },
-          bookingEngine: { count: 3, pct: 4 }
-        };
+    const list = reservations || [];
+    
+    // Categorize
+    let directCount = 0;
+    let walkInCount = 0;
+    let otaCount = 0;
+
+    let directNights = 0;
+    let walkInNights = 0;
+    let otaNights = 0;
+
+    list.forEach(res => {
+      const src = String(res.source || res.channel || '').toUpperCase();
+      const n = Number(res.nights) || 1;
+      if (src.includes('WALK') || src.includes('FRONT')) {
+        walkInCount++;
+        walkInNights += n;
+      } else if (src.includes('OTA') || src.includes('ONLINE') || src.includes('BOOKING') || src.includes('AGODA')) {
+        otaCount++;
+        otaNights += n;
       } else {
-        return {
-          total: 21,
-          label: 'NIGHTS',
-          direct: { count: 12, pct: 57 },
-          walkIn: { count: 8, pct: 38 },
-          bookingEngine: { count: 1, pct: 5 }
-        };
+        directCount++;
+        directNights += n;
       }
-    } else {
-      // Bookings count
+    });
+
+    if (sourceMetric === 'NIGHTS') {
+      const total = directNights + walkInNights + otaNights;
       return {
-        total: 48,
+        total,
+        label: 'NIGHTS',
+        direct: { 
+          count: directNights, 
+          pct: total > 0 ? Math.round((directNights / total) * 100) : 0 
+        },
+        walkIn: { 
+          count: walkInNights, 
+          pct: total > 0 ? Math.round((walkInNights / total) * 100) : 0 
+        },
+        bookingEngine: { 
+          count: otaNights, 
+          pct: total > 0 ? Math.round((otaNights / total) * 100) : 0 
+        }
+      };
+    } else {
+      const total = directCount + walkInCount + otaCount;
+      return {
+        total,
         label: 'BOOKINGS',
-        direct: { count: 26, pct: 54 },
-        walkIn: { count: 19, pct: 40 },
-        bookingEngine: { count: 3, pct: 6 }
+        direct: { 
+          count: directCount, 
+          pct: total > 0 ? Math.round((directCount / total) * 100) : 0 
+        },
+        walkIn: { 
+          count: walkInCount, 
+          pct: total > 0 ? Math.round((walkInCount / total) * 100) : 0 
+        },
+        bookingEngine: { 
+          count: otaCount, 
+          pct: total > 0 ? Math.round((otaCount / total) * 100) : 0 
+        }
       };
     }
-  }, [sourceMetric, sourcePeriod]);
+  }, [reservations, sourceMetric]);
+
+  // Real-time Pickup stats derived from live reservations
+  const pickupStats = useMemo(() => {
+    const list = reservations || [];
+    const todayStr = workingDate;
+
+    // Booked today: reservations with check_in or created today
+    const bookedTodayList = list.filter(r => {
+      const cIn = String(r.check_in || r.checkIn || '');
+      const created = String(r.created_at || '').slice(0, 10);
+      return (cIn === todayStr || created === todayStr) && r.status !== 'CANCELLED';
+    });
+    const bookedTodayCount = bookedTodayList.length;
+    const bookedTodayNights = bookedTodayList.reduce((sum, r) => sum + (Number(r.nights) || 1), 0);
+    const bookedTodayRevenue = bookedTodayList.reduce((sum, r) => sum + (Number(r.amount) || Number(r.price) || 0), 0);
+
+    // Cancelled today
+    const cancelledTodayList = list.filter(r => r.status === 'CANCELLED');
+    const cancelledTodayCount = cancelledTodayList.length;
+
+    // On the books: next 7 days
+    const todayDate = new Date(todayStr);
+    const next7Date = new Date(todayDate);
+    next7Date.setDate(next7Date.getDate() + 7);
+    const next7Str = next7Date.toISOString().split('T')[0];
+
+    const upcomingList = list.filter(r => {
+      const cIn = String(r.check_in || r.checkIn || '');
+      return cIn >= todayStr && cIn <= next7Str && r.status !== 'CANCELLED';
+    });
+    const upcomingCount = upcomingList.length;
+    const upcomingNights = upcomingList.reduce((sum, r) => sum + (Number(r.nights) || 1), 0);
+    const upcomingRevenue = upcomingList.reduce((sum, r) => sum + (Number(r.amount) || Number(r.price) || 0), 0);
+
+    const totalRoomsCount = effectiveRooms.length || 1;
+    const upcomingOccupancy = Math.min(100, Math.round((upcomingNights / (totalRoomsCount * 7)) * 100));
+
+    return {
+      bookedTodayCount,
+      bookedTodayNights,
+      bookedTodayRevenue,
+      cancelledTodayCount,
+      upcomingCount,
+      upcomingNights,
+      upcomingRevenue,
+      upcomingOccupancy
+    };
+  }, [reservations, workingDate, effectiveRooms]);
 
   // Manual refresh action
   const handleRefresh = () => {
@@ -120,7 +232,7 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
       if (showNotification) {
         showNotification('Daily revenue metrics synchronized with live front desk matrix.');
       }
-    }, 600);
+    }, 400);
   };
 
   return (
@@ -165,17 +277,6 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
             </button>
           </div>
 
-          {/* Revenue Action Pill */}
-          <button
-            onClick={() => {
-              if (showNotification) showNotification('Yield & Revenue report preview generated.');
-            }}
-            className="px-3 py-1.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs font-bold flex items-center space-x-1.5 shadow-2xs transition"
-          >
-            <TrendingUp className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Revenue</span>
-          </button>
-
           {/* Refresh Button */}
           <button
             onClick={handleRefresh}
@@ -212,7 +313,7 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
         {/* Metric 2: ARR */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs hover:shadow-xs transition">
           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-            ARR
+            ARR (ADR)
           </p>
           <p className="text-2xl font-black text-slate-900 mt-1">
             {stats.arr}
@@ -221,7 +322,7 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
             <span className="text-[11px] text-slate-500 font-medium">
               {stats.arrSub}
             </span>
-            <span className="bg-rose-50 text-rose-700 border border-rose-200/60 font-black text-[11px] px-2 py-0.5 rounded-md inline-flex items-center space-x-0.5">
+            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-black text-[11px] px-2 py-0.5 rounded-md inline-flex items-center space-x-0.5">
               <span>{stats.arrChange}</span>
             </span>
           </div>
@@ -300,29 +401,6 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
                   Bookings
                 </button>
               </div>
-
-              <div className="bg-slate-100 p-0.5 rounded-xl flex items-center space-x-0.5 border border-slate-200/70">
-                <button
-                  onClick={() => setSourcePeriod('MONTH')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                    sourcePeriod === 'MONTH'
-                      ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  This month
-                </button>
-                <button
-                  onClick={() => setSourcePeriod('TONIGHT')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                    sourcePeriod === 'TONIGHT'
-                      ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Tonight
-                </button>
-              </div>
             </div>
           </div>
 
@@ -341,41 +419,45 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
                   fill="transparent"
                 />
 
-                {/* Direct: 56% Blue */}
-                <circle
-                  cx="80"
-                  cy="80"
-                  r="62"
-                  className="stroke-blue-500"
-                  strokeWidth="16"
-                  fill="transparent"
-                  strokeDasharray={`${(sourcesData.direct.pct / 100) * 389.5} 389.5`}
-                  strokeDashoffset="0"
-                />
+                {sourcesData.total > 0 && (
+                  <>
+                    {/* Direct Blue */}
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="62"
+                      className="stroke-blue-500 transition-all duration-300"
+                      strokeWidth="16"
+                      fill="transparent"
+                      strokeDasharray={`${(sourcesData.direct.pct / 100) * 389.5} 389.5`}
+                      strokeDashoffset="0"
+                    />
 
-                {/* Walk-In: 39% Amber */}
-                <circle
-                  cx="80"
-                  cy="80"
-                  r="62"
-                  className="stroke-amber-500"
-                  strokeWidth="16"
-                  fill="transparent"
-                  strokeDasharray={`${(sourcesData.walkIn.pct / 100) * 389.5} 389.5`}
-                  strokeDashoffset={`-${(sourcesData.direct.pct / 100) * 389.5}`}
-                />
+                    {/* Walk-In Amber */}
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="62"
+                      className="stroke-amber-500 transition-all duration-300"
+                      strokeWidth="16"
+                      fill="transparent"
+                      strokeDasharray={`${(sourcesData.walkIn.pct / 100) * 389.5} 389.5`}
+                      strokeDashoffset={`-${(sourcesData.direct.pct / 100) * 389.5}`}
+                    />
 
-                {/* Booking Engine: 4% Red */}
-                <circle
-                  cx="80"
-                  cy="80"
-                  r="62"
-                  className="stroke-rose-500"
-                  strokeWidth="16"
-                  fill="transparent"
-                  strokeDasharray={`${(sourcesData.bookingEngine.pct / 100) * 389.5} 389.5`}
-                  strokeDashoffset={`-${((sourcesData.direct.pct + sourcesData.walkIn.pct) / 100) * 389.5}`}
-                />
+                    {/* Online / Booking Engine Rose */}
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="62"
+                      className="stroke-rose-500 transition-all duration-300"
+                      strokeWidth="16"
+                      fill="transparent"
+                      strokeDasharray={`${(sourcesData.bookingEngine.pct / 100) * 389.5} 389.5`}
+                      strokeDashoffset={`-${((sourcesData.direct.pct + sourcesData.walkIn.pct) / 100) * 389.5}`}
+                    />
+                  </>
+                )}
               </svg>
 
               {/* Centered Donut Label */}
@@ -427,7 +509,7 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
-                  <span className="font-bold text-slate-700">Booking Engine</span>
+                  <span className="font-bold text-slate-700">Online / OTAs</span>
                 </div>
                 <div className="flex items-center space-x-4">
                   <span className="font-mono font-bold text-slate-900 w-8 text-right">
@@ -447,7 +529,7 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
           <div className="flex items-center space-x-2">
             <span className="w-1 h-3.5 bg-amber-500 rounded-full inline-block"></span>
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
-              PICKUP
+              PICKUP & FORECAST
             </h3>
           </div>
 
@@ -461,12 +543,12 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
                 <div>
                   <h4 className="text-xs font-bold text-slate-800">Booked today</h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Rs. 60,752 · 11 direct
+                    ₹{pickupStats.bookedTodayRevenue.toLocaleString('en-IN')} revenue
                   </p>
                 </div>
               </div>
               <span className="text-sm font-black text-slate-900">
-                11 · 16 nights
+                {pickupStats.bookedTodayCount} · {pickupStats.bookedTodayNights} nights
               </span>
             </div>
 
@@ -477,12 +559,14 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
                   <XCircle className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800">Cancelled today</h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">None</p>
+                  <h4 className="text-xs font-bold text-slate-800">Cancelled</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {pickupStats.cancelledTodayCount > 0 ? `${pickupStats.cancelledTodayCount} bookings cancelled` : 'None'}
+                  </p>
                 </div>
               </div>
               <span className="text-sm font-black text-slate-900">
-                0
+                {pickupStats.cancelledTodayCount}
               </span>
             </div>
 
@@ -493,14 +577,14 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
                   <Calendar className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800">On the books</h4>
+                  <h4 className="text-xs font-bold text-slate-800">On the books (Next 7 Days)</h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Next 7 days · Rs. 26,581
+                    ₹{pickupStats.upcomingRevenue.toLocaleString('en-IN')} expected
                   </p>
                 </div>
               </div>
               <span className="text-sm font-black text-slate-900">
-                9 nights · 4%
+                {pickupStats.upcomingNights} nights · {pickupStats.upcomingOccupancy}%
               </span>
             </div>
           </div>
@@ -509,4 +593,3 @@ export default function TodayGlanceRevenueCard({ enrichedRooms = [] }) {
     </div>
   );
 }
-

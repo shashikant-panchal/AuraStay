@@ -21,7 +21,13 @@ import { useDashboard } from '../../context/DashboardContext';
 import BookingVoucher from '../common/BookingVoucher';
 
 export default function FolioBillingModal({ isOpen, onClose, room, reservation }) {
-  const { showNotification, checkoutRoom, updateReservation, currentHotel } = useDashboard();
+  const { 
+    showNotification, 
+    checkoutRoom, 
+    updateReservation, 
+    updateReservationPayment, 
+    currentHotel 
+  } = useDashboard();
 
   const [activeTab, setActiveTab] = useState('charges'); // charges | payments | invoice
   const [voucherType, setVoucherType] = useState('BOOKING VOUCHER');
@@ -136,6 +142,18 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
     setPaymentEntries(prev => [...prev, newPayment]);
     setPayAmount('');
     setPayRef('');
+
+    const resId = reservation?.id || room?.booking_id || room?.activeReservation?.id;
+    if (resId && updateReservationPayment) {
+      const updatedPaid = totalPaid + amt;
+      const updatedDue = Math.max(0, grandTotal - updatedPaid);
+      updateReservationPayment(resId, {
+        paid: updatedPaid,
+        due: updatedDue,
+        paymentStatus: updatedDue <= 0 ? 'PAID' : 'PARTIAL'
+      });
+    }
+
     showNotification(`Payment of ₹${amt.toLocaleString('en-IN')} recorded successfully.`);
   };
 
