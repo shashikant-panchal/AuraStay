@@ -73,6 +73,38 @@ export default function RatePlansView() {
     return Array.from(s);
   }, [rooms]);
 
+  // Combined room types (Explicit room types + Inferred from existing rooms)
+  const effectiveRoomTypes = useMemo(() => {
+    const list = [...(roomTypes || [])];
+    const seen = new Set(list.map(rt => String(rt.name || '').trim().toLowerCase()));
+
+    // Infer categories from existing physical rooms so they always appear in rates & plans
+    (rooms || []).forEach(r => {
+      const cat = String(r.type || r.category || '').trim();
+      if (cat && !seen.has(cat.toLowerCase())) {
+        seen.add(cat.toLowerCase());
+        list.push({
+          id: `rt-inferred-${cat.toLowerCase().replace(/\s+/g, '-')}`,
+          name: cat,
+          label: 'Room',
+          beddingType: r.bed || 'King Bed',
+          maxAdults: 2,
+          maxExtra: 1,
+          maxChildren: 1,
+          areaSqft: 350,
+          basePrice: Number(r.price) || Number(r.tariff) || 2500,
+          extraBedPrice: 800,
+          childPrice: 400,
+          amenities: ['Air conditioning', 'Free High-Speed Wi-Fi', 'Private bathroom', 'Flat-screen Smart TV'],
+          description: `${cat} category accommodation.`,
+          isBookingEngine: true
+        });
+      }
+    });
+
+    return list;
+  }, [roomTypes, rooms]);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200 pb-16">
       
@@ -124,7 +156,7 @@ export default function RatePlansView() {
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">{roomTypes.length}</div>
+            <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">{effectiveRoomTypes.length}</div>
             <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-semibold text-emerald-700">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span>Active on Booking Engine</span>
@@ -158,7 +190,7 @@ export default function RatePlansView() {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">
-              ₹{roomTypes.length > 0 ? Math.min(...roomTypes.map(t => Number(t.basePrice) || 2000)).toLocaleString('en-IN') : '0'}
+              ₹{effectiveRoomTypes.length > 0 ? Math.min(...effectiveRoomTypes.map(t => Number(t.basePrice) || 2000)).toLocaleString('en-IN') : '0'}
             </div>
             <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-medium text-slate-500">
               <span>EP Room Only</span>
@@ -198,7 +230,7 @@ export default function RatePlansView() {
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>Room Types & Plans ({roomTypes.length})</span>
+            <span>Room Types & Plans ({effectiveRoomTypes.length})</span>
           </button>
 
           <button
@@ -255,7 +287,7 @@ export default function RatePlansView() {
             </button>
           </div>
 
-          {roomTypes.length === 0 ? (
+          {effectiveRoomTypes.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 sm:p-16 text-center border-2 border-dashed border-slate-200 space-y-4">
               <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-[#0e4860] flex items-center justify-center mx-auto border border-emerald-100 shadow-sm">
                 <Layers className="w-8 h-8 text-[#0e4860]" />
@@ -276,7 +308,7 @@ export default function RatePlansView() {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {roomTypes.map(rt => {
+              {effectiveRoomTypes.map(rt => {
                 const base = Number(rt.basePrice) || 2000;
                 const cpRate = base + 350;
                 const mapRate = base + 850;

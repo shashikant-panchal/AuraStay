@@ -86,6 +86,7 @@ export default function App() {
       case 'reservation-management':
         return <ReservationManagementView />;
       case 'food-beverages':
+        return <FoodBeveragesView />;
       case 'restaurant-pos':
         return <RestaurantPosView />;
       case 'product-setup':
@@ -134,7 +135,7 @@ export default function App() {
           <Header />
 
           <main className="flex-1 p-4 sm:p-6 max-w-[1600px] w-full mx-auto">
-            <ErrorBoundary key={currentView} viewKey={currentView}>
+            <ErrorBoundary key={`${currentView}__${activeTab || 'main'}`} viewKey={`${currentView}__${activeTab || 'main'}`}>
               {renderContent()}
             </ErrorBoundary>
           </main>

@@ -252,28 +252,38 @@ export function DashboardProvider({ children }) {
               commission: c.commission
             })));
           }
-          if (roomTypesRes?.data) {
+          if (roomTypesRes?.data && roomTypesRes.data.length > 0) {
             const hotelRt = roomTypesRes.data.filter(t => !t.hotel_id || t.hotel_id === currentHotel.id);
-            setRoomTypes(hotelRt.map(t => ({
-              id: t.id,
-              hotelId: t.hotel_id || currentHotel.id,
-              name: t.name,
-              label: t.label || 'Room',
-              beddingType: t.bedding_type || 'King Bed',
-              maxAdults: Number(t.max_adults) || 2,
-              maxExtra: Number(t.max_extra) || 1,
-              maxChildren: Number(t.max_children) || 1,
-              areaSqft: Number(t.area_sqft) || 350,
-              basePrice: Number(t.base_price) || 2500,
-              extraBedPrice: Number(t.extra_bed_price) || 800,
-              childPrice: Number(t.child_price) || 400,
-              amenities: t.amenities || ['Free High-Speed Wi-Fi', 'Air conditioning'],
-              description: t.description || '',
-              notes: t.notes || '',
-              isBookingEngine: t.is_booking_engine !== false
-            })));
-          } else {
-            setRoomTypes([]);
+            if (hotelRt.length > 0) {
+              const mapped = hotelRt.map(t => ({
+                id: t.id,
+                hotelId: t.hotel_id || currentHotel.id,
+                name: t.name,
+                label: t.label || 'Room',
+                beddingType: t.bedding_type || 'King Bed',
+                maxAdults: Number(t.max_adults) || 2,
+                maxExtra: Number(t.max_extra) || 1,
+                maxChildren: Number(t.max_children) || 1,
+                areaSqft: Number(t.area_sqft) || 350,
+                basePrice: Number(t.base_price) || 2500,
+                extraBedPrice: Number(t.extra_bed_price) || 800,
+                childPrice: Number(t.child_price) || 400,
+                amenities: t.amenities || ['Free High-Speed Wi-Fi', 'Air conditioning'],
+                description: t.description || '',
+                notes: t.notes || '',
+                isBookingEngine: t.is_booking_engine !== false
+              }));
+              setRoomTypes(prev => {
+                const combined = [...mapped];
+                const existingNames = new Set(mapped.map(m => String(m.name).toLowerCase()));
+                (prev || []).forEach(p => {
+                  if (!existingNames.has(String(p.name).toLowerCase())) {
+                    combined.push(p);
+                  }
+                });
+                return combined;
+              });
+            }
           }
 
           if (tablesFound) {
@@ -727,7 +737,13 @@ export function DashboardProvider({ children }) {
       id: newType.id || `rt-${Date.now().toString().slice(-4)}`,
       hotelId: currentHotel.id
     };
-    setRoomTypes(prev => [typeObj, ...prev.filter(t => t.name !== typeObj.name)]);
+    setRoomTypes(prev => {
+      const updated = [typeObj, ...(prev || []).filter(t => t.name.toLowerCase() !== typeObj.name.toLowerCase())];
+      try {
+        localStorage.setItem('aurastay_room_types', JSON.stringify(updated));
+      } catch (e) { }
+      return updated;
+    });
     showNotification(`Room Category ${typeObj.name} saved successfully.`);
     setIsCreateRoomTypeModalOpen(false);
 
@@ -751,15 +767,22 @@ export function DashboardProvider({ children }) {
           notes: typeObj.notes || '',
           is_booking_engine: typeObj.isBookingEngine !== false
         };
-        await supabase.from('room_types').upsert(payload);
+        const { error } = await supabase.from('room_types').upsert(payload);
+        if (error) console.info('Supabase room_types notice:', error.message);
       } catch (err) {
-        console.warn('Supabase room_types sync:', err);
+        console.warn('Supabase room_types sync notice:', err);
       }
     }
   };
 
   const updateRoomType = async (id, updatedType) => {
-    setRoomTypes(prev => prev.map(t => t.id === id ? { ...t, ...updatedType } : t));
+    setRoomTypes(prev => {
+      const updated = (prev || []).map(t => t.id === id ? { ...t, ...updatedType } : t);
+      try {
+        localStorage.setItem('aurastay_room_types', JSON.stringify(updated));
+      } catch (e) { }
+      return updated;
+    });
     showNotification('Room category updated.');
     if (isSupabaseConfigured) {
       try {
@@ -771,7 +794,13 @@ export function DashboardProvider({ children }) {
   };
 
   const deleteRoomType = async (id) => {
-    setRoomTypes(prev => prev.filter(t => t.id !== id));
+    setRoomTypes(prev => {
+      const updated = (prev || []).filter(t => t.id !== id);
+      try {
+        localStorage.setItem('aurastay_room_types', JSON.stringify(updated));
+      } catch (e) { }
+      return updated;
+    });
     showNotification('Room category removed.');
     if (isSupabaseConfigured) {
       try {

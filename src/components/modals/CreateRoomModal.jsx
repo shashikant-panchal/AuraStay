@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import {
   X,
@@ -29,12 +29,51 @@ export default function CreateRoomModal() {
     showNotification
   } = useDashboard();
 
+  // Combined room categories (Explicit room types + Inferred from existing rooms + Defaults)
+  const effectiveRoomTypes = useMemo(() => {
+    const list = [...(roomTypes || [])];
+    const seen = new Set(list.map(rt => String(rt.name || '').trim().toLowerCase()));
+
+    // Infer categories from existing physical rooms so they're selectable
+    (rooms || []).forEach(r => {
+      const cat = String(r.type || r.category || '').trim();
+      if (cat && !seen.has(cat.toLowerCase())) {
+        seen.add(cat.toLowerCase());
+        list.push({
+          id: `rt-inferred-${cat.toLowerCase().replace(/\s+/g, '-')}`,
+          name: cat,
+          label: 'Room',
+          beddingType: r.bed || 'King Bed',
+          maxAdults: 2,
+          maxExtra: 1,
+          maxChildren: 1,
+          areaSqft: 350,
+          basePrice: Number(r.price) || Number(r.tariff) || 2500,
+          extraBedPrice: 800,
+          childPrice: 400,
+          amenities: ['Air conditioning', 'Free High-Speed Wi-Fi'],
+          description: `${cat} category accommodation.`,
+          isBookingEngine: true
+        });
+      }
+    });
+
+    if (list.length === 0) {
+      list.push(
+        { id: 'rt-deluxe', name: 'Deluxe Room', label: 'Room', beddingType: 'King Bed', maxAdults: 2, maxExtra: 1, maxChildren: 1, areaSqft: 350, basePrice: 2500, isBookingEngine: true },
+        { id: 'rt-standard', name: 'Standard Room', label: 'Room', beddingType: 'Queen Bed', maxAdults: 2, maxExtra: 0, maxChildren: 1, areaSqft: 280, basePrice: 1800, isBookingEngine: true }
+      );
+    }
+
+    return list;
+  }, [roomTypes, rooms]);
+
   const [activeTab, setActiveTab] = useState('addRoom'); // 'addRoom' | 'roomCategories' | 'manageRooms'
   const [isRoomTypeModalOpen, setIsRoomTypeModalOpen] = useState(false);
 
   // Form fields for Add Room
   const [roomNumber, setRoomNumber] = useState('');
-  const [selectedType, setSelectedType] = useState(roomTypes[0]?.name || 'Deluxe Room');
+  const [selectedType, setSelectedType] = useState(() => effectiveRoomTypes[0]?.name || 'Deluxe Room');
   const [floor, setFloor] = useState('Floor 1');
   const [bed, setBed] = useState('King Bed');
   const [price, setPrice] = useState('2500');
@@ -45,11 +84,23 @@ export default function CreateRoomModal() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Keep selectedType valid as roomTypes update
+  useEffect(() => {
+    if (effectiveRoomTypes.length > 0) {
+      const exists = effectiveRoomTypes.some(t => t.name === selectedType);
+      if (!exists) {
+        setSelectedType(effectiveRoomTypes[0].name);
+        setPrice(String(effectiveRoomTypes[0].basePrice || 2500));
+        setBed(effectiveRoomTypes[0].beddingType || 'King Bed');
+      }
+    }
+  }, [effectiveRoomTypes]);
+
   if (!isCreateRoomModalOpen) return null;
 
   const handleCategoryChange = (catName) => {
     setSelectedType(catName);
-    const matchedType = roomTypes.find(rt => rt.name === catName);
+    const matchedType = effectiveRoomTypes.find(rt => rt.name === catName);
     if (matchedType) {
       setPrice(String(matchedType.basePrice || 2500));
       setBed(matchedType.beddingType || 'King Bed');
@@ -148,7 +199,7 @@ export default function CreateRoomModal() {
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Room Categories ({roomTypes.length})</span>
+            <span>Room Categories ({effectiveRoomTypes.length})</span>
           </button>
 
           <button
@@ -226,7 +277,7 @@ export default function CreateRoomModal() {
                   onChange={(e) => handleCategoryChange(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-semibold outline-none"
                 >
-                  {roomTypes.map(rt => (
+                  {effectiveRoomTypes.map(rt => (
                     <option key={rt.id} value={rt.name}>{rt.name}</option>
                   ))}
                 </select>
@@ -348,7 +399,7 @@ export default function CreateRoomModal() {
             </div>
 
             <div className="space-y-3">
-              {roomTypes.map(rt => {
+              {effectiveRoomTypes.map(rt => {
                 const count = rooms.filter(r => (r.type || r.category) === rt.name).length;
                 return (
                   <div key={rt.id} className="p-4 rounded-2xl border border-slate-200 bg-white hover:shadow-xs transition space-y-2">

@@ -223,7 +223,7 @@ export default function HousekeepingView() {
     setIsNewTaskModalOpen(false);
     showNotification(`Cleaning task created for Room ${taskRoom}`);
 
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured) {
       try {
         await supabase.from('housekeeping_tasks').insert([{
           id: newTask.id,
@@ -249,7 +249,7 @@ export default function HousekeepingView() {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
     showNotification(`Task ${taskId} marked as ${newStatus}.`);
 
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured) {
       try {
         await supabase.from('housekeeping_tasks').update({ status: newStatus }).eq('id', taskId);
       } catch (e) {}

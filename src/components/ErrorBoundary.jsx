@@ -16,8 +16,8 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidUpdate(prevProps) {
-    // If viewKey or children changed, automatically clear error state so module recovers smoothly
-    if (this.state.hasError && (prevProps.viewKey !== this.props.viewKey || prevProps.children !== this.props.children)) {
+    // If navigation key specifically changed, safely clear error state for the new view
+    if (this.state.hasError && this.props.viewKey && prevProps.viewKey !== this.props.viewKey) {
       this.setState({ hasError: false, error: null });
     }
   }
