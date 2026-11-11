@@ -419,6 +419,22 @@ export function DashboardProvider({ children }) {
               payment: payload.new.payment,
               amount: Number(payload.new.amount) || r.amount
             } : r));
+
+            // If reservation was cancelled, immediately unlock room back to VACANT_READY
+            if (payload.new.status === 'CANCELLED') {
+              const rMatch = String(payload.new.room || '').match(/\b(\d+)\b/);
+              if (rMatch) {
+                const rNum = rMatch[1];
+                setRooms(prev => prev.map(rm => String(rm.roomNumber || rm.room_number) === rNum ? {
+                  ...rm,
+                  status: 'VACANT_READY',
+                  guest: null,
+                  bookingId: null,
+                  checkOut: null
+                } : rm));
+              }
+              showNotification(`⚠️ Reservation #${payload.new.id} for ${payload.new.guest || 'Guest'} has been CANCELLED. Room released to Vacant.`);
+            }
           }
         } else if (payload.eventType === 'DELETE' && payload.old) {
           setReservations(prev => prev.filter(r => r.id !== payload.old.id));

@@ -132,7 +132,7 @@ export default function ExtendStayModal({ isOpen, onClose, room, reservation }) 
             </div>
             {extraNights > 0 && (
               <p className="text-xs font-semibold text-amber-800 flex items-center space-x-1">
-                <span>âœ“ Extending by <strong>{extraNights} night{extraNights > 1 ? 's' : ''}</strong></span>
+                <span>✓ Extending by <strong>{extraNights} night{extraNights > 1 ? 's' : ''}</strong></span>
               </p>
             )}
           </div>

@@ -105,7 +105,7 @@ export default function NightAuditModal({ isOpen, onClose }) {
                   ? 'bg-emerald-500 text-white'
                   : 'bg-slate-200 text-slate-500'
               }`}>
-                {currentStep > st.num ? 'âœ“' : st.num}
+                {currentStep > st.num ? '✓' : st.num}
               </div>
               <div className="hidden sm:block text-left">
                 <p className={`text-[11px] font-bold leading-none ${currentStep === st.num ? 'text-indigo-950' : 'text-slate-500'}`}>

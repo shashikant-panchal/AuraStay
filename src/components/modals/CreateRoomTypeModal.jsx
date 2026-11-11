@@ -334,7 +334,7 @@ export default function CreateRoomTypeModal({ isOpen, onClose }) {
                         : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
-                    <span>{isSelected ? 'âœ“' : '+'}</span>
+                    <span>{isSelected ? '✓' : '+'}</span>
                     <span>{f}</span>
                   </button>
                 );

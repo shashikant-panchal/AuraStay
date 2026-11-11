@@ -24,6 +24,7 @@ import {
   DollarSign,
   Trash2
 } from 'lucide-react';
+import FolioBillingModal from '../modals/FolioBillingModal';
 
 export default function StayViewCalendar() {
   const { 
@@ -44,6 +45,8 @@ export default function StayViewCalendar() {
 
   // Selected booking modal state
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [isFolioModalOpen, setIsFolioModalOpen] = useState(false);
+  const [folioActiveBooking, setFolioActiveBooking] = useState(null);
 
   // Category collapse states
   const [collapsedCategories, setCollapsedCategories] = useState({});
@@ -703,7 +706,8 @@ export default function StayViewCalendar() {
             <div className="flex space-x-2.5 pt-1">
               <button
                 onClick={() => {
-                  showNotification(`Guest folio opened for ${selectedBooking.guest} (Room #${selectedBooking.roomNumber})`);
+                  setFolioActiveBooking(selectedBooking);
+                  setIsFolioModalOpen(true);
                   setSelectedBooking(null);
                 }}
                 className="flex-1 py-2.5 bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs rounded-xl shadow-sm transition"
@@ -719,6 +723,32 @@ export default function StayViewCalendar() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Interactive Folio & Ledger Modal */}
+      {isFolioModalOpen && folioActiveBooking && (
+        <FolioBillingModal
+          isOpen={isFolioModalOpen}
+          onClose={() => {
+            setIsFolioModalOpen(false);
+            setFolioActiveBooking(null);
+          }}
+          room={rooms.find(r => String(r.roomNumber || r.room_number) === String(folioActiveBooking.roomNumber)) || {
+            room_number: folioActiveBooking.roomNumber,
+            price: Number(String(folioActiveBooking.amount || '').replace(/[^\d.]/g, '')) || 2500,
+            guest: folioActiveBooking.guest
+          }}
+          reservation={{
+            guest: folioActiveBooking.guest,
+            phone: folioActiveBooking.phone,
+            check_in: folioActiveBooking.checkIn,
+            check_out: folioActiveBooking.checkOut,
+            price: Number(String(folioActiveBooking.amount || '').replace(/[^\d.]/g, '')) || 2500,
+            paid: folioActiveBooking.payment === 'PAID' ? Number(String(folioActiveBooking.amount || '').replace(/[^\d.]/g, '')) : 0,
+            payment: folioActiveBooking.payment,
+            rate_plan: folioActiveBooking.ratePlan
+          }}
+        />
       )}
     </div>
   );

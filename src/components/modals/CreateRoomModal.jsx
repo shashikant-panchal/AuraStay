@@ -375,7 +375,7 @@ export default function CreateRoomModal() {
                         Allocated Rooms: <strong className="text-slate-900">{count} Rooms</strong>
                       </span>
                       <span className="text-indigo-600 font-bold">
-                        {rt.isBookingEngine ? 'âœ“ Published on Booking Engine' : 'Internal Only'}
+                        {rt.isBookingEngine ? '✓ Published on Booking Engine' : 'Internal Only'}
                       </span>
                     </div>
                   </div>

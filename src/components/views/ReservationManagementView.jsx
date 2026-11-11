@@ -32,6 +32,7 @@ import {
   CalendarPlus
 } from 'lucide-react';
 import BookingPaymentsModal from '../modals/BookingPaymentsModal';
+import FolioBillingModal from '../modals/FolioBillingModal';
 import BookARoomView from './BookARoomView';
 
 export default function ReservationManagementView({ isSubTab = false }) {
@@ -48,6 +49,8 @@ export default function ReservationManagementView({ isSubTab = false }) {
 
   // Mode: 'list' or 'book-a-room'
   const [viewMode, setViewMode] = useState('list');
+  const [isFolioModalOpen, setIsFolioModalOpen] = useState(false);
+  const [folioActiveRsvn, setFolioActiveRsvn] = useState(null);
 
   const reservations = (contextReservations || []).map(r => {
     const totalAmount = Number(r.amount) || 2000;
@@ -738,15 +741,27 @@ export default function ReservationManagementView({ isSubTab = false }) {
                   <span className="font-bold block">Folio Balance: ₹{inspectedReservation.total.toLocaleString()}</span>
                   <span className="text-[11px] text-sky-700">Paid: ₹{inspectedReservation.paid.toLocaleString()} | Due: ₹{inspectedReservation.due.toLocaleString()}</span>
                 </div>
-                <button
-                  onClick={() => {
-                    setInspectedReservation(null);
-                    handleOpenPayments(inspectedReservation);
-                  }}
-                  className="px-3 py-1.5 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg font-bold text-xs shadow-2xs"
-                >
-                  Collect Payment
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setFolioActiveRsvn(inspectedReservation);
+                      setIsFolioModalOpen(true);
+                      setInspectedReservation(null);
+                    }}
+                    className="px-3 py-1.5 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg font-bold text-xs shadow-2xs"
+                  >
+                    Open Folio & Ledger
+                  </button>
+                  <button
+                    onClick={() => {
+                      setInspectedReservation(null);
+                      handleOpenPayments(inspectedReservation);
+                    }}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-2xs"
+                  >
+                    Collect Payment
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -822,6 +837,32 @@ export default function ReservationManagementView({ isSubTab = false }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Interactive Folio & Ledger Modal */}
+      {isFolioModalOpen && folioActiveRsvn && (
+        <FolioBillingModal
+          isOpen={isFolioModalOpen}
+          onClose={() => {
+            setIsFolioModalOpen(false);
+            setFolioActiveRsvn(null);
+          }}
+          room={rooms.find(r => (folioActiveRsvn.rooms && folioActiveRsvn.rooms.includes(r.roomNumber)) || String(r.roomNumber) === String(folioActiveRsvn.rooms?.[0])) || {
+            room_number: folioActiveRsvn.rooms?.[0] || '101',
+            price: Number(folioActiveRsvn.total) || 2500,
+            guest: folioActiveRsvn.guest
+          }}
+          reservation={{
+            guest: folioActiveRsvn.guest,
+            phone: folioActiveRsvn.phone,
+            check_in: folioActiveRsvn.checkIn || 'Today',
+            check_out: folioActiveRsvn.checkOut || 'Upcoming',
+            price: Number(folioActiveRsvn.total) || 2500,
+            paid: Number(folioActiveRsvn.paid) || 0,
+            payment: folioActiveRsvn.due <= 0 ? 'PAID' : 'PENDING',
+            rate_plan: folioActiveRsvn.ratePlan || 'EP - European Plan'
+          }}
+        />
       )}
 
     </div>

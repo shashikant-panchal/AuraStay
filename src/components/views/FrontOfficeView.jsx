@@ -4,6 +4,7 @@ import StayViewCalendar from './StayViewCalendar';
 import DayViewOperations from './DayViewOperations';
 import CalendarViewAccommodation from './CalendarViewAccommodation';
 import ReservationManagementView from './ReservationManagementView';
+import FolioBillingModal from '../modals/FolioBillingModal';
 import {
   Building2,
   Home,
@@ -62,6 +63,8 @@ export default function FrontOfficeView() {
   // Modals for Front Desk Actions
   const [activeActionModal, setActiveActionModal] = useState(null); // 'grc', 'feedback', 'invoice'
   const [selectedCheckInForAction, setSelectedCheckInForAction] = useState(null);
+  const [isFolioModalOpen, setIsFolioModalOpen] = useState(false);
+  const [folioActiveItem, setFolioActiveItem] = useState(null);
 
   // Dynamic Room Availability & BAR derived from active rooms
   const roomAvailabilityData = useMemo(() => {
@@ -724,8 +727,12 @@ export default function FrontOfficeView() {
 
                   <div className="flex items-center space-x-4 self-end sm:self-center">
                     <button
-                      onClick={() => showNotification(`Viewing folios for ${chk.guest}`)}
+                      onClick={() => {
+                        setFolioActiveItem(chk);
+                        setIsFolioModalOpen(true);
+                      }}
                       className="bg-[#10b981] hover:bg-[#059669] text-white font-bold text-xs px-3.5 py-1.5 rounded-md tracking-wider transition shadow-2xs"
+                      title="Open Folio & Billing"
                     >
                       CHECKEDIN
                     </button>
@@ -988,7 +995,8 @@ export default function FrontOfficeView() {
             <div className="space-y-2 pt-2">
               <button
                 onClick={() => {
-                  showNotification(`Guest folio opened for ${selectedCheckInForAction.guest}`);
+                  setFolioActiveItem(selectedCheckInForAction);
+                  setIsFolioModalOpen(true);
                   setSelectedCheckInForAction(null);
                 }}
                 className="w-full py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs rounded-lg shadow-sm"
@@ -1007,6 +1015,32 @@ export default function FrontOfficeView() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Interactive Folio & Ledger Modal */}
+      {isFolioModalOpen && folioActiveItem && (
+        <FolioBillingModal
+          isOpen={isFolioModalOpen}
+          onClose={() => {
+            setIsFolioModalOpen(false);
+            setFolioActiveItem(null);
+          }}
+          room={rooms.find(r => String(r.roomNumber || r.room_number) === String(folioActiveItem.room || '').replace(/\D/g, '')) || {
+            room_number: String(folioActiveItem.room || '').replace(/\D/g, '') || '101',
+            price: Number(folioActiveItem.amount) || 2500,
+            guest: folioActiveItem.guest
+          }}
+          reservation={{
+            guest: folioActiveItem.guest,
+            phone: folioActiveItem.phone,
+            check_in: folioActiveItem.time || 'Today',
+            check_out: 'Upcoming',
+            price: Number(folioActiveItem.amount) || 2500,
+            paid: Number(folioActiveItem.amount) || 2500,
+            payment: 'PAID',
+            rate_plan: 'EP - European Plan'
+          }}
+        />
       )}
     </div>
   );

@@ -447,7 +447,7 @@ export default function DashboardView() {
               onClick={() => setSearchQuery('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
             >
-              âœ•
+              ✕
             </button>
           )}
         </div>
@@ -801,7 +801,7 @@ export default function DashboardView() {
                                   <span className={`font-mono font-black text-[11px] ${
                                     room.balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'
                                   }`}>
-                                    {room.balanceDue > 0 ? `Due ₹${room.balanceDue.toLocaleString('en-IN')}` : 'Settled âœ“'}
+                                    {room.balanceDue > 0 ? `Due ₹${room.balanceDue.toLocaleString('en-IN')}` : 'Settled ✓'}
                                   </span>
                                 </div>
                               </div>
