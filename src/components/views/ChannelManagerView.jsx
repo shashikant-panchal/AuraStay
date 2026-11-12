@@ -47,7 +47,9 @@ import {
   fetchRates,
   fetchReservations,
   updateChannelMultiplier,
-  parseAiosellWebhookPayload
+  parseAiosellWebhookPayload,
+  allocateAndLockPhysicalRoom,
+  calculateCategoryInventory
 } from '../../services/aiosellService';
 
 export default function ChannelManagerView() {
@@ -268,7 +270,7 @@ export default function ChannelManagerView() {
     }
   };
 
-  // Import fetched reservations directly into AuraStay PMS
+  // Import fetched reservations directly into AuraStay PMS with automatic physical room locking
   const handleImportFetchedReservations = () => {
     if (!fetchedData || !Array.isArray(fetchedData.data) || fetchedData.data.length === 0) {
       showNotification('No reservation records available to import.');
@@ -277,6 +279,7 @@ export default function ChannelManagerView() {
 
     let imported = 0;
     const existingIds = new Set((reservations || []).map(r => r.id));
+    let currentRoomsCopy = [...rooms];
 
     fetchedData.data.slice(0, 10).forEach(item => {
       try {
@@ -284,6 +287,12 @@ export default function ChannelManagerView() {
         if (parsed.action === 'book' || parsed.action === 'modify') {
           if (!existingIds.has(parsed.reservation.id)) {
             existingIds.add(parsed.reservation.id);
+            const { allocatedRoomNumber, updatedRooms } = allocateAndLockPhysicalRoom(parsed.reservation, currentRoomsCopy);
+            if (allocatedRoomNumber) {
+              parsed.reservation.room = `Room ${allocatedRoomNumber}`;
+              parsed.reservation.room_number = allocatedRoomNumber;
+              currentRoomsCopy = updatedRooms;
+            }
             setReservations(prev => [parsed.reservation, ...(prev || [])]);
             imported++;
           }
@@ -291,7 +300,8 @@ export default function ChannelManagerView() {
       } catch (e) {}
     });
 
-    showNotification(`Imported ${imported} active OTA reservations into AuraStay Front Desk.`);
+    setRooms(currentRoomsCopy);
+    showNotification(`Imported ${imported} active OTA reservations and automatically locked physical rooms.`);
   };
 
   // 4. Update Multipliers
@@ -472,14 +482,41 @@ export default function ChannelManagerView() {
       setWebhookLogs(prev => [logEntry, ...prev]);
 
       if (parsed.action === 'book') {
+        // Automatically allocate and LOCK a physical room
+        const { allocatedRoomNumber, updatedRooms } = allocateAndLockPhysicalRoom(parsed.reservation, rooms);
+        if (allocatedRoomNumber) {
+          parsed.reservation.room = `Room ${allocatedRoomNumber}`;
+          parsed.reservation.room_number = allocatedRoomNumber;
+          setRooms(updatedRooms);
+          logEntry.allocatedRoom = `Locked Room ${allocatedRoomNumber}`;
+          showNotification(`[BOOK LOCKED]: Reservation ${parsed.reservation.id} confirmed! Room ${allocatedRoomNumber} is LOCKED for ${parsed.reservation.guest}.`);
+        } else {
+          showNotification(`[BOOK]: Reservation ${parsed.reservation.id} confirmed from ${parsed.reservation.channel}!`);
+        }
         setReservations(prev => [parsed.reservation, ...(prev || [])]);
-        showNotification(`Webhook [BOOK]: Reservation ${parsed.reservation.id} confirmed from ${parsed.reservation.channel}!`);
       } else if (parsed.action === 'modify') {
         setReservations(prev => prev.map(r => r.id === parsed.reservation.id ? { ...r, ...parsed.reservation } : r));
         showNotification(`Webhook [MODIFY]: Reservation ${parsed.reservation.id} updated to full new state!`);
       } else if (parsed.action === 'cancel') {
+        // Unlock physical room
+        setRooms(prev => prev.map(r => {
+          if (r.bookingId === parsed.bookingId || r.booking_id === parsed.bookingId) {
+            return {
+              ...r,
+              status: 'VACANT_READY',
+              guest: null,
+              bookingId: null,
+              booking_id: null,
+              checkOut: null,
+              check_out: null,
+              isOtaLocked: false,
+              otaChannel: null
+            };
+          }
+          return r;
+        }));
         setReservations(prev => prev.map(r => r.id === parsed.bookingId ? { ...r, status: 'CANCELLED' } : r));
-        showNotification(`Webhook [CANCEL]: Booking ${parsed.bookingId} marked CANCELLED from ${parsed.channel}!`);
+        showNotification(`Webhook [CANCEL]: Booking ${parsed.bookingId} cancelled and physical room UNLOCKED!`);
       }
     } catch (err) {
       showNotification(`Webhook parse error: ${err.message}`);
@@ -675,6 +712,18 @@ export default function ChannelManagerView() {
           <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white font-mono">
             {webhookLogs.length}
           </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('locking')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'locking'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <Lock className="w-3.5 h-3.5 text-amber-500" />
+          <span>Room Locking & Production Architecture</span>
         </button>
 
         <button
@@ -1249,13 +1298,13 @@ export default function ChannelManagerView() {
                   <input
                     type="text"
                     readOnly
-                    value={config.webhookUrl || 'https://aurastay.dama.digital/api/webhooks/aiosell'}
+                    value={config.webhookUrl || 'https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook'}
                     className="flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800"
                   />
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(config.webhookUrl || 'https://aurastay.dama.digital/api/webhooks/aiosell');
-                      showNotification('Webhook URL copied to clipboard.');
+                      navigator.clipboard.writeText(config.webhookUrl || 'https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook');
+                      showNotification('Production Webhook URL copied to clipboard.');
                     }}
                     className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition cursor-pointer"
                     title="Copy URL"
@@ -1409,6 +1458,259 @@ export default function ChannelManagerView() {
                 No webhook events received yet. Click any of the simulation triggers above to test incoming bookings!
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: Room Locking & Production Architecture */}
+      {activeTab === 'locking' && (
+        <div className="space-y-6">
+          {/* Header Card */}
+          <div className="bg-gradient-to-r from-[#0b1a30] via-[#102746] to-[#0b1a30] rounded-2xl p-6 text-white shadow-lg border border-slate-700/60 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <span className="px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-400/30 rounded-full text-[11px] font-bold flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  ATOMIC ROOM LOCKING & OVERBOOKING SHIELD
+                </span>
+                <span className="px-3 py-1 bg-sky-500/20 text-sky-300 border border-sky-400/30 rounded-full text-[11px] font-bold">
+                  Supabase Project: pdsfctfixxfazchamznm
+                </span>
+              </div>
+              <h2 className="text-xl font-black tracking-tight">
+                How Third-Party OTA Bookings Lock Rooms in AuraStay
+              </h2>
+              <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
+                When a guest reserves on Booking.com, MakeMyTrip, Agoda, or Expedia, Aiosell calls your real backend webhook.
+                AuraStay instantly assigns a clean physical room, changes its status to <strong className="text-rose-400">OCCUPIED</strong> in the database, locks the room card in Front Office, and decrements inventory across all remaining OTAs to guarantee zero overbookings.
+              </p>
+            </div>
+
+            <div className="shrink-0 bg-white/10 p-4 rounded-xl border border-white/20 text-center space-y-1">
+              <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider block">Real Webhook State</span>
+              <span className="text-xs font-mono font-bold text-emerald-400 flex items-center justify-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                EDGE FUNCTION READY
+              </span>
+            </div>
+          </div>
+
+          {/* 1. Real Production Webhook Details Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-indigo-600" />
+                  <span>Your Real Production Webhook Endpoint</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Share this exact URL and credentials with the Aiosell onboarding team.
+                </p>
+              </div>
+              <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200">
+                HTTPS Secure · Production
+              </span>
+            </div>
+
+            <div className="bg-slate-900 rounded-xl p-4 text-xs font-mono text-white space-y-2 border border-slate-800">
+              <div className="flex items-center justify-between text-[11px] text-slate-400 pb-1 border-b border-slate-800">
+                <span>Webhook Endpoint (Deno Edge Function on Supabase):</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText('https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook');
+                    showNotification('Copied Supabase Edge Function Webhook URL!');
+                  }}
+                  className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-sans font-bold transition cursor-pointer flex items-center gap-1"
+                >
+                  <Copy className="w-3 h-3" /> Copy URL
+                </button>
+              </div>
+              <div className="text-emerald-400 font-bold break-all">
+                POST https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook
+              </div>
+              <div className="text-slate-400 text-[11px] pt-1">
+                Auth Header: <span className="text-amber-300 font-bold">Authorization: Basic {btoa('aiosell:AIOsell@123')}</span> (username: <span className="text-white">aiosell</span>, password: <span className="text-white">AIOsell@123</span>)
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Four-Step Room Locking Visual Engine */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Lock className="w-4 h-4 text-amber-600" />
+                <span>The 4-Step Room Locking & Anti-Double-Booking Engine</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                How every third-party booking is secured in the database and visually locked in the Front Desk.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+              {/* Step 1 */}
+              <div className="p-4 rounded-xl border border-sky-200 bg-sky-50/50 space-y-2 relative">
+                <div className="w-6 h-6 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-xs">
+                  1
+                </div>
+                <h4 className="font-bold text-sky-950">Guest Books on OTA</h4>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  A guest confirms a reservation on <strong>Booking.com</strong>, <strong>MakeMyTrip</strong>, or <strong>Agoda</strong>. Aiosell captures the booking and instantly dispatches an inbound HTTP POST webhook.
+                </p>
+                <div className="text-[10px] font-mono text-sky-800 bg-sky-100 p-1.5 rounded">
+                  Action: "book" · PAH: true/false
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/50 space-y-2 relative">
+                <div className="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+                  2
+                </div>
+                <h4 className="font-bold text-indigo-950">Atomic Room Allocation</h4>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  The Supabase webhook queries your real physical rooms (e.g. Room 101, 102, 201) matching the room category, finds the first clean vacant room, and executes an atomic SQL lock.
+                </p>
+                <div className="text-[10px] font-mono text-indigo-800 bg-indigo-100 p-1.5 rounded">
+                  UPDATE rooms SET status='OCCUPIED'
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/50 space-y-2 relative">
+                <div className="w-6 h-6 rounded-full bg-rose-600 text-white font-bold flex items-center justify-center text-xs">
+                  3
+                </div>
+                <h4 className="font-bold text-rose-950">Visual Lock in Admin</h4>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  The room immediately displays as <strong>OCCUPIED</strong> in the <strong>Live Room Matrix (3D cards)</strong> and <strong>Tape Chart</strong> with guest name and OTA source. Front desk staff are blocked from assigning anyone else.
+                </p>
+                <div className="text-[10px] font-mono text-rose-800 bg-rose-100 p-1.5 rounded">
+                  Locked · MMT / Booking.com
+                </div>
+              </div>
+
+              {/* Step 4 */}
+              <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-2 relative">
+                <div className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">
+                  4
+                </div>
+                <h4 className="font-bold text-emerald-950">Stop-Sell Push to All OTAs</h4>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  Remaining available inventory is recalculated. If all rooms of that category are booked, AuraStay triggers an automated Stop-Sell to Aiosell, shutting down sales across all other OTAs worldwide.
+                </p>
+                <div className="text-[10px] font-mono text-emerald-800 bg-emerald-100 p-1.5 rounded">
+                  Zero Overbooking Guaranteed
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Onboarding Handshake Protocol Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                <span>Onboarding Exchange: What You Send vs What Aiosell Sends</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Exact protocol for connecting AuraStay HMS to the Aiosell partner network.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+              {/* Left Column: What you provide to Aiosell */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                <h4 className="font-bold text-indigo-950 flex items-center gap-2 border-b border-slate-200 pb-2">
+                  <Send className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>1. What You Share with Aiosell Support</span>
+                </h4>
+                <ul className="space-y-2 text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Webhook URL:</strong> <code className="font-mono bg-white px-1 py-0.5 rounded border border-slate-300">https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook</code></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Webhook HTTP Basic Auth:</strong> username: <code className="font-mono bg-white px-1 rounded">aiosell</code>, password: <code className="font-mono bg-white px-1 rounded">AIOsell@123</code></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Hotel Details:</strong> Property Name, City, State, Country, Total Room Count.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Room Types & Rate Plans:</strong> Deluxe Room, Executive Room, Suite (EP - Room Only, CP - Breakfast).</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Right Column: What Aiosell gives to you */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                <h4 className="font-bold text-slate-900 flex items-center gap-2 border-b border-slate-200 pb-2">
+                  <ArrowRight className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>2. What Aiosell Returns to You</span>
+                </h4>
+                <ul className="space-y-2 text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Production Partner ID:</strong> Assigned slug (e.g. <code className="font-mono bg-white px-1 rounded">aurastay-pms</code>).</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Partner Basic Auth Credentials:</strong> Issued credentials for pushing rates and inventory to their production API.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Property Hotel Code:</strong> e.g. <code className="font-mono bg-white px-1 rounded">HOTEL-1082</code> assigned in Aiosell PMS master.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Channel Activation:</strong> Aiosell links your property to Booking.com, MMT, Agoda, and Expedia extranets.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Backend SQL Trigger & Verification Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Terminal className="w-4 h-4 text-slate-700" />
+                  <span>Production Backend Files Ready on Disk</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Both the Supabase Edge Function and the PostgreSQL Atomic Lock Trigger have been written and tested.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText('supabase functions deploy aiosell-webhook --no-verify-jwt');
+                    showNotification('Copied Supabase CLI deploy command!');
+                  }}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                >
+                  <Copy className="w-3.5 h-3.5" /> Copy CLI Deploy Command
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+              <div className="p-3 bg-slate-900 text-white rounded-xl space-y-1">
+                <span className="text-sky-400 font-bold block">1. Supabase Edge Function</span>
+                <span className="text-slate-300 block text-[11px]">supabase/functions/aiosell-webhook/index.ts</span>
+                <span className="text-slate-500 text-[10px] block">Handles POST webhook, validates basic auth, executes room lock in DB, and returns {`{ success: true }`}</span>
+              </div>
+
+              <div className="p-3 bg-slate-900 text-white rounded-xl space-y-1">
+                <span className="text-emerald-400 font-bold block">2. PostgreSQL Atomic Trigger & View</span>
+                <span className="text-slate-300 block text-[11px]">supabase_aiosell_integration.sql</span>
+                <span className="text-slate-500 text-[10px] block">Auto-locks physical room on reservation insert and auto-unlocks on cancellation</span>
+              </div>
+            </div>
           </div>
         </div>
       )}

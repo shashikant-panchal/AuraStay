@@ -12,7 +12,7 @@ export const DEFAULT_AIOSELL_CONFIG = {
   baseUrl: 'https://live.aiosell.com/api/v2/cm',
   isSandbox: true,
   autoSync: false,
-  webhookUrl: 'https://aurastay.dama.digital/api/webhooks/aiosell'
+  webhookUrl: 'https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook'
 };
 
 const STORAGE_KEY = 'aurastay_aiosell_config';
@@ -429,3 +429,81 @@ export function parseAiosellWebhookPayload(payload) {
     reservation
   };
 }
+
+/**
+ * Automatically find, allocate, and lock a physical room for an inbound OTA reservation
+ * @param {Object} reservation
+ * @param {Array} rooms
+ * @returns {Object} { allocatedRoomNumber, updatedRooms }
+ */
+export function allocateAndLockPhysicalRoom(reservation, rooms = []) {
+  if (!rooms || rooms.length === 0) {
+    return { allocatedRoomNumber: null, updatedRooms: rooms };
+  }
+
+  const roomTypeTarget = String(reservation.room_type || reservation.room_code || '').toLowerCase();
+
+  // 1. Find a VACANT_READY physical room matching this category
+  let targetRoom = rooms.find(r => 
+    (r.status === 'VACANT_READY' || !r.status || r.status === 'CLEAN') &&
+    (String(r.type || '').toLowerCase().includes(roomTypeTarget) || roomTypeTarget.includes(String(r.type || '').toLowerCase()))
+  );
+
+  // 2. Fallback: if primary category full, grab any vacant room
+  if (!targetRoom) {
+    targetRoom = rooms.find(r => r.status === 'VACANT_READY' || !r.status || r.status === 'CLEAN');
+  }
+
+  if (!targetRoom) {
+    console.warn('All physical rooms currently occupied or in maintenance.');
+    return { allocatedRoomNumber: null, updatedRooms: rooms };
+  }
+
+  const allocatedRoomNumber = String(targetRoom.roomNumber || targetRoom.room_number);
+
+  // 3. Update room status to OCCUPIED / LOCKED for this guest
+  const updatedRooms = rooms.map(r => {
+    if (String(r.roomNumber || r.room_number) === allocatedRoomNumber) {
+      return {
+        ...r,
+        status: 'OCCUPIED',
+        guest: reservation.guest,
+        bookingId: reservation.id,
+        booking_id: reservation.id,
+        checkOut: reservation.check_out,
+        check_out: reservation.check_out,
+        isOtaLocked: true,
+        otaChannel: reservation.channel || 'Aiosell'
+      };
+    }
+    return r;
+  });
+
+  return {
+    allocatedRoomNumber,
+    updatedRooms
+  };
+}
+
+/**
+ * Calculates remaining available inventory and detects if Stop-Sell is needed
+ */
+export function calculateCategoryInventory(categoryName, rooms = []) {
+  const norm = String(categoryName || '').toLowerCase();
+  const matching = rooms.filter(r => 
+    String(r.type || '').toLowerCase().includes(norm) || norm.includes(String(r.type || '').toLowerCase())
+  );
+  const total = matching.length;
+  const available = matching.filter(r => r.status === 'VACANT_READY' || !r.status || r.status === 'CLEAN').length;
+  const occupied = total - available;
+  const shouldStopSell = total > 0 && available === 0;
+
+  return {
+    total,
+    available,
+    occupied,
+    shouldStopSell
+  };
+}
+
+
