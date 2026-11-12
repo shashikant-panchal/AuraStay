@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import {
   Globe,
@@ -15,94 +15,522 @@ import {
   ExternalLink,
   X,
   AlertCircle,
-  Trophy,
   Zap,
-  Clock
+  Clock,
+  ArrowUpRight,
+  Send,
+  Terminal,
+  Settings,
+  Radio,
+  Check,
+  Copy,
+  Calendar,
+  DollarSign,
+  AlertTriangle,
+  Layers,
+  Building2,
+  User,
+  CreditCard,
+  Ban
 } from 'lucide-react';
-
-const INITIAL_CHANNELS = [];;
+import {
+  getAiosellConfig,
+  saveAiosellConfig,
+  DEFAULT_AIOSELL_CONFIG,
+  fetchPropertyDetails,
+  pushInventory,
+  pushRates,
+  pushInventoryRestrictions,
+  pushRateRestrictions,
+  markNoShow,
+  fetchInventory,
+  fetchRates,
+  fetchReservations,
+  updateChannelMultiplier,
+  parseAiosellWebhookPayload
+} from '../../services/aiosellService';
 
 export default function ChannelManagerView() {
-  const { navigateTo, showNotification } = useDashboard();
+  const {
+    navigateTo,
+    showNotification,
+    rooms = [],
+    setRooms,
+    reservations = [],
+    setReservations,
+    roomTypes = []
+  } = useDashboard();
 
-  const [channels, setChannels] = useState(INITIAL_CHANNELS);
-  const [isSyncingAll, setIsSyncingAll] = useState(false);
-  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
-  const [selectedChannelSettings, setSelectedChannelSettings] = useState(null);
+  // Active sub-tab
+  const [activeTab, setActiveTab] = useState('channels'); // 'channels' | 'push' | 'fetch' | 'webhook' | 'noshow' | 'settings'
 
-  // New channel connect form
-  const [newChannelData, setNewChannelData] = useState({
-    name: 'Google Hotel Ads',
-    hotelId: 'AST-865',
-    apiKey: '',
-    commissionPct: 10
+  // Aiosell credentials & config state
+  const [config, setConfig] = useState(() => getAiosellConfig());
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState(null); // null | { ok: boolean, message: string, property?: any }
+
+  // Connected OTAs state with channel multipliers
+  const [channels, setChannels] = useState([
+    { id: 'bcom', name: 'Booking.com', code: 'booking.com', logo: 'B.', color: 'bg-blue-600', active: true, multiplier: 1.0, commission: '15%', lastSync: 'Real-time 2-Way XML' },
+    { id: 'mmt', name: 'MakeMyTrip (MMT)', code: 'gommt', logo: 'MMT', color: 'bg-rose-600', active: true, multiplier: 1.10, commission: '18%', lastSync: 'Real-time 2-Way XML' },
+    { id: 'goibibo', name: 'Goibibo', code: 'gommt', logo: 'Go', color: 'bg-orange-500', active: true, multiplier: 1.10, commission: '18%', lastSync: 'Real-time 2-Way XML' },
+    { id: 'agoda', name: 'Agoda', code: 'agoda', logo: 'Ag', color: 'bg-emerald-600', active: true, multiplier: 1.05, commission: '16%', lastSync: 'Real-time 2-Way XML' },
+    { id: 'expedia', name: 'Expedia Group', code: 'expedia', logo: 'Exp', color: 'bg-amber-600', active: true, multiplier: 1.0, commission: '15%', lastSync: 'Real-time 2-Way XML' },
+    { id: 'airbnb', name: 'Airbnb Global', code: 'airbnb', logo: 'Ab', color: 'bg-pink-600', active: true, multiplier: 1.0, commission: '3%', lastSync: 'Real-time 2-Way XML' },
+    { id: 'google', name: 'Google Free Booking Links', code: 'google', logo: 'G.', color: 'bg-red-500', active: true, multiplier: 1.0, commission: '0% (Direct)', lastSync: 'Real-time 2-Way XML' }
+  ]);
+
+  // Push Console State
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const tomorrowStr = useMemo(() => new Date(Date.now() + 86400000).toISOString().split('T')[0], []);
+  
+  const [pushType, setPushType] = useState('inventory'); // 'inventory' | 'rates' | 'restrictions'
+  const [pushStartDate, setPushStartDate] = useState(todayStr);
+  const [pushEndDate, setPushEndDate] = useState(tomorrowStr);
+  const [pushRoomCode, setPushRoomCode] = useState('executive');
+  const [pushAvailableCount, setPushAvailableCount] = useState(15);
+  const [pushRatePlanCode, setPushRatePlanCode] = useState('executive-s-ep');
+  const [pushNightlyRate, setPushNightlyRate] = useState(2450);
+  const [pushStopSell, setPushStopSell] = useState(false);
+  const [pushMinStay, setPushMinStay] = useState(1);
+  const [pushCloseOnArrival, setPushCloseOnArrival] = useState(false);
+  const [pushCloseOnDeparture, setPushCloseOnDeparture] = useState(false);
+  const [pushSelectedChannels, setPushSelectedChannels] = useState(['agoda', 'booking.com', 'gommt']);
+
+  const [isPushing, setIsPushing] = useState(false);
+  const [lastPushResponse, setLastPushResponse] = useState(null);
+
+  // Fetch Console State
+  const [fetchType, setFetchType] = useState('rates'); // 'inventory' | 'rates' | 'reservation'
+  const [fetchStartDate, setFetchStartDate] = useState(todayStr);
+  const [fetchEndDate, setFetchEndDate] = useState(tomorrowStr);
+  const [isFetching, setIsFetching] = useState(false);
+  const [fetchedData, setFetchedData] = useState(null);
+
+  // Webhook Simulator State
+  const [webhookLogs, setWebhookLogs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aurastay_aiosell_webhook_logs');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
   });
+  const [customWebhookPayload, setCustomWebhookPayload] = useState('');
+  const [isSimulatingWebhook, setIsSimulatingWebhook] = useState(false);
 
-  const handleSyncAll = () => {
-    if (channels.length === 0) {
-      showNotification('No OTA channels connected yet. Click "+ Connect Channel" to link a channel.');
+  // Mark No-Show State
+  const [noShowBookingId, setNoShowBookingId] = useState('');
+  const [noShowChannel, setNoShowChannel] = useState('booking.com');
+  const [isMarkingNoShow, setIsMarkingNoShow] = useState(false);
+  const [noShowResponse, setNoShowResponse] = useState(null);
+
+  // Persist webhook logs
+  useEffect(() => {
+    try {
+      localStorage.setItem('aurastay_aiosell_webhook_logs', JSON.stringify(webhookLogs.slice(0, 50)));
+    } catch (e) {}
+  }, [webhookLogs]);
+
+  // Initial check on load
+  useEffect(() => {
+    handleTestConnection(false);
+  }, []);
+
+  // 1. Test Aiosell Sandbox / Live Connection
+  const handleTestConnection = async (showToast = true) => {
+    setIsTestingConnection(true);
+    try {
+      const res = await fetchPropertyDetails(config);
+      if (res.success && res.data) {
+        setConnectionStatus({
+          ok: true,
+          message: `Connected to Aiosell! Property: ${res.data.hotel_name || res.data.hotel_id} (${res.data.rooms?.length || 0} Room Categories, ${res.data.connected_channels?.length || 0} Connected Channels)`,
+          property: res.data
+        });
+        if (showToast) showNotification(`Aiosell API Connected: ${res.data.hotel_name || res.data.hotel_id}`);
+      } else {
+        setConnectionStatus({
+          ok: false,
+          message: res.error || 'Could not connect to Aiosell API.'
+        });
+        if (showToast) showNotification(`Aiosell Connection Failed: ${res.error}`);
+      }
+    } catch (err) {
+      setConnectionStatus({ ok: false, message: err.message });
+      if (showToast) showNotification(`Aiosell Error: ${err.message}`);
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
+  // 2. Push to Aiosell (Inventory, Rates, Restrictions)
+  const handleExecutePush = async () => {
+    setIsPushing(true);
+    setLastPushResponse(null);
+
+    try {
+      let res;
+      if (pushType === 'inventory') {
+        const updates = [
+          {
+            startDate: pushStartDate,
+            endDate: pushEndDate,
+            rooms: [
+              {
+                roomCode: pushRoomCode,
+                available: Number(pushAvailableCount) || 0
+              }
+            ]
+          }
+        ];
+        res = await pushInventory(updates, config);
+      } else if (pushType === 'rates') {
+        const updates = [
+          {
+            startDate: pushStartDate,
+            endDate: pushEndDate,
+            rates: [
+              {
+                roomCode: pushRoomCode,
+                rateplanCode: pushRatePlanCode,
+                rate: Number(pushNightlyRate) || 2000
+              }
+            ]
+          }
+        ];
+        res = await pushRates(updates, config);
+      } else if (pushType === 'restrictions') {
+        const updates = [
+          {
+            startDate: pushStartDate,
+            endDate: pushEndDate,
+            rooms: [
+              {
+                roomCode: pushRoomCode,
+                restrictions: {
+                  stopSell: Boolean(pushStopSell),
+                  exactStayArrival: null,
+                  maximumStayArrival: null,
+                  minimumAdvanceReservation: null,
+                  minimumStay: Number(pushMinStay) || 1,
+                  closeOnArrival: Boolean(pushCloseOnArrival),
+                  minimumStayArrival: null,
+                  maximumStay: null,
+                  maximumAdvanceReservation: null,
+                  closeOnDeparture: Boolean(pushCloseOnDeparture)
+                }
+              }
+            ]
+          }
+        ];
+        res = await pushInventoryRestrictions(pushSelectedChannels, updates, config);
+      }
+
+      setLastPushResponse(res);
+      if (res.success) {
+        showNotification(`Aiosell Update Successful: ${res.data?.message || 'Updated Successfully'}`);
+      } else {
+        showNotification(`Push Notice: ${res.error || 'Please review response'}`);
+      }
+    } catch (err) {
+      setLastPushResponse({ success: false, error: err.message });
+      showNotification(`Push Failed: ${err.message}`);
+    } finally {
+      setIsPushing(false);
+    }
+  };
+
+  // 3. Fetch from Aiosell
+  const handleExecuteFetch = async () => {
+    setIsFetching(true);
+    setFetchedData(null);
+    try {
+      let res;
+      if (fetchType === 'inventory') {
+        res = await fetchInventory(fetchStartDate, fetchEndDate, config);
+      } else if (fetchType === 'rates') {
+        res = await fetchRates(fetchStartDate, fetchEndDate, config);
+      } else if (fetchType === 'reservation') {
+        res = await fetchReservations(fetchStartDate, fetchEndDate, config);
+      }
+      setFetchedData(res);
+      if (res.success) {
+        const count = Array.isArray(res.data) ? res.data.length : (res.data?.updates?.length || 1);
+        showNotification(`Fetched ${count} ${fetchType} records from Aiosell.`);
+      } else {
+        showNotification(`Fetch Error: ${res.error}`);
+      }
+    } catch (err) {
+      setFetchedData({ success: false, error: err.message });
+      showNotification(`Fetch failed: ${err.message}`);
+    } finally {
+      setIsFetching(false);
+    }
+  };
+
+  // Import fetched reservations directly into AuraStay PMS
+  const handleImportFetchedReservations = () => {
+    if (!fetchedData || !Array.isArray(fetchedData.data) || fetchedData.data.length === 0) {
+      showNotification('No reservation records available to import.');
       return;
     }
-    setIsSyncingAll(true);
-    setTimeout(() => {
-      setIsSyncingAll(false);
-      showNotification(`All ${channels.length} OTAs synced successfully with 100% rate parity.`);
-    }, 800);
+
+    let imported = 0;
+    const existingIds = new Set((reservations || []).map(r => r.id));
+
+    fetchedData.data.slice(0, 10).forEach(item => {
+      try {
+        const parsed = parseAiosellWebhookPayload(item);
+        if (parsed.action === 'book' || parsed.action === 'modify') {
+          if (!existingIds.has(parsed.reservation.id)) {
+            existingIds.add(parsed.reservation.id);
+            setReservations(prev => [parsed.reservation, ...(prev || [])]);
+            imported++;
+          }
+        }
+      } catch (e) {}
+    });
+
+    showNotification(`Imported ${imported} active OTA reservations into AuraStay Front Desk.`);
   };
 
-  const handleSyncSingle = (channelName) => {
-    showNotification(`Rates & availability pushed to ${channelName}.`);
-  };
-
-  const toggleToggle = (channelId, field) => {
-    setChannels(prev => prev.map(ch => {
-      if (ch.id === channelId) {
-        const nextVal = !ch[field];
-        showNotification(`${ch.name} ${field}: ${nextVal ? 'ON' : 'OFF'}`);
-        return { ...ch, [field]: nextVal };
+  // 4. Update Multipliers
+  const handleApplyMultiplier = async (channelCode, factor) => {
+    showNotification(`Updating ${channelCode} multiplier to ${factor}...`);
+    try {
+      const res = await updateChannelMultiplier(factor, [channelCode], config);
+      if (res.success) {
+        setChannels(prev => prev.map(ch => ch.code === channelCode ? { ...ch, multiplier: factor } : ch));
+        showNotification(`Multiplier updated: ${res.data?.message || 'Factor applied'}`);
+      } else {
+        showNotification(`Multiplier update notice: ${res.error}`);
       }
-      return ch;
-    }));
+    } catch (err) {
+      showNotification(`Multiplier Error: ${err.message}`);
+    }
   };
 
-  const handleAddChannel = (e) => {
-    e.preventDefault();
-    const nameMap = {
-      'Booking.com': { code: 'BCOM', logoText: 'B.', color: 'bg-blue-600' },
-      'Agoda': { code: 'AGD', logoText: 'Ag', color: 'bg-emerald-600' },
-      'MakeMyTrip': { code: 'MMT', logoText: 'MMT', color: 'bg-rose-600' },
-      'Expedia Partner': { code: 'EXP', logoText: 'Exp', color: 'bg-amber-600' },
-      'Airbnb Global': { code: 'ABNB', logoText: 'Ab', color: 'bg-pink-600' },
-      'Google Hotel Ads': { code: 'GHA', logoText: 'G.', color: 'bg-red-600' },
-      'Tripadvisor Instant Booking': { code: 'TA', logoText: 'TA', color: 'bg-teal-600' }
-    };
-    const meta = nameMap[newChannelData.name] || { code: 'OTA', logoText: 'OTA', color: 'bg-indigo-600' };
-    const created = {
-      id: `ch-${Date.now()}`,
-      name: newChannelData.name,
-      code: meta.code,
-      logoText: meta.logoText,
-      color: meta.color,
-      status: 'ACTIVE',
-      syncStatus: 'Fully Synced',
-      lastSync: 'Just now',
-      mappedRooms: 0,
-      activeBookings: 0,
-      commission: `${newChannelData.commissionPct}%`,
-      rateRule: 'Direct Parity (0%)',
-      syncRates: true,
-      syncAvailability: true,
-      syncBookings: true
-    };
+  // 5. Inbound Webhook Simulation
+  const handleSimulateWebhook = (sampleType) => {
+    setIsSimulatingWebhook(true);
 
-    setChannels(prev => [...prev, created]);
-    setIsConnectModalOpen(false);
-    showNotification(`${newChannelData.name} successfully connected!`);
+    let samplePayload;
+    if (sampleType === 'booking_prepaid') {
+      samplePayload = {
+        action: 'book',
+        hotelCode: config.hotelCode,
+        channel: 'booking.com',
+        bookingId: `BDC-${Math.floor(100000 + Math.random() * 900000)}`,
+        cmBookingId: `CM-BDC-${Date.now().toString().slice(-6)}`,
+        bookedOn: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        checkin: todayStr,
+        checkout: tomorrowStr,
+        segment: 'OTA',
+        specialRequests: 'High floor preferred, airport taxi at 10 AM',
+        pah: false, // Prepaid
+        amount: {
+          amountAfterTax: 7500,
+          amountBeforeTax: 6355.93,
+          tax: 1144.07,
+          currency: 'INR',
+          commission: 1125,
+          tcs: 50,
+          tds: 10
+        },
+        guest: {
+          firstName: 'Vikram',
+          lastName: 'Malhotra',
+          email: 'vikram.malhotra@example.com',
+          phone: '+91 98765 43210',
+          address: {
+            line1: '42 MG Road',
+            city: 'Bengaluru',
+            state: 'Karnataka',
+            country: 'India',
+            zipCode: '560001'
+          }
+        },
+        rooms: [
+          {
+            roomCode: 'suite',
+            rateplanCode: 'suite-d-cp',
+            guestName: 'Vikram Malhotra',
+            occupancy: { adults: 2, children: 1 },
+            prices: [{ date: todayStr, sellRate: 7500 }]
+          }
+        ]
+      };
+    } else if (sampleType === 'mmt_pah') {
+      samplePayload = {
+        action: 'book',
+        hotelCode: config.hotelCode,
+        channel: 'MakeMyTrip',
+        bookingId: `MMT-${Math.floor(100000 + Math.random() * 900000)}`,
+        cmBookingId: `CM-MMT-${Date.now().toString().slice(-6)}`,
+        bookedOn: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        checkin: todayStr,
+        checkout: tomorrowStr,
+        segment: 'OTA',
+        specialRequests: 'Late check-in around 11 PM',
+        pah: true, // Pay at Hotel
+        amount: {
+          amountAfterTax: 2800,
+          amountBeforeTax: 2500,
+          tax: 300,
+          currency: 'INR',
+          commission: 450,
+          tcs: 10,
+          tds: 2
+        },
+        guest: {
+          firstName: 'Ananya',
+          lastName: 'Sharma',
+          email: null, // OTA masked email test
+          phone: '+91 99887 76655',
+          address: { city: 'Mumbai', country: 'India' }
+        },
+        rooms: [
+          {
+            roomCode: 'executive',
+            rateplanCode: 'executive-s-ep',
+            guestName: 'Ananya Sharma',
+            occupancy: { adults: 1, children: 0 },
+            prices: [{ date: todayStr, sellRate: 2800 }]
+          }
+        ]
+      };
+    } else if (sampleType === 'modify') {
+      // Find a recent booking to modify or use sample
+      samplePayload = {
+        action: 'modify',
+        hotelCode: config.hotelCode,
+        channel: 'booking.com',
+        bookingId: webhookLogs[0]?.bookingId || 'BDC-5238846',
+        cmBookingId: 'CM-BDC-MOD-99',
+        bookedOn: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        checkin: todayStr,
+        checkout: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0], // Extended stay
+        segment: 'OTA',
+        specialRequests: 'Stay extended by 2 nights per guest request',
+        pah: false,
+        amount: {
+          amountAfterTax: 14500,
+          amountBeforeTax: 12288.13,
+          tax: 2211.87,
+          currency: 'INR',
+          commission: 2175,
+          tcs: 100,
+          tds: 20
+        },
+        guest: {
+          firstName: 'Vikram',
+          lastName: 'Malhotra',
+          email: 'vikram.malhotra@example.com',
+          phone: '+91 98765 43210'
+        },
+        rooms: [
+          {
+            roomCode: 'suite',
+            rateplanCode: 'suite-d-cp',
+            guestName: 'Vikram Malhotra',
+            occupancy: { adults: 2, children: 1 }
+          }
+        ]
+      };
+    } else if (sampleType === 'cancel') {
+      samplePayload = {
+        action: 'cancel',
+        hotelCode: config.hotelCode,
+        channel: 'Goibibo',
+        bookingId: webhookLogs[0]?.bookingId || '111222333'
+      };
+    } else if (sampleType === 'custom') {
+      try {
+        samplePayload = JSON.parse(customWebhookPayload);
+      } catch (err) {
+        showNotification(`Invalid JSON Payload: ${err.message}`);
+        setIsSimulatingWebhook(false);
+        return;
+      }
+    }
+
+    // Process parsed payload
+    try {
+      const parsed = parseAiosellWebhookPayload(samplePayload);
+      const logEntry = {
+        id: `wh-${Date.now()}`,
+        time: new Date().toLocaleTimeString(),
+        action: parsed.action,
+        channel: samplePayload.channel || 'OTA',
+        bookingId: parsed.action === 'cancel' ? parsed.bookingId : parsed.reservation.id,
+        guest: parsed.action === 'cancel' ? 'N/A' : parsed.reservation.guest,
+        amount: parsed.action === 'cancel' ? 'N/A' : `₹${parsed.reservation.amount}`,
+        pah: parsed.action === 'cancel' ? 'N/A' : (parsed.reservation.pah ? 'Pay At Hotel (PAH)' : 'Prepaid'),
+        status: 'PROCESSED_SUCCESS'
+      };
+
+      setWebhookLogs(prev => [logEntry, ...prev]);
+
+      if (parsed.action === 'book') {
+        setReservations(prev => [parsed.reservation, ...(prev || [])]);
+        showNotification(`Webhook [BOOK]: Reservation ${parsed.reservation.id} confirmed from ${parsed.reservation.channel}!`);
+      } else if (parsed.action === 'modify') {
+        setReservations(prev => prev.map(r => r.id === parsed.reservation.id ? { ...r, ...parsed.reservation } : r));
+        showNotification(`Webhook [MODIFY]: Reservation ${parsed.reservation.id} updated to full new state!`);
+      } else if (parsed.action === 'cancel') {
+        setReservations(prev => prev.map(r => r.id === parsed.bookingId ? { ...r, status: 'CANCELLED' } : r));
+        showNotification(`Webhook [CANCEL]: Booking ${parsed.bookingId} marked CANCELLED from ${parsed.channel}!`);
+      }
+    } catch (err) {
+      showNotification(`Webhook parse error: ${err.message}`);
+    } finally {
+      setIsSimulatingWebhook(false);
+    }
+  };
+
+  // 6. Mark No-Show (Rule 14: booking.com or gommt)
+  const handleExecuteMarkNoShow = async () => {
+    if (!noShowBookingId.trim()) {
+      showNotification('Please enter a Booking Reference ID.');
+      return;
+    }
+    setIsMarkingNoShow(true);
+    setNoShowResponse(null);
+    try {
+      const res = await markNoShow(noShowBookingId.trim(), noShowChannel, config);
+      setNoShowResponse(res);
+      if (res.success) {
+        showNotification(`No-show marked successfully for ${noShowChannel} booking ${noShowBookingId}.`);
+        // Update local status if found
+        setReservations(prev => prev.map(r => r.id === noShowBookingId.trim() ? { ...r, status: 'NO_SHOW' } : r));
+      } else {
+        showNotification(`No-show response: ${res.error || res.data?.message}`);
+      }
+    } catch (err) {
+      setNoShowResponse({ success: false, error: err.message });
+      showNotification(`No-show error: ${err.message}`);
+    } finally {
+      setIsMarkingNoShow(false);
+    }
+  };
+
+  // 7. Save Credentials
+  const handleSaveConfig = () => {
+    saveAiosellConfig(config);
+    showNotification('Aiosell credentials & partner settings saved.');
+    handleTestConnection(true);
+  };
+
+  const handleResetToSandbox = () => {
+    setConfig(DEFAULT_AIOSELL_CONFIG);
+    saveAiosellConfig(DEFAULT_AIOSELL_CONFIG);
+    showNotification('Reset to Aiosell Sandbox defaults (sandbox-pms / aiosell).');
   };
 
   return (
-    <div className="space-y-4 pb-12 animate-in fade-in duration-200">
-      {/* 1. Breadcrumb */}
+    <div className="space-y-6 pb-12 animate-in fade-in duration-200">
+      
+      {/* 1. Breadcrumbs */}
       <div className="flex items-center space-x-1.5 text-xs text-slate-500 pb-1 border-b border-slate-200">
         <span
           onClick={() => navigateTo('master-service-home')}
@@ -112,406 +540,1052 @@ export default function ChannelManagerView() {
         </span>
         <span>/</span>
         <span className="font-semibold text-slate-900">
-          Channel Manager
+          Aiosell Channel Manager
         </span>
       </div>
 
-      {/* 2. Top Header & Action Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-        <div>
-          <div className="flex items-center space-x-2 mb-1.5">
-            <span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 px-2 py-0.5 rounded tracking-wider">
-              AURASTAY PMS
+      {/* 2. Top Banner & Active Partner Status Bar */}
+      <div className="bg-gradient-to-r from-[#0b1a30] via-[#0f274a] to-[#0b1a30] rounded-2xl p-6 text-white shadow-lg border border-slate-700/60 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="space-y-2 max-w-2xl">
+          <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+            <span className="px-3 py-1 bg-sky-500/20 text-sky-300 border border-sky-400/30 rounded-full text-[11px] font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              AIOSELL 2-WAY XML INTEGRATION ACTIVE
             </span>
-            <span className="text-[10.5px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-wider">
-              <Trophy className="w-3.5 h-3.5 text-amber-500" /> MASTERY: 0%
+            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full text-[11px] font-bold">
+              Option 1: ₹800 / Property / Month (Flat Billing · 0% Commission)
+            </span>
+            <span className="px-2.5 py-0.5 bg-slate-800 text-slate-300 text-[10px] font-mono rounded-md">
+              Mode: {config.isSandbox ? 'SANDBOX (sandbox-pms)' : 'PRODUCTION PARTNER'}
             </span>
           </div>
 
-          <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            Channel Manager — Distribution & OTA Sync Hub
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center space-x-2">
+            <span>Aiosell Channel Manager Control Hub</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Manage two-way live connections with global OTAs, rate multipliers, allotments, and instant synchronization.
+
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Real-time multi-OTA distribution engine connecting MakeMyTrip, Goibibo, Booking.com, Agoda, Expedia, and Airbnb.
+            Synchronize room rates, available inventory, stop-sells, and auto-ingest reservations directly into AuraStay HMS.
           </p>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Quick nav to Audit Logs */}
+        {/* Quick Actions */}
+        <div className="flex items-center space-x-2.5 shrink-0 flex-wrap gap-y-2">
           <button
-            onClick={() => navigateTo('audit-logs')}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold shadow-2xs transition"
+            onClick={() => handleTestConnection(true)}
+            disabled={isTestingConnection}
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold text-white transition cursor-pointer shadow-xs"
           >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Audit Logs</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${isTestingConnection ? 'animate-spin' : ''}`} />
+            <span>{isTestingConnection ? 'Pinging API...' : 'Test Connection'}</span>
           </button>
 
-          {/* Quick nav to Revenue Insights */}
           <button
-            onClick={() => navigateTo('revenue-insights')}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold shadow-2xs transition"
+            onClick={() => setActiveTab('push')}
+            className="flex items-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-md"
           >
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>Revenue Insights</span>
-          </button>
-
-          {/* Connect New Channel */}
-          <button
-            onClick={() => setIsConnectModalOpen(true)}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-[#00a8cc] hover:bg-[#0092b6] text-white rounded-lg text-xs font-bold shadow-2xs transition"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Connect Channel</span>
-          </button>
-
-          {/* Push / Sync All */}
-          <button
-            onClick={handleSyncAll}
-            disabled={isSyncingAll}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold shadow-2xs transition disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingAll ? 'animate-spin' : ''}`} />
-            <span>Sync All OTAs</span>
+            <Send className="w-3.5 h-3.5" />
+            <span>Push Live Rates & Inventory</span>
           </button>
         </div>
       </div>
 
-      {/* 3. 4 Top Metric KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            CONNECTED CHANNELS
-          </span>
-          <div className="text-2xl font-black text-slate-900 mt-1">
-            {channels.length} OTAs
+      {/* 3. Live Diagnostic Connection Banner */}
+      {connectionStatus && (
+        <div className={`p-4 rounded-xl border text-xs flex items-center justify-between gap-3 ${
+          connectionStatus.ok
+            ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+            : 'bg-rose-50/80 border-rose-200 text-rose-900'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {connectionStatus.ok ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span className="font-medium">{connectionStatus.message}</span>
           </div>
-          <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1 mt-1">
-            <CheckCircle2 className="w-3.5 h-3.5" /> {channels.length > 0 ? '100% Online & Live' : '0 Connected'}
-          </span>
-        </div>
 
-        <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            SYNC ARCHITECTURE
-          </span>
-          <div className="text-2xl font-black text-sky-800 mt-1">2-Way</div>
-          <span className="text-[11px] text-slate-500 font-medium block mt-1">
-            Instant webhook push/pull
-          </span>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            TOTAL ACTIVE BOOKINGS
-          </span>
-          <div className="text-2xl font-black text-slate-900 mt-1">
-            {channels.reduce((acc, c) => acc + c.activeBookings, 0)}
-          </div>
-          <span className="text-[11px] text-emerald-600 font-medium block mt-1">
-            Direct PMS sync enabled
-          </span>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            RATE PARITY HEALTH
-          </span>
-          <div className="text-2xl font-black text-emerald-700 mt-1">100%</div>
-          <span className="text-[11px] text-emerald-600 font-medium block mt-1">
-            0 Parity breaches detected
-          </span>
-        </div>
-      </div>
-
-      {/* 4. Channel Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {channels.length === 0 ? (
-          <div className="col-span-full py-16 text-center bg-white rounded-xl border border-dashed border-slate-200 shadow-2xs">
-            <div className="w-12 h-12 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center mx-auto mb-3">
-              <Share2 className="w-6 h-6" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-800">No OTA Channels Connected</h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              Connect your property to Booking.com, Agoda, MakeMyTrip, Expedia, or custom channels for 2-way live rate and inventory synchronization.
-            </p>
+          <div className="flex items-center space-x-2 shrink-0">
+            <span className="text-[10px] font-mono text-slate-500">
+              Target: {config.baseUrl}
+            </span>
             <button
-              onClick={() => setIsConnectModalOpen(true)}
-              className="mt-4 px-4 py-2 bg-[#00a8cc] hover:bg-[#0092b6] text-white rounded-lg text-xs font-bold shadow-2xs transition"
+              onClick={() => setActiveTab('settings')}
+              className="text-xs font-bold text-indigo-700 hover:underline cursor-pointer"
             >
-              + Connect Your First Channel
+              Configure
             </button>
           </div>
-        ) : (
-          channels.map((ch) => (
-          <div
-            key={ch.id}
-            className="bg-white rounded-xl border border-slate-200/90 shadow-2xs p-4 flex flex-col justify-between space-y-4 hover:border-slate-300 transition"
-          >
-            {/* Channel Top Header */}
+        </div>
+      )}
+
+      {/* 4. Tab Navigation Bar */}
+      <div className="bg-white rounded-xl border border-slate-200 p-1.5 flex items-center space-x-1 overflow-x-auto shadow-xs">
+        <button
+          onClick={() => setActiveTab('channels')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'channels'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          <span>Connected OTAs & Multipliers</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-sky-500 text-white font-mono">
+            {channels.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('push')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'push'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <Send className="w-3.5 h-3.5" />
+          <span>Rates & Inventory Push Console</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('fetch')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'fetch'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          <span>Fetch Data from Aiosell</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('webhook')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'webhook'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <Zap className="w-3.5 h-3.5" />
+          <span>Inbound Webhook Tester & Simulator</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white font-mono">
+            {webhookLogs.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('noshow')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'noshow'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <Ban className="w-3.5 h-3.5" />
+          <span>Mark No-Show (Rule 14)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'settings'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <Settings className="w-3.5 h-3.5" />
+          <span>API Credentials & Auth</span>
+        </button>
+      </div>
+
+      {/* 5. TAB CONTENT */}
+
+      {/* TAB 1: Connected OTAs & Channel Multipliers */}
+      {activeTab === 'channels' && (
+        <div className="space-y-6">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2.5">
-                  <div className={`w-8 h-8 rounded-lg ${ch.color} text-white flex items-center justify-center font-black text-xs shadow-2xs`}>
-                    {ch.logoText}
+              <h2 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                <span>Connected Distribution Channels</span>
+                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-mono rounded-md border border-emerald-200 font-bold">
+                  2-Way ARI Enabled
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Aiosell pushes your tariffs and available room counts to these OTAs and delivers bookings directly into AuraStay HMS.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => navigateTo('ari-grid')}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+              >
+                <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Open ARI Calendar Grid</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Channels Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {channels.map((ch) => (
+              <div
+                key={ch.id}
+                className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs hover:shadow-md transition space-y-4 flex flex-col justify-between"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-10 h-10 rounded-xl ${ch.color} text-white flex items-center justify-center font-black text-sm shadow-sm`}>
+                      {ch.logo}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                        {ch.name}
+                      </h3>
+                      <span className="text-[10px] font-mono text-slate-400">
+                        Code: {ch.code}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-extrabold text-sm text-slate-900">{ch.name}</h3>
-                    <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
-                      <Clock className="w-2.5 h-2.5" /> {ch.lastSync}
-                    </span>
+
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    LIVE
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 rounded-xl p-3 space-y-2 text-xs border border-slate-100">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Sync Protocol:</span>
+                    <span className="font-bold text-slate-800">{ch.lastSync}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>OTA Commission:</span>
+                    <span className="font-bold text-slate-800">{ch.commission}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-600 pt-1 border-t border-slate-200/60">
+                    <span className="font-semibold text-slate-700">Rate Multiplier:</span>
+                    <div className="flex items-center space-x-1">
+                      <select
+                        value={ch.multiplier}
+                        onChange={(e) => handleApplyMultiplier(ch.code, Number(e.target.value))}
+                        className="bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-bold text-indigo-700 cursor-pointer"
+                      >
+                        <option value={0.9}>0.90 (-10%)</option>
+                        <option value={1.0}>1.00 (Parity)</option>
+                        <option value={1.05}>1.05 (+5%)</option>
+                        <option value={1.10}>1.10 (+10%)</option>
+                        <option value={1.15}>1.15 (+15%)</option>
+                        <option value={1.20}>1.20 (+20%)</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  {ch.status}
+                <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500">
+                  <span className="flex items-center gap-1 text-emerald-600 font-bold">
+                    <Check className="w-3.5 h-3.5" /> Stop-Sell & Min Stay Synced
+                  </span>
+                  <button
+                    onClick={() => {
+                      setPushSelectedChannels([ch.code]);
+                      setActiveTab('push');
+                    }}
+                    className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline cursor-pointer"
+                  >
+                    Push Rates &rarr;
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: Rates & Inventory Push Console */}
+      {activeTab === 'push' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Form: 7 cols */}
+          <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                <Send className="w-4 h-4 text-indigo-600" />
+                <span>Aiosell Push Transmission Console</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Transmit room inventory counts, nightly rates, or stay restrictions directly to Aiosell API.
+              </p>
+            </div>
+
+            {/* Selector: Inventory vs Rates vs Restrictions */}
+            <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-xl text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setPushType('inventory')}
+                className={`py-2 rounded-lg transition cursor-pointer text-center ${
+                  pushType === 'inventory' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                1. Push Inventory
+              </button>
+              <button
+                type="button"
+                onClick={() => setPushType('rates')}
+                className={`py-2 rounded-lg transition cursor-pointer text-center ${
+                  pushType === 'rates' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                2. Push Rates
+              </button>
+              <button
+                type="button"
+                onClick={() => setPushType('restrictions')}
+                className={`py-2 rounded-lg transition cursor-pointer text-center ${
+                  pushType === 'restrictions' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                3. Push Restrictions
+              </button>
+            </div>
+
+            {/* Date Range Selection */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Start Date (Inclusive)
+                </label>
+                <input
+                  type="date"
+                  value={pushStartDate}
+                  onChange={(e) => setPushStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500 outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  End Date (Inclusive)
+                </label>
+                <input
+                  type="date"
+                  value={pushEndDate}
+                  onChange={(e) => setPushEndDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500 outline-hidden"
+                />
+              </div>
+            </div>
+
+            {/* Room Category Selection */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                Aiosell Room Code
+              </label>
+              <select
+                value={pushRoomCode}
+                onChange={(e) => setPushRoomCode(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-hidden"
+              >
+                <option value="executive">EXECUTIVE (executive - 25 Rooms in Sandbox)</option>
+                <option value="suite">SUITE (suite - 5 Rooms in Sandbox)</option>
+                {(roomTypes || []).map(rt => (
+                  <option key={rt.id} value={rt.name.toLowerCase().replace(/\s+/g, '-')}>
+                    {rt.name} ({rt.label || 'AuraStay Master'})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Type-Specific Fields */}
+            {pushType === 'inventory' && (
+              <div className="bg-sky-50/60 p-4 rounded-xl border border-sky-100 space-y-3">
+                <label className="block text-xs font-bold text-slate-800">
+                  Available Room Count to Distribute
+                </label>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={pushAvailableCount}
+                    onChange={(e) => setPushAvailableCount(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-32 px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold font-mono text-slate-900"
+                  />
+                  <span className="text-xs text-slate-500">
+                    rooms available on selected date window
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {pushType === 'rates' && (
+              <div className="bg-indigo-50/60 p-4 rounded-xl border border-indigo-100 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Rate Plan Code
+                    </label>
+                    <select
+                      value={pushRatePlanCode}
+                      onChange={(e) => setPushRatePlanCode(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold"
+                    >
+                      <option value="executive-s-ep">executive-s-ep (Executive Room Only Single)</option>
+                      <option value="executive-d-ep">executive-d-ep (Executive Room Only Double)</option>
+                      <option value="executive-s-cp">executive-s-cp (Executive Breakfast Single)</option>
+                      <option value="executive-d-cp">executive-d-cp (Executive Breakfast Double)</option>
+                      <option value="suite-s-ep">suite-s-ep (Suite Room Only Single)</option>
+                      <option value="suite-d-cp">suite-d-cp (Suite Breakfast Double)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Nightly Rate (₹ INR)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">₹</span>
+                      <input
+                        type="number"
+                        min="500"
+                        step="50"
+                        value={pushNightlyRate}
+                        onChange={(e) => setPushNightlyRate(parseInt(e.target.value) || 0)}
+                        className="w-full pl-7 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold font-mono text-slate-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {pushType === 'restrictions' && (
+              <div className="bg-amber-50/60 p-4 rounded-xl border border-amber-100 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="pushStopSellCheck"
+                      checked={pushStopSell}
+                      onChange={(e) => setPushStopSell(e.target.checked)}
+                      className="w-4 h-4 text-rose-600 rounded cursor-pointer"
+                    />
+                    <label htmlFor="pushStopSellCheck" className="text-xs font-bold text-slate-800 cursor-pointer">
+                      Stop Sell (Block Bookings)
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                      Minimum Stay Nights
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={pushMinStay}
+                      onChange={(e) => setPushMinStay(parseInt(e.target.value) || 1)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-amber-200/60">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="ctaCheck"
+                      checked={pushCloseOnArrival}
+                      onChange={(e) => setPushCloseOnArrival(e.target.checked)}
+                      className="w-4 h-4 text-amber-600 rounded cursor-pointer"
+                    />
+                    <label htmlFor="ctaCheck" className="text-xs text-slate-700 cursor-pointer">
+                      Close On Arrival (CTA)
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="ctdCheck"
+                      checked={pushCloseOnDeparture}
+                      onChange={(e) => setPushCloseOnDeparture(e.target.checked)}
+                      className="w-4 h-4 text-amber-600 rounded cursor-pointer"
+                    />
+                    <label htmlFor="ctdCheck" className="text-xs text-slate-700 cursor-pointer">
+                      Close On Departure (CTD)
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Target Distribution Channels */}
+            {pushType === 'restrictions' && (
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-2">
+                  Target Channels (toChannels)
+                </label>
+                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                  {['agoda', 'booking.com', 'gommt', 'expedia', 'airbnb'].map(ch => (
+                    <label
+                      key={ch}
+                      className={`px-3 py-1.5 rounded-xl border cursor-pointer transition flex items-center space-x-1.5 ${
+                        pushSelectedChannels.includes(ch)
+                          ? 'bg-indigo-50 border-indigo-400 text-indigo-900 font-bold'
+                          : 'bg-white border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={pushSelectedChannels.includes(ch)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setPushSelectedChannels(prev => [...prev, ch]);
+                          } else {
+                            setPushSelectedChannels(prev => prev.filter(c => c !== ch));
+                          }
+                        }}
+                        className="sr-only"
+                      />
+                      <span>{ch}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleExecutePush}
+                disabled={isPushing}
+                className="w-full py-3 bg-[#0b1a30] hover:bg-[#132c52] text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-50"
+              >
+                <Send className={`w-4 h-4 ${isPushing ? 'animate-bounce' : ''}`} />
+                <span>{isPushing ? 'Sending Transmission to Aiosell...' : `Transmit ${pushType.toUpperCase()} to Aiosell OTAs`}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Right Console: 5 cols */}
+          <div className="lg:col-span-5 bg-slate-900 rounded-2xl p-5 text-white font-mono text-xs shadow-xl flex flex-col justify-between space-y-4">
+            <div>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5">
+                  <Terminal className="w-3.5 h-3.5 text-sky-400" />
+                  AIOSELL API LIVE CONSOLE
+                </span>
+                <span className="text-[10px] text-emerald-400 font-bold">
+                  AUTH: Basic {btoa(`${config.username}:***`).slice(0, 10)}...
                 </span>
               </div>
 
-              {/* Channel Stats Strip */}
-              <div className="mt-3.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100 grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">MAPPED ROOMS</span>
-                  <span className="font-bold text-slate-800">{ch.mappedRooms} Room Categories</span>
+              <div className="mt-4 space-y-3">
+                <div className="text-[11px] text-slate-400">
+                  Target Endpoint:
                 </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">COMMISSION</span>
-                  <span className="font-bold text-rose-700">{ch.commission}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">RATE STRATEGY</span>
-                  <span className="font-bold text-slate-800 text-[11px] truncate block" title={ch.rateRule}>
-                    {ch.rateRule}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">ACTIVE BOOKINGS</span>
-                  <span className="font-bold text-sky-700">{ch.activeBookings} Stays</span>
-                </div>
-              </div>
-
-              {/* 3 Two-Way Sync Toggles */}
-              <div className="mt-3 pt-3 border-t border-slate-100 space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-600 font-medium">Rates Sync (ARI)</span>
-                  <button
-                    onClick={() => toggleToggle(ch.id, 'syncRates')}
-                    className={`w-9 h-5 rounded-full transition relative p-0.5 ${ch.syncRates ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${ch.syncRates ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
+                <div className="bg-slate-950 p-2.5 rounded-lg text-emerald-400 text-[11px] break-all border border-slate-800">
+                  POST {config.baseUrl}/{pushType === 'rates' ? 'update-rates' : 'update'}/{config.partnerId}
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-600 font-medium">Availability Allotments</span>
-                  <button
-                    onClick={() => toggleToggle(ch.id, 'syncAvailability')}
-                    className={`w-9 h-5 rounded-full transition relative p-0.5 ${ch.syncAvailability ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${ch.syncAvailability ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
+                <div className="text-[11px] text-slate-400 pt-2">
+                  Live Response from live.aiosell.com:
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-600 font-medium">Inbound Bookings Webhook</span>
-                  <button
-                    onClick={() => toggleToggle(ch.id, 'syncBookings')}
-                    className={`w-9 h-5 rounded-full transition relative p-0.5 ${ch.syncBookings ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${ch.syncBookings ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
+                <div className="bg-slate-950 p-3 rounded-lg text-[11px] overflow-x-auto max-h-64 border border-slate-800">
+                  {lastPushResponse ? (
+                    <pre className="text-slate-200">
+                      {JSON.stringify(lastPushResponse, null, 2)}
+                    </pre>
+                  ) : (
+                    <div className="text-slate-500 italic py-4 text-center">
+                      Ready to transmit. Click "Transmit to Aiosell OTAs" to see the real-time API response.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Bottom Actions */}
-            <div className="pt-2 border-t border-slate-100 flex items-center space-x-2">
-              <button
-                onClick={() => handleSyncSingle(ch.name)}
-                className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-600" />
-                <span>Push Rates</span>
-              </button>
+            <div className="pt-3 border-t border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
+              <span>Hotel: {config.hotelCode}</span>
+              <span>Partner: {config.partnerId}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* TAB 3: Fetch Data from Aiosell */}
+      {activeTab === 'fetch' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                <RefreshCw className="w-4 h-4 text-indigo-600" />
+                <span>Fetch Live Inventory, Rates & Reservations</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Direct query against Aiosell dataset endpoint: <code className="text-indigo-600 font-mono">POST /data/{config.partnerId}</code>
+              </p>
+            </div>
+
+            {fetchedData?.data && Array.isArray(fetchedData.data) && fetchType === 'reservation' && (
               <button
-                onClick={() => setSelectedChannelSettings(ch)}
-                className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition"
-                title="Channel Settings"
+                onClick={handleImportFetchedReservations}
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs"
               >
-                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <Plus className="w-3.5 h-3.5" />
+                <span>Import Bookings to Front Desk</span>
+              </button>
+            )}
+          </div>
+
+          {/* Controls Bar */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                Query Type
+              </label>
+              <select
+                value={fetchType}
+                onChange={(e) => setFetchType(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                <option value="rates">Rates (type: 'rates')</option>
+                <option value="inventory">Inventory (type: 'inventory')</option>
+                <option value="reservation">OTA Reservations (type: 'reservation')</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={fetchStartDate}
+                onChange={(e) => setFetchStartDate(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={fetchEndDate}
+                onChange={(e) => setFetchEndDate(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-medium"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <button
+                onClick={handleExecuteFetch}
+                disabled={isFetching}
+                className="w-full py-2 bg-[#0b1a30] hover:bg-[#132c52] text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center space-x-1.5 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+                <span>{isFetching ? 'Fetching Data...' : 'Execute Fetch'}</span>
               </button>
             </div>
           </div>
-        )))}
-      </div>
 
-      {/* MODAL 1: CONNECT NEW CHANNEL */}
-      {isConnectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 bg-[#0e4860] text-white flex items-center justify-between">
-              <h3 className="font-bold text-base">Connect New OTA Channel</h3>
-              <button
-                onClick={() => setIsConnectModalOpen(false)}
-                className="text-white/80 hover:text-white p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
+          {/* Fetched Data Viewer */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Aiosell Query Result
+            </h3>
+
+            {fetchedData ? (
+              <div className="bg-slate-900 rounded-xl p-4 text-white text-xs font-mono overflow-x-auto max-h-96">
+                <pre>{JSON.stringify(fetchedData, null, 2)}</pre>
+              </div>
+            ) : (
+              <div className="text-center py-10 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-500">
+                Click "Execute Fetch" to query active rates or reservations from the Aiosell Sandbox.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: Inbound Webhook Tester & Simulator */}
+      {activeTab === 'webhook' && (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                  <Zap className="w-4 h-4 text-emerald-600" />
+                  <span>Inbound Reservation Webhook Integration</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Aiosell calls YOUR webhook when an OTA reservation is created, modified, or cancelled.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  HTTP Basic Auth Protected
+                </span>
+              </div>
             </div>
 
-            <form onSubmit={handleAddChannel} className="p-5 space-y-3.5 text-xs">
+            {/* Integration Details to share with Aiosell onboarding */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
               <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Select Distribution Partner
-                </label>
-                <select
-                  value={newChannelData.name}
-                  onChange={(e) => setNewChannelData({ ...newChannelData, name: e.target.value })}
-                  className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
-                >
-                  <option value="Booking.com">Booking.com</option>
-                  <option value="Agoda">Agoda</option>
-                  <option value="MakeMyTrip">MakeMyTrip</option>
-                  <option value="Expedia Partner">Expedia Partner</option>
-                  <option value="Airbnb Global">Airbnb Global</option>
-                  <option value="Google Hotel Ads">Google Hotel Ads</option>
-                  <option value="Tripadvisor Instant Booking">Tripadvisor Instant Booking</option>
-                  <option value="Traveloka">Traveloka</option>
-                  <option value="Despegar / Decolar">Despegar / Decolar</option>
-                </select>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Webhook URL (Share with Aiosell Support)
+                </span>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={config.webhookUrl || 'https://aurastay.dama.digital/api/webhooks/aiosell'}
+                    className="flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(config.webhookUrl || 'https://aurastay.dama.digital/api/webhooks/aiosell');
+                      showNotification('Webhook URL copied to clipboard.');
+                    }}
+                    className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition cursor-pointer"
+                    title="Copy URL"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Property Hotel ID on Channel
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Expected Basic Auth Credentials (Header)
+                </span>
+                <div className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-700 flex items-center justify-between">
+                  <span>username: <strong className="text-indigo-600">{config.username}</strong></span>
+                  <span>password: <strong className="text-indigo-600">{config.password}</strong></span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Test Triggers */}
+            <div className="pt-2">
+              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-2">
+                Simulate Inbound OTA Webhook Events:
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <button
+                  onClick={() => handleSimulateWebhook('booking_prepaid')}
+                  disabled={isSimulatingWebhook}
+                  className="p-3 bg-blue-50/70 hover:bg-blue-100/80 border border-blue-200 rounded-xl text-left transition cursor-pointer space-y-1"
+                >
+                  <div className="text-xs font-bold text-blue-900 flex items-center justify-between">
+                    <span>1. Booking.com (Prepaid)</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded">book</span>
+                  </div>
+                  <p className="text-[11px] text-blue-700">
+                    Suite, ₹7,500, pah=false, guest details & special requests
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => handleSimulateWebhook('mmt_pah')}
+                  disabled={isSimulatingWebhook}
+                  className="p-3 bg-rose-50/70 hover:bg-rose-100/80 border border-rose-200 rounded-xl text-left transition cursor-pointer space-y-1"
+                >
+                  <div className="text-xs font-bold text-rose-900 flex items-center justify-between">
+                    <span>2. MakeMyTrip (PAH)</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 bg-rose-200 text-rose-800 rounded">book</span>
+                  </div>
+                  <p className="text-[11px] text-rose-700">
+                    Executive, ₹2,800, pah=true (Pay at Hotel), masked email
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => handleSimulateWebhook('modify')}
+                  disabled={isSimulatingWebhook}
+                  className="p-3 bg-amber-50/70 hover:bg-amber-100/80 border border-amber-200 rounded-xl text-left transition cursor-pointer space-y-1"
+                >
+                  <div className="text-xs font-bold text-amber-900 flex items-center justify-between">
+                    <span>3. Modify Booking</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded">modify</span>
+                  </div>
+                  <p className="text-[11px] text-amber-700">
+                    Full state overwrite per Rule 9 (extended stay, ₹14,500)
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => handleSimulateWebhook('cancel')}
+                  disabled={isSimulatingWebhook}
+                  className="p-3 bg-red-50/70 hover:bg-red-100/80 border border-red-200 rounded-xl text-left transition cursor-pointer space-y-1"
+                >
+                  <div className="text-xs font-bold text-red-900 flex items-center justify-between">
+                    <span>4. Cancel Booking</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 bg-red-200 text-red-800 rounded">cancel</span>
+                  </div>
+                  <p className="text-[11px] text-red-700">
+                    Cancels booking & frees up inventory across all OTAs
+                  </p>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Webhook Activity Log */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                <Clock className="w-4 h-4 text-slate-500" />
+                <span>Live Inbound Webhook Activity Log</span>
+              </h3>
+              {webhookLogs.length > 0 && (
+                <button
+                  onClick={() => {
+                    setWebhookLogs([]);
+                    showNotification('Webhook log cleared.');
+                  }}
+                  className="text-xs font-bold text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                >
+                  Clear Log
+                </button>
+              )}
+            </div>
+
+            {webhookLogs.length > 0 ? (
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3">Time</th>
+                      <th className="py-2.5 px-3">Action</th>
+                      <th className="py-2.5 px-3">OTA Channel</th>
+                      <th className="py-2.5 px-3">Booking ID</th>
+                      <th className="py-2.5 px-3">Guest Name</th>
+                      <th className="py-2.5 px-3">Amount</th>
+                      <th className="py-2.5 px-3">Payment Type</th>
+                      <th className="py-2.5 px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {webhookLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-50/80 transition">
+                        <td className="py-2.5 px-3 font-mono text-slate-500">{log.time}</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                            log.action === 'book' ? 'bg-emerald-100 text-emerald-800' :
+                            log.action === 'modify' ? 'bg-amber-100 text-amber-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {log.action}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 font-bold text-slate-900">{log.channel}</td>
+                        <td className="py-2.5 px-3 font-mono text-indigo-600 font-bold">{log.bookingId}</td>
+                        <td className="py-2.5 px-3 text-slate-800">{log.guest}</td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{log.amount}</td>
+                        <td className="py-2.5 px-3 text-slate-600">{log.pah}</td>
+                        <td className="py-2.5 px-3">
+                          <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" /> Synced to PMS
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-10 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-400">
+                No webhook events received yet. Click any of the simulation triggers above to test incoming bookings!
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: Mark No-Show Console (Rule 14) */}
+      {activeTab === 'noshow' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6 max-w-2xl">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+              <Ban className="w-4 h-4 text-rose-600" />
+              <span>Mark Booking as No-Show</span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Strictly complies with Rule 14: body field <code className="text-indigo-600 font-mono">channel</code> supports only <code className="text-indigo-600 font-mono">booking.com</code> and <code className="text-indigo-600 font-mono">gommt</code>.
+            </p>
+          </div>
+
+          <div className="space-y-4 bg-slate-50 p-5 rounded-xl border border-slate-200 text-xs">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                Booking Reference ID
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 111222350 or BDC-5238846"
+                value={noShowBookingId}
+                onChange={(e) => setNoShowBookingId(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                Supported Channel
+              </label>
+              <select
+                value={noShowChannel}
+                onChange={(e) => setNoShowChannel(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                <option value="booking.com">booking.com (Booking.com)</option>
+                <option value="gommt">gommt (MakeMyTrip & Goibibo)</option>
+              </select>
+            </div>
+
+            <button
+              onClick={handleExecuteMarkNoShow}
+              disabled={isMarkingNoShow}
+              className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-50"
+            >
+              <Ban className="w-3.5 h-3.5" />
+              <span>{isMarkingNoShow ? 'Submitting to Aiosell...' : 'Mark as No-Show on OTA Extranet'}</span>
+            </button>
+          </div>
+
+          {noShowResponse && (
+            <div className="bg-slate-900 rounded-xl p-4 text-white text-xs font-mono">
+              <pre>{JSON.stringify(noShowResponse, null, 2)}</pre>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 6: Settings & Credentials */}
+      {activeTab === 'settings' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6 max-w-3xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                <Settings className="w-4 h-4 text-slate-700" />
+                <span>Aiosell Channel Manager API Settings</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Configure your partner credentials issued by Aiosell. Default credentials are set for Sandbox testing.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleResetToSandbox}
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition cursor-pointer"
+            >
+              Load Sandbox Defaults
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  HTTP Basic Auth Username
                 </label>
                 <input
                   type="text"
-                  value={newChannelData.hotelId}
-                  onChange={(e) => setNewChannelData({ ...newChannelData, hotelId: e.target.value })}
-                  className="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-900"
-                  required
+                  value={config.username}
+                  onChange={(e) => setConfig({ ...config, username: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  API Secret Key / Channel Token
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  HTTP Basic Auth Password
                 </label>
                 <input
                   type="password"
-                  placeholder="Enter API token..."
-                  value={newChannelData.apiKey}
-                  onChange={(e) => setNewChannelData({ ...newChannelData, apiKey: e.target.value })}
-                  className="w-full p-2 border border-slate-300 rounded-lg text-xs font-mono"
-                  required
+                  value={config.password}
+                  onChange={(e) => setConfig({ ...config, password: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold"
                 />
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Agreed Commission Percentage (%)
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Hotel Code
                 </label>
                 <input
-                  type="number"
-                  value={newChannelData.commissionPct}
-                  onChange={(e) => setNewChannelData({ ...newChannelData, commissionPct: e.target.value })}
-                  className="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-900"
-                  required
+                  type="text"
+                  value={config.hotelCode}
+                  onChange={(e) => setConfig({ ...config, hotelCode: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold"
                 />
               </div>
 
-              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsConnectModalOpen(false)}
-                  className="px-3.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-600 text-xs font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-[#00a8cc] hover:bg-[#0092b6] text-white rounded-lg text-xs font-bold"
-                >
-                  Activate Connection
-                </button>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Partner ID ({'{pms}'})
+                </label>
+                <input
+                  type="text"
+                  value={config.partnerId}
+                  onChange={(e) => setConfig({ ...config, partnerId: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold"
+                />
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
 
-      {/* MODAL 2: CHANNEL SETTINGS */}
-      {selectedChannelSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 bg-[#0e4860] text-white flex items-center justify-between">
-              <h3 className="font-bold text-base flex items-center gap-2">
-                <span>{selectedChannelSettings.name} Settings</span>
-              </h3>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                Aiosell Base URL
+              </label>
+              <input
+                type="text"
+                value={config.baseUrl}
+                onChange={(e) => setConfig({ ...config, baseUrl: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono text-slate-800"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2 pt-2">
+              <input
+                type="checkbox"
+                id="sandboxToggle"
+                checked={config.isSandbox}
+                onChange={(e) => setConfig({ ...config, isSandbox: e.target.checked })}
+                className="w-4 h-4 text-indigo-600 rounded cursor-pointer"
+              />
+              <label htmlFor="sandboxToggle" className="text-xs font-bold text-slate-800 cursor-pointer">
+                Sandbox Mode (live.aiosell.com testing environment)
+              </label>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 flex items-center justify-end space-x-3">
               <button
-                onClick={() => setSelectedChannelSettings(null)}
-                className="text-white/80 hover:text-white p-1"
+                type="button"
+                onClick={handleSaveConfig}
+                className="px-5 py-2.5 bg-[#0b1a30] hover:bg-[#132c52] text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-md"
               >
-                <X className="w-4 h-4" />
+                Save & Verify Credentials
               </button>
             </div>
-
-            <div className="p-5 space-y-3.5 text-xs">
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                <span className="text-[10px] font-bold text-slate-400 block mb-1">TWO-WAY PROTOCOL</span>
-                <span className="font-bold text-slate-800">OTA XML 2014B / JSON Webhook</span>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Pricing Multiplier / Disparity Offset
-                </label>
-                <select className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800">
-                  <option value="0">0% (Exact Direct Parity)</option>
-                  <option value="5">+5% Dynamic Surcharge</option>
-                  <option value="8">+8% Dynamic Surcharge</option>
-                  <option value="10">+10% Dynamic Surcharge</option>
-                  <option value="-5">-5% Promotional Discount</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Automatic Sync Interval
-                </label>
-                <select className="w-full p-2 border border-slate-300 rounded-lg text-xs text-slate-800">
-                  <option value="instant">Instant Real-Time Webhook Push</option>
-                  <option value="5m">Every 5 minutes</option>
-                  <option value="15m">Every 15 minutes</option>
-                  <option value="hourly">Hourly batch</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setSelectedChannelSettings(null)}
-                  className="px-3.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-600 text-xs font-semibold"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    showNotification(`${selectedChannelSettings.name} configuration updated.`);
-                    setSelectedChannelSettings(null);
-                  }}
-                  className="px-4 py-1.5 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }
