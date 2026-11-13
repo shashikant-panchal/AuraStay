@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import aavasaLogo from '../../assets/aavasa-logo.jpg';
 import { useDashboard } from '../../context/DashboardContext';
 import {
   CarTaxiFront,
@@ -191,9 +192,8 @@ export default function CabBookingView() {
   const handlePrintVoucher = (b) => {
     const printWindow = window.open('', '_blank', 'width=750,height=800');
     if (!printWindow) return;
-    const origin = window.location.origin;
-    const pathPrefix = window.location.pathname.replace(/\/[^/]*$/, '');
-    const logoUrl = `${origin}${pathPrefix}/aavasa-logo.jpg`;
+    const basePath = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/';
+    const logoUrl = new URL(aavasaLogo || 'aavasa-logo.jpg', basePath).href;
 
     printWindow.document.write(`
       <!DOCTYPE html>

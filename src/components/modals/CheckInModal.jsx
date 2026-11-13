@@ -357,3 +357,4 @@ export default function CheckInModal({ isOpen, onClose, reservation }) {
     </div>
   );
 }
+

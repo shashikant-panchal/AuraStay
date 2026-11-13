@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import aavasaLogo from '../../assets/aavasa-logo.jpg';
 import {
   PartyPopper,
   Building,
@@ -269,9 +270,8 @@ export default function BanquetEventsView() {
     }
 
     const dueAmount = Number(booking.totalAmount) - Number(booking.paidAmount);
-    const origin = window.location.origin;
-    const pathPrefix = window.location.pathname.replace(/\/[^/]*$/, '');
-    const logoUrl = `${origin}${pathPrefix}/aavasa-logo.jpg`;
+    const basePath = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/';
+    const logoUrl = new URL(aavasaLogo || 'aavasa-logo.jpg', basePath).href;
 
     printWindow.document.write(`
       <!DOCTYPE html>

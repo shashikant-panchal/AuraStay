@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import aavasaLogo from '../assets/aavasa-logo.jpg';
 import { useDashboard } from '../context/DashboardContext';
 import {
   Menu,
@@ -146,6 +147,23 @@ export default function Header() {
           >
             <Menu className="w-5 h-5" />
           </button>
+
+          {/* Aavasa Brand Logo */}
+          <div
+            onClick={() => navigateTo('dashboard')}
+            className="flex items-center cursor-pointer pr-1 transition hover:opacity-90"
+            title="Aavasa — Hospitality Simplified"
+          >
+            <img
+              src={aavasaLogo || "./aavasa-logo.jpg"}
+              alt="Aavasa"
+              className="h-8 sm:h-9 w-auto object-contain rounded"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = './aavasa-logo.jpg';
+              }}
+            />
+          </div>
 
           {/* Exceed Software Quick Links Mega Dropdown */}
           <div className="relative" ref={quickLinksRef}>

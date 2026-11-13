@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useDashboard } from '../context/DashboardContext';
+import aavasaLogo from '../assets/aavasa-logo.jpg';
 import { 
   Building2, 
   Lock, 
@@ -46,9 +47,13 @@ export default function HotelAdminLogin() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center p-3 rounded-3xl bg-white shadow-xl shadow-black/30 mb-4 border border-white/20">
             <img
-              src="/aavasa-logo.jpg"
+              src={aavasaLogo || "./aavasa-logo.jpg"}
               alt="Aavasa"
               className="h-14 w-auto object-contain rounded-xl"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = './aavasa-logo.jpg';
+              }}
             />
           </div>
           <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">

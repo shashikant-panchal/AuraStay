@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import aavasaLogo from '../../assets/aavasa-logo.jpg';
 import {
   X,
   Printer,
@@ -176,9 +177,8 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
       window.print();
       return;
     }
-    const origin = window.location.origin;
-    const pathPrefix = window.location.pathname.replace(/\/[^/]*$/, '');
-    const logoUrl = `${origin}${pathPrefix}/aavasa-logo.jpg`;
+    const basePath = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/';
+    const logoUrl = new URL(aavasaLogo || 'aavasa-logo.jpg', basePath).href;
 
     const hotelName = currentHotel?.name || 'Shivanandi';
     const operatingUnit = 'Aavasa — Hospitality Simplified';

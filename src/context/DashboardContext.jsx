@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import aavasaLogo from '../assets/aavasa-logo.jpg';
 import { initialMockData } from '../data/mockData';
 import { mockRooms, mockReservations, mockFnbOrders, mockStaffUsers, mockOtaChannels } from '../data/suiteData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -8,7 +9,7 @@ const DEFAULT_HOTEL = {
   slug: 'shivanandi',
   name: 'Shivanandi',
   shortName: 'SHIV',
-  logoUrl: '/aavasa-logo.jpg',
+  logoUrl: aavasaLogo || './aavasa-logo.jpg',
   ownerName: 'Shivanandi',
   ownerRole: 'Property Admin',
   email: 'admin@shivanandi.com',

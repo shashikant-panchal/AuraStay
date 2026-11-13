@@ -218,3 +218,4 @@ export default function CollectPaymentModal({ isOpen, onClose, reservation }) {
     </div>
   );
 }
+

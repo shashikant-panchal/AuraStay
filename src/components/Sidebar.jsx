@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDashboard } from '../context/DashboardContext';
+import aavasaLogo from '../assets/aavasa-logo.jpg';
 import {
   Building2,
   CalendarCheck,
@@ -235,9 +236,13 @@ export default function Sidebar() {
               title="Aavasa HMS - Shivanandi"
             >
               <img
-                src="/aavasa-logo.jpg"
+                src={aavasaLogo || "./aavasa-logo.jpg"}
                 alt="Aavasa - Hospitality Simplified"
                 className="h-12 w-auto max-w-[190px] object-contain transition group-hover:scale-102"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = './aavasa-logo.jpg';
+                }}
               />
             </div>
           ) : (
@@ -247,9 +252,13 @@ export default function Sidebar() {
               title="Aavasa HMS"
             >
               <img
-                src="/aavasa-logo.jpg"
+                src={aavasaLogo || "./aavasa-logo.jpg"}
                 alt="Aavasa"
                 className="h-9 w-9 object-contain rounded-md"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = './aavasa-logo.jpg';
+                }}
               />
             </div>
           )}

@@ -8,9 +8,13 @@ import aavasaLogo from '../../assets/aavasa-logo.jpg';
 export function HotelVoucherLogo({ className = "w-16 h-16" }) {
   return (
     <img
-      src={aavasaLogo || "/aavasa-logo.jpg"}
+      src={aavasaLogo || "./aavasa-logo.jpg"}
       alt="Aavasa — Hospitality Simplified"
       className={`${className} object-contain rounded-md`}
+      onError={(e) => {
+        e.currentTarget.onerror = null;
+        e.currentTarget.src = './aavasa-logo.jpg';
+      }}
     />
   );
 }
@@ -155,9 +159,8 @@ export default function BookingVoucher({
       window.print();
       return;
     }
-    const origin = window.location.origin;
-    const pathPrefix = window.location.pathname.replace(/\/[^/]*$/, '');
-    const logoUrl = `${origin}${pathPrefix}/aavasa-logo.jpg`;
+    const basePath = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/';
+    const logoUrl = new URL(aavasaLogo || 'aavasa-logo.jpg', basePath).href;
 
     printWindow.document.write(`
       <!DOCTYPE html>
