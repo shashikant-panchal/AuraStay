@@ -5,6 +5,8 @@ import DayViewOperations from './DayViewOperations';
 import CalendarViewAccommodation from './CalendarViewAccommodation';
 import ReservationManagementView from './ReservationManagementView';
 import FolioBillingModal from '../modals/FolioBillingModal';
+import CheckInModal from '../modals/CheckInModal';
+import CollectPaymentModal from '../modals/CollectPaymentModal';
 import {
   Building2,
   Home,
@@ -65,6 +67,10 @@ export default function FrontOfficeView() {
   const [selectedCheckInForAction, setSelectedCheckInForAction] = useState(null);
   const [isFolioModalOpen, setIsFolioModalOpen] = useState(false);
   const [folioActiveItem, setFolioActiveItem] = useState(null);
+
+  // Check In & Front Desk Payment modals
+  const [checkInTargetRes, setCheckInTargetRes] = useState(null);
+  const [collectPaymentTargetRes, setCollectPaymentTargetRes] = useState(null);
 
   // Dynamic Room Availability & BAR derived from active rooms
   const roomAvailabilityData = useMemo(() => {
@@ -995,6 +1001,24 @@ export default function FrontOfficeView() {
             <div className="space-y-2 pt-2">
               <button
                 onClick={() => {
+                  setCheckInTargetRes(selectedCheckInForAction);
+                  setSelectedCheckInForAction(null);
+                }}
+                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-sm"
+              >
+                Guest Check-In (Time & Room Assignment)
+              </button>
+              <button
+                onClick={() => {
+                  setCollectPaymentTargetRes(selectedCheckInForAction);
+                  setSelectedCheckInForAction(null);
+                }}
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm"
+              >
+                Collect Front Desk Payment
+              </button>
+              <button
+                onClick={() => {
                   setFolioActiveItem(selectedCheckInForAction);
                   setIsFolioModalOpen(true);
                   setSelectedCheckInForAction(null);
@@ -1040,6 +1064,24 @@ export default function FrontOfficeView() {
             payment: 'PAID',
             rate_plan: 'EP - European Plan'
           }}
+        />
+      )}
+
+      {/* Admin Check-In Modal */}
+      {checkInTargetRes && (
+        <CheckInModal
+          isOpen={Boolean(checkInTargetRes)}
+          onClose={() => setCheckInTargetRes(null)}
+          reservation={checkInTargetRes}
+        />
+      )}
+
+      {/* Admin Collect Payment Modal */}
+      {collectPaymentTargetRes && (
+        <CollectPaymentModal
+          isOpen={Boolean(collectPaymentTargetRes)}
+          onClose={() => setCollectPaymentTargetRes(null)}
+          reservation={collectPaymentTargetRes}
         />
       )}
     </div>

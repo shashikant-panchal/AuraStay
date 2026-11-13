@@ -22,11 +22,44 @@ import {
   Check
 } from 'lucide-react';
 
-const TABLES_DATA = [];
-const MENU_ITEMS = [];
+const TABLES_DATA = [
+  { id: 'T1', name: 'Table 01', area: 'Main Dining', seats: 4, status: 'VACANT', currentOrder: null },
+  { id: 'T2', name: 'Table 02', area: 'Main Dining', seats: 4, status: 'OCCUPIED', currentOrder: { items: 2, total: 540 } },
+  { id: 'T3', name: 'Table 03', area: 'Main Dining', seats: 2, status: 'VACANT', currentOrder: null },
+  { id: 'T4', name: 'Table 04', area: 'Main Dining', seats: 6, status: 'VACANT', currentOrder: null },
+  { id: 'P1', name: 'Table P1', area: 'Poolside', seats: 4, status: 'VACANT', currentOrder: null },
+  { id: 'P2', name: 'Table P2', area: 'Poolside', seats: 4, status: 'VACANT', currentOrder: null },
+  { id: 'P3', name: 'Table P3', area: 'Poolside', seats: 2, status: 'VACANT', currentOrder: null },
+  { id: 'R1', name: 'Table R1', area: 'Rooftop', seats: 4, status: 'VACANT', currentOrder: null },
+  { id: 'R2', name: 'Table R2', area: 'Rooftop', seats: 6, status: 'VACANT', currentOrder: null },
+  { id: 'R3', name: 'Table R3', area: 'Rooftop', seats: 2, status: 'VACANT', currentOrder: null }
+];
+
+const MENU_ITEMS = [
+  { id: 'M-1', name: 'Paneer Tikka', category: 'Starters', price: 280, isVeg: true, desc: 'Chargrilled cottage cheese marinated with hung curd and spices' },
+  { id: 'M-2', name: 'Crispy Corn Salt & Pepper', category: 'Starters', price: 220, isVeg: true, desc: 'Sweet golden corn kernels tossed with wok peppers' },
+  { id: 'M-3', name: 'Chicken Tikka Angara', category: 'Starters', price: 340, isVeg: false, desc: 'Spiced tender chicken roasted in traditional clay oven' },
+  { id: 'M-4', name: 'Veg Spring Rolls (6 pcs)', category: 'Starters', price: 210, isVeg: true, desc: 'Crispy rolls stuffed with seasoned shredded vegetables' },
+  { id: 'M-5', name: 'Tandoori Chicken Wings', category: 'Starters', price: 320, isVeg: false, desc: 'Marinated roasted juicy chicken wings' },
+  { id: 'M-6', name: 'Paneer Butter Masala', category: 'Mains', price: 320, isVeg: true, desc: 'Fresh paneer cooked in creamy tomato butter gravy' },
+  { id: 'M-7', name: 'Dal Makhani Shivanandi', category: 'Mains', price: 260, isVeg: true, desc: 'Slow simmered black lentils with cream and butter' },
+  { id: 'M-8', name: 'Murgh Makhani (Butter Chicken)', category: 'Mains', price: 380, isVeg: false, desc: 'Boneless tandoori chicken in rich silk makhani gravy' },
+  { id: 'M-9', name: 'Kadhai Paneer', category: 'Mains', price: 310, isVeg: true, desc: 'Cottage cheese with capsicum, onion and crushed spices' },
+  { id: 'M-10', name: 'Awadhi Veg Biryani', category: 'Mains', price: 280, isVeg: true, desc: 'Fragrant basmati rice dum cooked with vegetables and saffron' },
+  { id: 'M-11', name: 'Chicken Dum Biryani', category: 'Mains', price: 360, isVeg: false, desc: 'Hyderabadi style slow cooked chicken biryani with mirchi ka salan' },
+  { id: 'M-12', name: 'Butter Naan', category: 'Breads', price: 50, isVeg: true, desc: 'Refined flour bread cooked in tandoor with butter' },
+  { id: 'M-13', name: 'Garlic Naan', category: 'Breads', price: 70, isVeg: true, desc: 'Flavored with minced fresh garlic and coriander' },
+  { id: 'M-14', name: 'Tandoori Roti', category: 'Breads', price: 30, isVeg: true, desc: 'Whole wheat flatbread baked in clay oven' },
+  { id: 'M-15', name: 'Fresh Lime Soda (Sweet/Salt)', category: 'Drinks', price: 90, isVeg: true, desc: 'Chilled bubbly soda with fresh lime juice' },
+  { id: 'M-16', name: 'Masala Chai', category: 'Drinks', price: 40, isVeg: true, desc: 'Traditional Indian tea infused with cardamom and ginger' },
+  { id: 'M-17', name: 'Cold Coffee with Ice Cream', category: 'Drinks', price: 140, isVeg: true, desc: 'Creamy chilled blended espresso with vanilla scoop' },
+  { id: 'M-18', name: 'Mango Lassi', category: 'Drinks', price: 110, isVeg: true, desc: 'Rich whipped yogurt blended with Alphonso mango pulp' },
+  { id: 'M-19', name: 'Gulab Jamun (2 pcs)', category: 'Desserts', price: 110, isVeg: true, desc: 'Warm milk dumplings soaked in rose flavored saffron syrup' },
+  { id: 'M-20', name: 'Rasmalai (2 pcs)', category: 'Desserts', price: 140, isVeg: true, desc: 'Soft cottage cheese discs in thickened saffron pistachios milk' }
+];
 
 export default function RestaurantPosView() {
-  const { navigateTo, showNotification, fnbOrders = [] } = useDashboard();
+  const { navigateTo, showNotification, fnbOrders = [], addFnbOrder, rooms = [] } = useDashboard();
 
   const [tables, setTables] = useState(() => {
     try {
@@ -116,6 +149,40 @@ export default function RestaurantPosView() {
     setSelectedTable(created);
     setIsAddTableModalOpen(false);
     showNotification(`${created.name} added to ${created.area}!`);
+  };
+
+  const handlePrintKot = () => {
+    if (cart.length === 0) {
+      showNotification('Please add dishes to cart before sending to kitchen KOT.');
+      return;
+    }
+    const orderItemsSummary = cart.map(i => `${i.qty}x ${i.name}`).join(', ');
+    const newKotOrder = {
+      orderId: `KOT-${Date.now().toString().slice(-4)}`,
+      roomTable: selectedTable?.name || 'Table 01',
+      guest: selectedTable?.guest || 'Dine-In Guest',
+      items: orderItemsSummary,
+      total: grandTotal,
+      status: 'PREPARING',
+      time: 'Just now'
+    };
+
+    if (addFnbOrder) {
+      addFnbOrder(newKotOrder);
+    }
+
+    const updated = tables.map(t => t.id === selectedTable?.id ? {
+      ...t,
+      status: 'OCCUPIED',
+      items: cart.reduce((s, it) => s + it.qty, 0),
+      total: grandTotal
+    } : t);
+    setTables(updated);
+    try {
+      localStorage.setItem('aurastay_pos_tables', JSON.stringify(updated));
+    } catch {}
+
+    showNotification(`KOT #${newKotOrder.orderId} sent to Kitchen Display System (KDS)! Items: ${orderItemsSummary}`);
   };
 
   const handleSettleTable = () => {
@@ -436,14 +503,8 @@ export default function RestaurantPosView() {
           {/* Action Buttons: KOT Print, Room Folio, Settle */}
           <div className="space-y-2 pt-2 border-t border-slate-100">
             <button
-              onClick={() => {
-                if (cart.length === 0) {
-                  showNotification('Please add items to cart before printing KOT.');
-                  return;
-                }
-                showNotification(`Kitchen Order Ticket (KOT) for ${selectedTable?.name || 'Table'} printed and dispatched!`);
-              }}
-              className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-2xs"
+              onClick={handlePrintKot}
+              className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-2xs cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Print Kitchen KOT</span>

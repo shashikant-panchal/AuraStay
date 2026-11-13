@@ -60,7 +60,7 @@ export default class ErrorBoundary extends React.Component {
               className="flex items-center space-x-1.5 px-4 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white text-xs font-semibold rounded-lg shadow-sm transition cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reload AuraStay</span>
+              <span>Reload Aavasa</span>
             </button>
           </div>
         </div>

@@ -259,6 +259,128 @@ export default function BanquetEventsView() {
     setMenuItems('');
   };
 
+  // Print Banquet Invoice with Official Aavasa Layout
+  const handlePrintBanquetInvoice = (booking) => {
+    if (!booking) return;
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    const dueAmount = Number(booking.totalAmount) - Number(booking.paidAmount);
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Banquet Tax Invoice - ${booking.id}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; color: #1e293b; line-height: 1.5; font-size: 13px; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #7c3aed; padding-bottom: 16px; margin-bottom: 20px; }
+          .logo { max-height: 60px; object-fit: contain; }
+          .title-section h1 { margin: 0 0 4px 0; font-size: 22px; color: #4c1d95; text-transform: uppercase; }
+          .title-section p { margin: 0; color: #64748b; font-size: 12px; }
+          .doc-type { text-align: right; }
+          .badge { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 11px; display: inline-block; margin-bottom: 6px; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+          .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+          .card h3 { margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; }
+          .card-row { display: flex; justify-content: space-between; padding: 3px 0; }
+          .label { color: #64748b; }
+          .val { font-weight: 600; color: #0f172a; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th { background: #4c1d95; color: white; text-align: left; padding: 8px 10px; font-size: 12px; }
+          td { border-bottom: 1px solid #e2e8f0; padding: 10px; font-size: 12px; }
+          .total-box { margin-left: auto; width: 280px; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 12px; }
+          .total-row { display: flex; justify-content: space-between; padding: 4px 0; }
+          .total-row.grand { border-top: 1px solid #d8b4fe; margin-top: 6px; padding-top: 6px; font-weight: 800; font-size: 14px; color: #581c87; }
+          .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 11px; color: #64748b; }
+          .sig-line { width: 180px; border-top: 1px solid #94a3b8; text-align: center; padding-top: 6px; margin-top: 40px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <img src="/aavasa-logo.jpg" alt="Aavasa" class="logo" />
+            <div class="title-section" style="margin-top: 8px;">
+              <h1>Shivanandi Hotel & Convention</h1>
+              <p>Aavasa — Hospitality Simplified</p>
+              <p>Bengaluru, Karnataka | Phone: +91 79785 78046 | GSTIN: 29AAACH7409R1ZZ</p>
+            </div>
+          </div>
+          <div class="doc-type">
+            <span class="badge">BANQUET FUNCTION PROSPECTUS</span>
+            <div style="font-size: 16px; font-weight: 800; color: #0f172a;">Invoice #${booking.id}</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Date: ${booking.date}</div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <h3>Host & Contact Details</h3>
+            <div class="card-row"><span class="label">Client / Host:</span><span class="val">${booking.guestName}</span></div>
+            <div class="card-row"><span class="label">Contact Phone:</span><span class="val">${booking.phone}</span></div>
+            <div class="card-row"><span class="label">Status:</span><span class="val" style="color: #15803d;">${booking.status || 'CONFIRMED'}</span></div>
+          </div>
+          <div class="card">
+            <h3>Event & Hall Specification</h3>
+            <div class="card-row"><span class="label">Banquet Venue:</span><span class="val" style="color: #6d28d9;">${booking.venue}</span></div>
+            <div class="card-row"><span class="label">Date & Slot:</span><span class="val">${booking.date} (${booking.timeSlot})</span></div>
+            <div class="card-row"><span class="label">Guaranteed Pax:</span><span class="val">${booking.pax} Guests</span></div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Description / Catering Package</th>
+              <th>Venue Hall</th>
+              <th>Guest Count</th>
+              <th style="text-align: right;">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><strong>${booking.cateringPackage || 'Royal Grand Buffet'}</strong><br><span style="color: #64748b; font-size: 11px;">Complete Event Space, Banquet Setup, Sound & Food Catering</span></td>
+              <td>${booking.venue}</td>
+              <td>${booking.pax} Pax</td>
+              <td style="text-align: right; font-weight: 700;">₹${Number(booking.totalAmount).toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="total-box">
+          <div class="total-row"><span class="label">Total Event Tariff:</span><span class="val">₹${Number(booking.totalAmount).toLocaleString()}</span></div>
+          <div class="total-row"><span class="label" style="color: #15803d;">Advance Cleared:</span><span class="val" style="color: #15803d;">₹${Number(booking.paidAmount).toLocaleString()}</span></div>
+          <div class="total-row grand"><span>Balance Due:</span><span>₹${dueAmount.toLocaleString()}</span></div>
+        </div>
+
+        <div class="footer">
+          <div>
+            <p><strong>Terms:</strong> Full settlement required before event conclusion. Outside catering subject to approval.</p>
+            <p>Generated by Aavasa HMS Banquet System.</p>
+          </div>
+          <div class="sig-line">
+            Authorized Signatory<br>Shivanandi Banquet Desk
+          </div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   // Update Status
   const handleUpdateStatus = async (bookingId, newStatus) => {
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
@@ -1178,7 +1300,7 @@ export default function BanquetEventsView() {
 
                           <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                             <button
-                              onClick={() => window.print()}
+                              onClick={() => handlePrintBanquetInvoice(selectedBookingForInvoice)}
                               className="px-4 py-2 bg-purple-900 hover:bg-purple-800 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 transition shadow-sm cursor-pointer"
                             >
                               <Printer className="w-4 h-4" />

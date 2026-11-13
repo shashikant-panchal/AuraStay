@@ -54,48 +54,66 @@ export default function StayViewCalendar() {
   // Tooltip for room category override
   const [hoveredRoom203, setHoveredRoom203] = useState(false);
 
-  // 15-day timeline: starting dynamically from today
-  const timelineDays = Array.from({ length: 15 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    const dayNum = String(d.getDate());
-    const dayName = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][d.getDay()];
-    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    const weekend = d.getDay() === 0 || d.getDay() === 6;
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dayDate = `${yyyy}-${mm}-${dayNum.padStart(2, '0')}`;
+  // Timeline Navigation state: offset in days from today (default -4 so past 4 days are clearly visible)
+  const [timelineOffset, setTimelineOffset] = useState(-4);
 
-    // Count real active reservations on this day across all rooms
-    const bookedOnDay = (reservations || []).filter(res => {
-      if (res.status === 'CANCELLED' || res.status === 'CHECKED_OUT') return false;
-      const cIn = res.check_in || res.checkIn;
-      const cOut = res.check_out || res.checkOut;
-      return cIn <= dayDate && cOut > dayDate;
-    }).length;
+  // 18-day timeline: starting from (today + timelineOffset), showing past, today, and future
+  const timelineDays = React.useMemo(() => {
+    return Array.from({ length: 18 }, (_, i) => {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() + timelineOffset + i);
+      const dayNum = String(d.getDate());
+      const dayName = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][d.getDay()];
+      const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      const weekend = d.getDay() === 0 || d.getDay() === 6;
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dayDate = `${yyyy}-${mm}-${dayNum.padStart(2, '0')}`;
+      const isToday = dayDate === new Date().toISOString().slice(0, 10);
 
-    const availableCount = Math.max(0, rooms.length - bookedOnDay);
-    const occupancyRate = rooms.length > 0 ? Math.round((bookedOnDay / rooms.length) * 100) : 0;
+      // Count ALL bookings covering this day (CONFIRMED, CHECKED_IN, and historical stays)
+      const staysOnDay = (reservations || []).filter(res => {
+        if (res.status === 'CANCELLED') return false;
+        const cIn = String(res.check_in || res.checkIn || '').slice(0, 10);
+        const cOut = String(res.check_out || res.checkOut || '').slice(0, 10);
+        return cIn && cOut && cIn <= dayDate && cOut >= dayDate;
+      });
 
-    return {
-      date: dayDate,
-      month: monthNames[d.getMonth()],
-      dayNum,
-      dayName,
-      weekend,
-      availableRooms: availableCount,
-      bookedRooms: bookedOnDay,
-      occupancy: occupancyRate,
-      revenue: `₹ ${(bookedOnDay * 2500).toLocaleString('en-IN')}`,
-      adr: bookedOnDay > 0 ? '₹ 2,500' : '₹ 0'
-    };
-  });
+      // Count new reservations booked/created on this specific date
+      const createdOnDay = (reservations || []).filter(res => {
+        const cr = String(res.createdAt || res.created_at || '').slice(0, 10);
+        return cr === dayDate;
+      }).length;
+
+      const bookedOnDay = staysOnDay.length;
+      const availableCount = Math.max(0, rooms.length - bookedOnDay);
+      const occupancyRate = rooms.length > 0 ? Math.round((bookedOnDay / rooms.length) * 100) : 0;
+
+      return {
+        date: dayDate,
+        month: monthNames[d.getMonth()],
+        dayNum,
+        dayName,
+        weekend,
+        isToday,
+        availableRooms: availableCount,
+        bookedRooms: bookedOnDay,
+        createdOnDay,
+        occupancy: occupancyRate,
+        revenue: `₹ ${(bookedOnDay * 2500).toLocaleString('en-IN')}`,
+        adr: bookedOnDay > 0 ? '₹ 2,500' : '₹ 0'
+      };
+    });
+  }, [timelineOffset, reservations, rooms]);
 
   // Room Categories & sub-rooms setup dynamically from rooms and real reservations
   const categoryConfig = React.useMemo(() => {
     if (!rooms || rooms.length === 0) return [];
     const grouped = {};
     const startDate = new Date(timelineDays[0].date);
+    startDate.setHours(0, 0, 0, 0);
+    const numDays = timelineDays.length;
 
     rooms.forEach(r => {
       const type = r.type || 'Standard Room';
@@ -112,7 +130,7 @@ export default function StayViewCalendar() {
 
       const rNum = String(r.roomNumber || r.room_number || r.id);
 
-      // Map real reservations to this room
+      // Map real reservations to this room (Never discard historical or checked out bookings)
       const roomBookings = [];
       (reservations || []).forEach(res => {
         if (res.status === 'CANCELLED') return;
@@ -121,29 +139,37 @@ export default function StayViewCalendar() {
         const matchesRoom = (matchNum && matchNum[1] === rNum) || resRoom === rNum || resRoom.includes(`Room ${rNum}`) || resRoom.includes(rNum);
         if (!matchesRoom) return;
 
-        const checkInStr = res.check_in || res.checkIn;
-        const checkOutStr = res.check_out || res.checkOut;
+        const checkInStr = String(res.check_in || res.checkIn || '').slice(0, 10);
+        const checkOutStr = String(res.check_out || res.checkOut || '').slice(0, 10);
         if (!checkInStr || !checkOutStr) return;
 
         const resCheckIn = new Date(checkInStr);
+        resCheckIn.setHours(0, 0, 0, 0);
         const resCheckOut = new Date(checkOutStr);
+        resCheckOut.setHours(0, 0, 0, 0);
 
         const diffInDays = Math.floor((resCheckIn - startDate) / (1000 * 60 * 60 * 24));
         const diffOutDays = Math.ceil((resCheckOut - startDate) / (1000 * 60 * 60 * 24));
 
-        // Overlaps if resCheckOut > startDate and diffInDays < 15
-        if (diffOutDays > 0 && diffInDays < 15) {
+        if (diffOutDays > 0 && diffInDays < numDays) {
           const startIdx = Math.max(0, diffInDays);
-          const endIdx = Math.min(15, diffOutDays);
+          const endIdx = Math.min(numDays, Math.max(diffInDays + 1, diffOutDays));
           const span = Math.max(1, endIdx - startIdx);
+
+          let barColor = 'bg-[#0092d6] text-white';
+          if (res.status === 'CHECKED_IN' || res.status === 'CHECKEDIN') {
+            barColor = 'bg-emerald-600 text-white';
+          } else if (res.status === 'CHECKED_OUT' || res.status === 'CHECKEDOUT') {
+            barColor = 'bg-slate-600 text-white border border-slate-700/60';
+          }
 
           roomBookings.push({
             id: res.id,
             guest: res.guest || 'Guest',
-            shortLabel: res.guest || 'Guest',
+            shortLabel: `${(res.status === 'CHECKED_OUT' || res.status === 'CHECKEDOUT') ? '✓ Out: ' : ''}${res.guest || 'Guest'}`,
             startIdx,
             span,
-            amount: `₹ ${Number(res.amount || 0).toLocaleString('en-IN')}`,
+            amount: `₹ ${Number(res.amount || res.price || 0).toLocaleString('en-IN')}`,
             paid: Number(res.paid || res.advance_paid || 0),
             payment: res.payment || 'PENDING',
             status: res.status || 'CONFIRMED',
@@ -151,13 +177,13 @@ export default function StayViewCalendar() {
             roomNumber: rNum,
             checkIn: checkInStr,
             checkOut: checkOutStr,
-            phone: res.guest_phone || 'N/A',
-            email: res.guest_email || 'N/A',
+            phone: res.guest_phone || res.phone || 'N/A',
+            email: res.guest_email || res.email || 'N/A',
             ratePlan: res.rate_plan || 'EP - Room Only',
-            color: res.status === 'CHECKED_IN' ? 'bg-emerald-600' : 'bg-[#0092d6]'
+            color: barColor
           });
 
-          for (let d = startIdx; d < Math.min(15, startIdx + span); d++) {
+          for (let d = startIdx; d < Math.min(numDays, startIdx + span); d++) {
             if (grouped[type].dailyStats[d]) {
               grouped[type].dailyStats[d].booked += 1;
             }
@@ -165,7 +191,8 @@ export default function StayViewCalendar() {
         }
       });
 
-      const isOccupiedToday = roomBookings.some(b => b.startIdx === 0);
+      const todayIdx = timelineDays.findIndex(td => td.isToday);
+      const isOccupiedToday = roomBookings.some(b => b.startIdx <= todayIdx && (b.startIdx + b.span) > todayIdx && (b.status === 'CHECKED_IN' || b.status === 'CHECKEDIN'));
 
       grouped[type].rooms.push({
         id: rNum,
@@ -297,27 +324,53 @@ export default function StayViewCalendar() {
       {/* Date Controls & Legend Toolbar (Screenshot 1) */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-1">
         {/* Left: Date Picker Navigator */}
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button 
-            onClick={() => showNotification('Navigating to previous 15-day window...')}
-            className="w-9 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 transition shadow-2xs"
-            title="Previous Days"
+            onClick={() => setTimelineOffset(prev => prev - 7)}
+            className="px-3 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 flex items-center space-x-1 text-slate-700 font-bold text-xs transition shadow-2xs cursor-pointer"
+            title="Previous 7 Days"
           >
             <ChevronLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Prev 7 Days</span>
           </button>
-
-          <div className="h-9 px-4 rounded-xl border border-slate-200 bg-white flex items-center space-x-2 shadow-2xs">
-            <span className="text-xs font-bold text-slate-800">05/11/2026 - 19/11/2026</span>
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-          </div>
 
           <button 
-            onClick={() => showNotification('Navigating to next 15-day window...')}
-            className="w-9 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 transition shadow-2xs"
-            title="Next Days"
+            onClick={() => setTimelineOffset(-4)}
+            className="px-3 h-9 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-xs transition shadow-2xs cursor-pointer"
+            title="Jump to Current Week / Today"
           >
+            Today
+          </button>
+
+          <button 
+            onClick={() => setTimelineOffset(prev => prev + 7)}
+            className="px-3 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 flex items-center space-x-1 text-slate-700 font-bold text-xs transition shadow-2xs cursor-pointer"
+            title="Next 7 Days"
+          >
+            <span className="hidden sm:inline">Next 7 Days</span>
             <ChevronRight className="w-4 h-4" />
           </button>
+
+          <div className="h-9 px-3 rounded-xl border border-slate-200 bg-white flex items-center space-x-2 shadow-2xs">
+            <span className="text-xs font-mono font-bold text-slate-800">
+              {timelineDays[0]?.date} — {timelineDays[timelineDays.length - 1]?.date}
+            </span>
+            <input
+              type="date"
+              value={timelineDays[0]?.date || ''}
+              onChange={e => {
+                if (e.target.value) {
+                  const target = new Date(e.target.value);
+                  const today = new Date();
+                  today.setHours(0,0,0,0);
+                  const diff = Math.round((target - today) / (1000 * 60 * 60 * 24));
+                  setTimelineOffset(diff);
+                }
+              }}
+              className="text-xs border-0 bg-transparent cursor-pointer p-0 w-5 opacity-70 hover:opacity-100"
+              title="Pick a Date to Jump Timeline"
+            />
+          </div>
         </div>
 
         {/* Right: Legend & Actions */}
@@ -334,6 +387,10 @@ export default function StayViewCalendar() {
             <div className="flex items-center space-x-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
               <span>Available</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-500" />
+              <span>Checked Out (History)</span>
             </div>
           </div>
 

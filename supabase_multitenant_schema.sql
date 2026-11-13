@@ -395,7 +395,29 @@ UPDATE rooms SET status = 'VACANT_READY', guest = NULL, booking_id = NULL, check
 DELETE FROM banquet_bookings;
 DELETE FROM fnb_orders;
 
--- 11. Initial Seed Data (Exceed HMS Room Category Master & Demo Property)
+-- 12. Cab Bookings & Travel Desk Table (Aavasa HMS Logistics)
+CREATE TABLE IF NOT EXISTS public.cab_bookings (
+    id TEXT PRIMARY KEY,
+    hotel_id TEXT NOT NULL DEFAULT 'shivanandi',
+    guest_name TEXT NOT NULL,
+    room_number TEXT,
+    phone TEXT NOT NULL,
+    pickup_location TEXT NOT NULL,
+    drop_location TEXT NOT NULL,
+    pickup_time TEXT NOT NULL,
+    cab_type TEXT NOT NULL DEFAULT 'Sedan (Dzire / Etios)',
+    driver_name TEXT,
+    driver_phone TEXT,
+    vehicle_number TEXT,
+    fare NUMERIC NOT NULL DEFAULT 0,
+    payment_status TEXT NOT NULL DEFAULT 'PENDING',
+    booking_status TEXT NOT NULL DEFAULT 'CONFIRMED',
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE IF EXISTS public.cab_bookings DISABLE ROW LEVEL SECURITY;
 INSERT INTO hotels (id, slug, name, short_name, owner_name, email, password, mobile, total_rooms, plan)
 VALUES ('hotel_aurastay_01', 'demo-hotel-property-1', 'DEMO HOTEL Property 1', 'DEMO', 'SHIVANANDI', 'shivanandi@aurastay.com', '12345', '7978578046', 20, 'Enterprise')
 ON CONFLICT (id) DO UPDATE SET 

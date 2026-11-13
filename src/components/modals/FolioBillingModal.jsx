@@ -55,15 +55,16 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
       const checkIn = reservation?.check_in || reservation?.checkIn || '2026-11-04';
       const roomPrice = Number(room.price || room.tariff || reservation?.price || 2500);
 
+      const paidAmt = Number(reservation?.paid || reservation?.advance_paid || 0);
+      const initialPayments = paidAmt > 0 ? [
+        { id: 'pay-1', date: checkIn, mode: reservation?.payment_method || 'UPI', ref: reservation?.transaction_id || 'ADV-PAY', amount: paidAmt, note: 'Advance / Booking Payment' }
+      ] : [];
+
       setFolioItems([
-        { id: 'chg-1', date: checkIn, category: 'Room Tariff', description: `Room #${roomNum} - Night 1 Accommodation`, rate: roomPrice, qty: 1, amount: roomPrice, gst: 12 },
-        { id: 'chg-2', date: checkIn, category: 'F&B', description: 'Room Service Dinner (Buffet & Beverages)', rate: 650, qty: 1, amount: 650, gst: 5 },
-        { id: 'chg-3', date: '2026-11-05', category: 'Laundry', description: 'Express Dry Cleaning (2 Garments)', rate: 250, qty: 1, amount: 250, gst: 18 }
+        { id: 'chg-1', date: checkIn, category: 'Room Tariff', description: `Room #${roomNum} - Accommodation Tariff`, rate: roomPrice, qty: 1, amount: roomPrice, gst: 12 }
       ]);
 
-      setPaymentEntries([
-        { id: 'pay-1', date: checkIn, mode: 'UPI', ref: 'UPI-9831920', amount: Number(reservation?.paid || 2000), note: 'Check-in Advance' }
-      ]);
+      setPaymentEntries(initialPayments);
 
       setActiveTab('charges');
       setDiscountPercent(0);

@@ -44,14 +44,18 @@ export default function HotelAdminLogin() {
       <div className="w-full max-w-md relative z-10">
         {/* Brand header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-white shadow-xl shadow-black/30 mb-4 border border-white/20">
-            <Building2 className="w-8 h-8 text-[#0e4860]" />
+          <div className="inline-flex items-center justify-center p-3 rounded-3xl bg-white shadow-xl shadow-black/30 mb-4 border border-white/20">
+            <img
+              src="/aavasa-logo.jpg"
+              alt="Aavasa"
+              className="h-14 w-auto object-contain rounded-xl"
+            />
           </div>
           <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
-            AuraStay <span className="text-cyan-400 font-serif font-normal italic">PMS Suite</span>
+            Aavasa <span className="text-amber-400 font-sans font-medium text-base">• Hospitality Simplified</span>
           </h1>
           <p className="text-xs text-slate-300 mt-1 font-medium">
-            Hotel Operations, Front Desk & Revenue Management Portal
+            Property Management & Front Desk Operations Portal (Shivanandi)
           </p>
         </div>
 

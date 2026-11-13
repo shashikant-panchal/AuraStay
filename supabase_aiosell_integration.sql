@@ -122,3 +122,4 @@ SELECT
     END AS auto_stop_sell
 FROM rooms r
 GROUP BY r.type;
+

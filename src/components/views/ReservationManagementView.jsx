@@ -29,10 +29,13 @@ import {
   Clock,
   AlertTriangle,
   Receipt,
-  CalendarPlus
+  CalendarPlus,
+  UserCheck
 } from 'lucide-react';
 import BookingPaymentsModal from '../modals/BookingPaymentsModal';
 import FolioBillingModal from '../modals/FolioBillingModal';
+import CheckInModal from '../modals/CheckInModal';
+import CollectPaymentModal from '../modals/CollectPaymentModal';
 import BookARoomView from './BookARoomView';
 
 export default function ReservationManagementView({ isSubTab = false }) {
@@ -94,6 +97,10 @@ export default function ReservationManagementView({ isSubTab = false }) {
 
   // Invoice modal
   const [invoiceModalData, setInvoiceModalData] = useState(null);
+
+  // Check In & Front Desk Payment Modals
+  const [checkInModalRes, setCheckInModalRes] = useState(null);
+  const [collectPaymentModalRes, setCollectPaymentModalRes] = useState(null);
 
   const handleOpenPayments = (res) => {
     setSelectedPaymentReservation(res);
@@ -474,6 +481,9 @@ export default function ReservationManagementView({ isSubTab = false }) {
                     <span className="text-[10px] text-slate-400">↑↓</span>
                   </div>
                 </th>
+                <th className="py-3 px-4 text-center">
+                  <span>ACTIONS</span>
+                </th>
               </tr>
             </thead>
 
@@ -633,6 +643,43 @@ export default function ReservationManagementView({ isSubTab = false }) {
                       ) : (
                         <span className="text-slate-400 font-medium">₹0.00</span>
                       )}
+                    </td>
+
+                    {/* 10. FRONT DESK ACTIONS (Check-In & Payment Collection) */}
+                    <td className="py-3.5 px-4 align-top whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {(res.status === 'CONFIRMED' || res.status === 'PENDING') && (
+                          <button
+                            onClick={() => setCheckInModalRes(res)}
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10.5px] font-bold flex items-center space-x-1 transition shadow-xs cursor-pointer"
+                            title="Check In Guest with Room & Time"
+                          >
+                            <UserCheck className="w-3 h-3" />
+                            <span>Check In</span>
+                          </button>
+                        )}
+                        {(res.status === 'CHECKEDIN' || res.status === 'CHECKED_IN') && (
+                          <button
+                            onClick={() => {
+                              setFolioActiveRsvn(res);
+                              setIsFolioModalOpen(true);
+                            }}
+                            className="px-2.5 py-1 bg-sky-700 hover:bg-sky-800 text-white rounded-lg text-[10.5px] font-bold flex items-center space-x-1 transition shadow-xs cursor-pointer"
+                            title="Open Room Folio & Billing"
+                          >
+                            <span>Folio</span>
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => setCollectPaymentModalRes(res)}
+                          className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10.5px] font-bold flex items-center space-x-1 transition border border-indigo-200 cursor-pointer"
+                          title="Collect Front Desk Payment"
+                        >
+                          <Receipt className="w-3 h-3" />
+                          <span>Collect ₹</span>
+                        </button>
+                      </div>
                     </td>
 
                   </tr>
@@ -862,6 +909,24 @@ export default function ReservationManagementView({ isSubTab = false }) {
             payment: folioActiveRsvn.due <= 0 ? 'PAID' : 'PENDING',
             rate_plan: folioActiveRsvn.ratePlan || 'EP - European Plan'
           }}
+        />
+      )}
+
+      {/* Admin Check-In Modal */}
+      {checkInModalRes && (
+        <CheckInModal
+          isOpen={Boolean(checkInModalRes)}
+          onClose={() => setCheckInModalRes(null)}
+          reservation={checkInModalRes}
+        />
+      )}
+
+      {/* Admin Collect Payment Modal */}
+      {collectPaymentModalRes && (
+        <CollectPaymentModal
+          isOpen={Boolean(collectPaymentModalRes)}
+          onClose={() => setCollectPaymentModalRes(null)}
+          reservation={collectPaymentModalRes}
         />
       )}
 

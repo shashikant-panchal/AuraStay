@@ -30,7 +30,8 @@ import {
   Package,
   Layers,
   HelpCircle,
-  Settings
+  Settings,
+  CarTaxiFront
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -123,6 +124,7 @@ export default function Sidebar() {
         { id: 'dashboard', label: 'Live Room Matrix (3D)', icon: LayoutDashboard },
         { id: 'stay-view-calendar', label: 'Stay Overview (Tape Chart)', icon: Calendar },
         { id: 'reservation-management', label: 'Reservations & Walk-Ins', icon: CalendarCheck },
+        { id: 'cab-booking', label: 'Cab Booking & Travel Desk', icon: CarTaxiFront },
         { id: 'guests', label: 'Guest Profiles & KYC', icon: Users },
         { id: 'rate-plans', label: 'Rate Plans & Tariffs', icon: Tag },
         { id: 'reports', label: 'Front Office Reports', icon: BarChart3 }
@@ -229,31 +231,26 @@ export default function Sidebar() {
           {isExpanded ? (
             <div
               onClick={() => handleNav('dashboard')}
-              className="flex-1 flex flex-col items-center justify-center cursor-pointer group"
-              title="AuraStay HMS - DEMO HOTEL"
+              className="flex-1 flex flex-col items-center justify-center cursor-pointer group py-1"
+              title="Aavasa HMS - Shivanandi"
             >
-              <div className="flex items-center space-x-1.5">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#0284c7] via-[#4f46e5] to-[#7c3aed] flex items-center justify-center shadow-xs">
-                  <span className="text-white font-extrabold text-sm leading-none">A</span>
-                </div>
-                <div className="flex items-baseline tracking-tight font-black">
-                  <span className="text-xl text-[#0f172a]">Aura</span>
-                  <span className="text-xl text-[#4f46e5]">Stay</span>
-                </div>
-              </div>
-              <div className="text-[8.5px] font-black tracking-[0.22em] text-[#0284c7] uppercase mt-1 leading-none text-center">
-                EXCEED PMS ENTERPRISE SUITE
-              </div>
+              <img
+                src="/aavasa-logo.jpg"
+                alt="Aavasa - Hospitality Simplified"
+                className="h-12 w-auto max-w-[190px] object-contain transition group-hover:scale-102"
+              />
             </div>
           ) : (
             <div
               onClick={() => handleNav('dashboard')}
-              className="w-full flex items-center justify-center cursor-pointer"
-              title="AuraStay Exceed Suite"
+              className="w-full flex items-center justify-center cursor-pointer py-1"
+              title="Aavasa HMS"
             >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#0284c7] via-[#4f46e5] to-[#7c3aed] flex items-center justify-center shadow-sm">
-                <span className="text-white font-extrabold text-base leading-none">A</span>
-              </div>
+              <img
+                src="/aavasa-logo.jpg"
+                alt="Aavasa"
+                className="h-9 w-9 object-contain rounded-md"
+              />
             </div>
           )}
 
@@ -394,10 +391,10 @@ export default function Sidebar() {
 
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-white tracking-wide truncate">
-                    {currentHotel?.ownerName || 'SHIVANANDI Admin'}
+                    {currentHotel?.ownerName || 'Shivanandi'}
                   </div>
                   <div className="text-[9px] font-semibold text-slate-400 tracking-wider uppercase truncate mt-0.5">
-                    {currentHotel?.name || 'DEMO HOTEL Property 2'}
+                    {currentHotel?.name || 'Shivanandi Hotel'}
                   </div>
                 </div>
               </div>

@@ -24,6 +24,7 @@ import AriGridView from './components/views/AriGridView';
 import GuestsView from './components/views/GuestsView';
 import StockManagementView from './components/views/StockManagementView';
 import ServicesView from './components/views/ServicesView';
+import CabBookingView from './components/views/CabBookingView';
 import RevenueInsightsView from './components/views/RevenueInsightsView';
 import AuditLogsView from './components/views/AuditLogsView';
 import RestaurantPosView from './components/views/RestaurantPosView';
@@ -112,8 +113,9 @@ export default function App() {
         return <GuestsView />;
       case 'stock-management':
         return <StockManagementView />;
+      case 'cab-booking':
       case 'services':
-        return <ServicesView />;
+        return <CabBookingView />;
       case 'account-finance':
         return <AccountsFinanceView />;
       case 'staff-admin':

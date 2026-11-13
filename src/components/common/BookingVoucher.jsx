@@ -3,39 +3,13 @@ import React, { useState } from 'react';
 /**
  * Architectural Neoclassical Hotel Emblem Logo matching Image 2 & 3
  */
-export function HotelVoucherLogo({ className = "w-14 h-14" }) {
+export function HotelVoucherLogo({ className = "w-16 h-16" }) {
   return (
-    <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Outer Arch */}
-      <path d="M16 75V44C16 25.22 31.22 10 50 10C68.78 10 84 25.22 84 44V75" stroke="#083d63" strokeWidth="2.5" />
-      {/* Concentric inner arches */}
-      <path d="M22 75V44C22 28.53 34.53 16 50 16C65.47 16 78 28.53 78 44V75" stroke="#083d63" strokeWidth="1.5" />
-      <path d="M28 75V44C28 31.85 37.85 22 50 22C62.15 22 72 31.85 72 44V75" stroke="#083d63" strokeWidth="1.5" />
-      <path d="M34 75V44C34 35.16 41.16 28 50 28C58.84 28 66 35.16 66 44V75" stroke="#083d63" strokeWidth="1.5" />
-      
-      {/* Vertical pillars inside arch */}
-      <line x1="42" y1="42" x2="42" y2="75" stroke="#083d63" strokeWidth="1.5" />
-      <line x1="50" y1="36" x2="50" y2="75" stroke="#083d63" strokeWidth="1.5" />
-      <line x1="58" y1="42" x2="58" y2="75" stroke="#083d63" strokeWidth="1.5" />
-      
-      {/* Base Foundation Bar */}
-      <line x1="12" y1="75" x2="88" y2="75" stroke="#083d63" strokeWidth="3" />
-      <line x1="10" y1="78" x2="90" y2="78" stroke="#083d63" strokeWidth="1.5" />
-      
-      {/* "HOTEL" Text Below Logo */}
-      <text
-        x="50"
-        y="92"
-        textAnchor="middle"
-        fill="#083d63"
-        fontSize="11"
-        fontFamily="sans-serif"
-        fontWeight="900"
-        letterSpacing="2.5"
-      >
-        HOTEL
-      </text>
-    </svg>
+    <img
+      src="/aavasa-logo.jpg"
+      alt="Aavasa — Hospitality Simplified"
+      className={`${className} object-contain rounded-md`}
+    />
   );
 }
 
@@ -120,16 +94,16 @@ export default function BookingVoucher({
   const displayVoucherNo = voucherNo || reservation?.id || `VOUCH-${roomNum}`;
 
   // Hotel Info
-  const hotelName = currentHotel?.name || 'SHIVANANDI VISTA';
-  const operatingUnit = currentHotel?.operatingUnit || 'A Unit of AuraStay Hospitality Suite';
-  const hotelAddress = currentHotel?.address || 'Main Road, Karnataka, India';
-  const hotelPhone = currentHotel?.mobile || currentHotel?.phone || '+91 98765 43210';
-  const hotelEmail = currentHotel?.email || 'admin@aurastay.com';
-  const hotelWebsite = currentHotel?.website || 'https://aurastay.com';
+  const hotelName = currentHotel?.name || 'Shivanandi';
+  const operatingUnit = currentHotel?.operatingUnit || 'Aavasa — Hospitality Simplified';
+  const hotelAddress = currentHotel?.address || 'Bengaluru, Karnataka, India';
+  const hotelPhone = currentHotel?.mobile || currentHotel?.phone || '+91 79785 78046';
+  const hotelEmail = currentHotel?.email || 'reservations@aavasa.com';
+  const hotelWebsite = currentHotel?.website || 'https://aavasa.com';
 
   // --- DETAILED FINANCIAL CALCULATIONS ---
   // 1. Room Tariff
-  const baseRatePerNight = Number(room?.tariff || room?.price || reservation?.price || 4500);
+  const baseRatePerNight = Number(room?.tariff || room?.price || reservation?.price || 2500);
   const extraChargePerNight = 0.00;
   const roomDiscountPerNight = discountPercent > 0 ? (baseRatePerNight * discountPercent) / 100 : 0.00;
   const taxableRoomRate = baseRatePerNight - roomDiscountPerNight;
@@ -162,7 +136,7 @@ export default function BookingVoucher({
   const grandTotal = Math.round(netTaxableAmount + totalTaxCombined);
 
   // 4. Advances & Payments Paid
-  const fallbackPaid = Number(reservation?.paid || 6000);
+  const fallbackPaid = Number(reservation?.paid || 0);
   const totalPaid = paymentEntries.length > 0
     ? paymentEntries.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
     : fallbackPaid;

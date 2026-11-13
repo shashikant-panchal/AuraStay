@@ -4,19 +4,19 @@ import { mockRooms, mockReservations, mockFnbOrders, mockStaffUsers, mockOtaChan
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const DEFAULT_HOTEL = {
-  id: 'hotel_aurastay_01',
-  slug: 'aurastay-suite',
-  name: 'AuraStay Suite',
-  shortName: 'AST',
-  logoUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=200&q=80',
-  ownerName: 'AuraStay Admin',
+  id: 'shivanandi',
+  slug: 'shivanandi',
+  name: 'Shivanandi',
+  shortName: 'SHIV',
+  logoUrl: '/aavasa-logo.jpg',
+  ownerName: 'Shivanandi',
   ownerRole: 'Property Admin',
-  email: 'admin@aurastay.com',
-  password: 'admin123',
+  email: 'admin@shivanandi.com',
+  password: 'admin',
   mobile: '7978578046',
-  address: 'DLF Cyber City, Patia, Bhubaneswar, Odisha, India - 751024',
-  city: 'Bhubaneswar',
-  totalRooms: 28,
+  address: 'Bengaluru, Karnataka, India',
+  city: 'Bengaluru',
+  totalRooms: 45,
   currency: 'INR',
   currencySymbol: '₹'
 };
@@ -47,6 +47,7 @@ const VALID_VIEWS = new Set([
   'reputation-management',
   'stock-management',
   'services',
+  'cab-booking',
   'account-finance',
   'staff-admin',
   'hr-payroll'
@@ -155,6 +156,21 @@ export function DashboardProvider({ children }) {
   const [staffUsers, setStaffUsers] = useState(mockStaffUsers);
   const [otaChannels, setOtaChannels] = useState(mockOtaChannels);
   const [isLiveConnected, setIsLiveConnected] = useState(false);
+
+  // Cab Bookings & Travel Desk State
+  const [cabBookings, setCabBookings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aavasa_cab_bookings');
+      if (saved) return JSON.parse(saved);
+    } catch (e) { }
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aavasa_cab_bookings', JSON.stringify(cabBookings));
+    } catch (e) { }
+  }, [cabBookings]);
 
   // Modals state
   const [isGlossaryOpen, setIsGlossaryOpen] = useState(false);
@@ -555,15 +571,15 @@ export function DashboardProvider({ children }) {
     ) {
       const activeHotel = {
         ...DEFAULT_HOTEL,
-        name: 'SHIVANANDI VISTA (DEMO HOTEL)',
-        shortName: 'DEMO',
-        ownerName: 'SHIVANANDI Admin'
+        name: 'Shivanandi',
+        shortName: 'SHIV',
+        ownerName: 'Shivanandi'
       };
       setCurrentHotel(activeHotel);
       setIsLoggedIn(true);
       localStorage.setItem('aurastay_hotel_auth', 'true');
       localStorage.setItem('aurastay_hotel_session', JSON.stringify(activeHotel));
-      showNotification('Welcome to SHIVANANDI VISTA PMS Portal!');
+      showNotification('Welcome to Aavasa HMS — Shivanandi!');
       return true;
     }
 
@@ -908,6 +924,25 @@ export function DashboardProvider({ children }) {
     setDeleteConfirmRoom(null);
   };
 
+  const addFnbOrder = async (order) => {
+    setFnbOrders(prev => [order, ...prev]);
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('fnb_orders').insert({
+          id: order.orderId,
+          hotel_id: currentHotel.id,
+          room_table: order.roomTable,
+          guest: order.guest || 'Guest',
+          items: order.items,
+          total: order.total,
+          status: order.status || 'PREPARING'
+        });
+      } catch (err) {
+        console.warn('Supabase F&B insert error:', err);
+      }
+    }
+  };
+
   // Update reservation payment (Collect Payment & Settle Folio)
   const updateReservationPayment = async (reservationId, { paid, due, paymentStatus }) => {
     const newPayment = paymentStatus || (due <= 0 ? 'PAID' : 'PENDING');
@@ -935,6 +970,266 @@ export function DashboardProvider({ children }) {
         console.warn('Supabase payment sync error:', err);
       }
     }
+  };
+
+  // Cab Bookings & Travel Desk Methods
+  const addCabBooking = async (newBooking) => {
+    const booking = {
+      ...newBooking,
+      id: newBooking.id || `CAB-${Date.now().toString().slice(-4)}`,
+      hotelId: currentHotel.id,
+      created_at: new Date().toISOString()
+    };
+    setCabBookings(prev => [booking, ...prev]);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('cab_bookings').insert({
+          id: booking.id,
+          hotel_id: currentHotel.id,
+          guest_name: booking.guestName || booking.guest_name,
+          room_number: booking.roomNumber || booking.room_number || null,
+          phone: booking.phone,
+          pickup_location: booking.pickupLocation || booking.pickup_location,
+          drop_location: booking.dropLocation || booking.drop_location,
+          pickup_time: booking.pickupTime || booking.pickup_time,
+          cab_type: booking.cabType || booking.cab_type || 'Sedan',
+          driver_name: booking.driverName || booking.driver_name || null,
+          driver_phone: booking.driverPhone || booking.driver_phone || null,
+          vehicle_number: booking.vehicleNumber || booking.vehicle_number || null,
+          fare: Number(booking.fare) || 0,
+          payment_status: booking.paymentStatus || booking.payment_status || 'PENDING',
+          booking_status: booking.bookingStatus || booking.booking_status || 'CONFIRMED',
+          notes: booking.notes || null
+        });
+      } catch (err) {
+        console.warn('Supabase cab booking insert error:', err);
+      }
+    }
+    showNotification(`Cab booking #${booking.id} created successfully.`);
+    return booking;
+  };
+
+  const updateCabBooking = async (bookingId, updates) => {
+    setCabBookings(prev => prev.map(b => b.id === bookingId ? { ...b, ...updates } : b));
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('cab_bookings').update({
+          booking_status: updates.bookingStatus || updates.booking_status,
+          payment_status: updates.paymentStatus || updates.payment_status,
+          driver_name: updates.driverName || updates.driver_name,
+          driver_phone: updates.driverPhone || updates.driver_phone,
+          vehicle_number: updates.vehicleNumber || updates.vehicle_number,
+          fare: updates.fare !== undefined ? Number(updates.fare) : undefined
+        }).eq('id', bookingId);
+      } catch (err) {
+        console.warn('Supabase cab booking update error:', err);
+      }
+    }
+    showNotification(`Cab booking #${bookingId} updated.`);
+  };
+
+  const deleteCabBooking = async (bookingId) => {
+    setCabBookings(prev => prev.filter(b => b.id !== bookingId));
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('cab_bookings').delete().eq('id', bookingId);
+      } catch (err) {
+        console.warn('Supabase cab booking delete error:', err);
+      }
+    }
+    showNotification(`Cab booking #${bookingId} deleted.`);
+  };
+
+  // Full Admin Check-In Action
+  const checkInReservation = async (reservationId, checkInData) => {
+    const {
+      roomNumber,
+      actualCheckInTime,
+      expectedCheckOutTime,
+      idType = 'Aadhaar Card',
+      idNumber = '',
+      idCity = '',
+      collectedAmount = 0,
+      paymentMode = 'CASH',
+      paymentRef = ''
+    } = checkInData;
+
+    let updatedRes = null;
+
+    setReservations(prev => prev.map(r => {
+      if (r.id === reservationId) {
+        const totalAmount = Number(r.amount || r.price || 0);
+        const existingPaid = Number(r.paid || 0);
+        const newPaid = existingPaid + Number(collectedAmount);
+        const newDue = Math.max(0, totalAmount - newPaid);
+        const newPaymentStatus = newDue <= 0 ? 'PAID' : (newPaid > 0 ? 'PARTIAL' : 'PENDING');
+
+        updatedRes = {
+          ...r,
+          status: 'CHECKED_IN',
+          room: roomNumber ? `Room ${roomNumber}` : r.room,
+          room_number: roomNumber || r.room_number,
+          actualCheckInTime: actualCheckInTime || new Date().toISOString(),
+          actual_check_in_time: actualCheckInTime || new Date().toISOString(),
+          expectedCheckOutTime: expectedCheckOutTime || r.checkOut || r.check_out,
+          idType,
+          idNumber,
+          idCity,
+          paid: newPaid,
+          due: newDue,
+          payment: newPaymentStatus,
+          paymentMode,
+          paymentRef
+        };
+        return updatedRes;
+      }
+      return r;
+    }));
+
+    // Update physical room status to OCCUPIED
+    if (roomNumber) {
+      const cleanNum = String(roomNumber).replace(/\D/g, '') || String(roomNumber);
+      setRooms(prev => prev.map(rm => {
+        const matchNum = String(rm.roomNumber || rm.room_number || rm.number).replace(/\D/g, '');
+        if (matchNum === cleanNum) {
+          return {
+            ...rm,
+            status: 'OCCUPIED',
+            guest: updatedRes?.guest || rm.guest,
+            bookingId: reservationId
+          };
+        }
+        return rm;
+      }));
+
+      if (isSupabaseConfigured) {
+        try {
+          await supabase.from('rooms').update({
+            status: 'OCCUPIED',
+            guest: updatedRes?.guest || 'Checked-in Guest',
+            booking_id: reservationId
+          }).eq('room_number', cleanNum);
+        } catch (err) {
+          console.warn('Supabase room check-in update error:', err);
+        }
+      }
+    }
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('reservations').update({
+          status: 'CHECKED_IN',
+          room: roomNumber ? `Room ${roomNumber}` : undefined,
+          room_number: roomNumber || undefined,
+          paid: updatedRes?.paid,
+          payment: updatedRes?.payment
+        }).eq('id', reservationId);
+      } catch (err) {
+        console.warn('Supabase reservation check-in update error:', err);
+      }
+    }
+
+    showNotification(`Guest successfully checked into Room ${roomNumber || ''}! Status: CHECKED IN`);
+    return updatedRes;
+  };
+
+  // Admin Check-Out Action
+  const checkOutReservation = async (reservationId) => {
+    let targetRoom = null;
+    setReservations(prev => prev.map(r => {
+      if (r.id === reservationId) {
+        targetRoom = r.room_number || String(r.room || '').replace(/\D/g, '');
+        return {
+          ...r,
+          status: 'CHECKED_OUT',
+          actualCheckOutTime: new Date().toISOString(),
+          actual_check_out_time: new Date().toISOString()
+        };
+      }
+      return r;
+    }));
+
+    if (targetRoom) {
+      setRooms(prev => prev.map(rm => {
+        const matchNum = String(rm.roomNumber || rm.room_number || rm.number).replace(/\D/g, '');
+        if (matchNum === String(targetRoom)) {
+          return {
+            ...rm,
+            status: 'DIRTY',
+            guest: null,
+            bookingId: null
+          };
+        }
+        return rm;
+      }));
+
+      if (isSupabaseConfigured) {
+        try {
+          await supabase.from('rooms').update({
+            status: 'DIRTY',
+            guest: null,
+            booking_id: null
+          }).eq('room_number', String(targetRoom));
+        } catch (err) {}
+      }
+    }
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('reservations').update({
+          status: 'CHECKED_OUT'
+        }).eq('id', reservationId);
+      } catch (err) {}
+    }
+
+    showNotification(`Reservation #${reservationId} checked out. Room ${targetRoom || ''} marked DIRTY for housekeeping turnover.`);
+  };
+
+  // Front Desk Payment Collection
+  const collectReservationPayment = async (reservationId, { amount, paymentMethod = 'CASH', reference = '', notes = '' }) => {
+    let updatedRes = null;
+    const numAmount = Number(amount) || 0;
+    setReservations(prev => prev.map(r => {
+      if (r.id === reservationId) {
+        const total = Number(r.amount || r.price || 0);
+        const prevPaid = Number(r.paid || 0);
+        const newPaid = prevPaid + numAmount;
+        const newDue = Math.max(0, total - newPaid);
+        const newStatus = newDue <= 0 ? 'PAID' : (newPaid > 0 ? 'PARTIAL' : 'PENDING');
+
+        updatedRes = {
+          ...r,
+          paid: newPaid,
+          due: newDue,
+          payment: newStatus,
+          payment_method: paymentMethod,
+          lastPayment: {
+            amount: numAmount,
+            method: paymentMethod,
+            reference,
+            notes,
+            timestamp: new Date().toISOString()
+          }
+        };
+        return updatedRes;
+      }
+      return r;
+    }));
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('reservations').update({
+          paid: updatedRes?.paid,
+          payment: updatedRes?.payment
+        }).eq('id', reservationId);
+      } catch (err) {
+        console.warn('Supabase collect payment error:', err);
+      }
+    }
+
+    showNotification(`Payment of ₹${numAmount.toLocaleString()} collected via ${paymentMethod}!`);
+    return updatedRes;
   };
 
   // Add reservation (Full Exceed HMS Schema Synchronization)
@@ -1461,9 +1756,16 @@ export function DashboardProvider({ children }) {
       reservations,
       setReservations,
       fnbOrders,
+      setFnbOrders,
+      addFnbOrder,
       staffUsers,
       otaChannels,
       isLiveConnected,
+      cabBookings,
+      setCabBookings,
+      addCabBooking,
+      updateCabBooking,
+      deleteCabBooking,
       activePopoverModule,
       notificationMessage,
       isRefreshing,
@@ -1489,6 +1791,9 @@ export function DashboardProvider({ children }) {
       updateRoomStatus,
       addReservation,
       updateReservationPayment,
+      checkInReservation,
+      checkOutReservation,
+      collectReservationPayment,
       handleReviewAction,
       updateMonthlyBudget,
       addForecastOverride,
