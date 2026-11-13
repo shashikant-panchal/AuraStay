@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import aavasaLogo from '../../assets/aavasa-logo.jpg';
 import { useDashboard } from '../../context/DashboardContext';
 import {
@@ -21,7 +21,8 @@ import {
   X,
   Edit3,
   Trash2,
-  Car
+  Car,
+  Check
 } from 'lucide-react';
 
 export default function CabBookingView() {
@@ -43,6 +44,18 @@ export default function CabBookingView() {
   const [isNewBookingModalOpen, setIsNewBookingModalOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
+
+  // Close modals on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isNewBookingModalOpen) setIsNewBookingModalOpen(false);
+        if (editingBooking) setEditingBooking(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isNewBookingModalOpen, editingBooking]);
 
   // New Booking Form State
   const now = new Date();
@@ -536,255 +549,292 @@ export default function CabBookingView() {
 
       {/* MODAL 1: NEW CAB BOOKING */}
       {isNewBookingModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 my-6">
-            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-9 h-9 rounded-2xl bg-sky-50 text-sky-700 flex items-center justify-center font-bold">
+        <div 
+          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+          onClick={() => setIsNewBookingModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-200 flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header (Pinned) */}
+            <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-sky-50 border border-sky-100 text-[#0e4860] flex items-center justify-center font-bold shadow-xs">
                   <CarTaxiFront className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-900">Book A New Cab</h3>
-                  <p className="text-xs text-slate-500">Shivanandi Travel Desk logistics</p>
+                  <h3 className="font-bold text-base text-slate-900 leading-tight">Book A New Cab</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">{currentHotel?.name || 'AuraStay'} • Travel Desk Logistics</p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsNewBookingModalOpen(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition"
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                title="Close (Esc)"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* In-House Guest Quick Picker */}
-            {inHouseGuests.length > 0 && (
-              <div className="mt-3.5 p-3 bg-slate-50 rounded-2xl border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block mb-1.5">
-                  Quick Select In-House Guest:
+            {/* Form wrapping body and footer */}
+            <form onSubmit={handleCreateBooking} className="flex flex-col flex-1 min-h-0">
+              {/* Scrollable Form Body */}
+              <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+                {/* In-House Guest Quick Picker */}
+                {inHouseGuests.length > 0 && (
+                  <div className="p-3 bg-sky-50/60 rounded-2xl border border-sky-100">
+                    <span className="text-[10px] uppercase font-bold text-sky-800 block mb-1.5 flex items-center space-x-1">
+                      <User className="w-3 h-3 text-sky-600" />
+                      <span>Quick Select In-House Guest:</span>
+                    </span>
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                      {inHouseGuests.slice(0, 8).map(g => (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => handleSelectInHouseGuest(g)}
+                          className="px-2.5 py-1 bg-white hover:bg-sky-100 text-slate-800 border border-sky-200 rounded-lg text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs"
+                        >
+                          {g.guest} ({g.room || 'Room'})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Guest Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Ramesh Kumar"
+                      value={formData.guestName}
+                      onChange={e => setFormData({ ...formData, guestName: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Room Number (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 102"
+                      value={formData.roomNumber}
+                      onChange={e => setFormData({ ...formData, roomNumber: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Contact Phone *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. +91 98450 12345"
+                    value={formData.phone}
+                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Pickup Location *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.pickupLocation}
+                    onChange={e => setFormData({ ...formData, pickupLocation: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {quickLocations.slice(0, 3).map(loc => (
+                      <button
+                        key={loc}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, pickupLocation: loc })}
+                        className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded cursor-pointer transition"
+                      >
+                        {loc.split('(')[0]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Drop Location *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.dropLocation}
+                    onChange={e => setFormData({ ...formData, dropLocation: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {quickLocations.slice(1, 4).map(loc => (
+                      <button
+                        key={loc}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, dropLocation: loc })}
+                        className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded cursor-pointer transition"
+                      >
+                        {loc.split('(')[0]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Pickup Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.pickupDate}
+                      onChange={e => setFormData({ ...formData, pickupDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Pickup Time *</label>
+                    <input
+                      type="time"
+                      required
+                      value={formData.pickupTime}
+                      onChange={e => setFormData({ ...formData, pickupTime: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl font-mono font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Cab Category</label>
+                    <select
+                      value={formData.cabType}
+                      onChange={e => handleCabTypeChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold"
+                    >
+                      <option value="Sedan (Dzire / Etios)">Sedan (Dzire / Etios) — ₹1,800</option>
+                      <option value="SUV (Innova / Ertiga)">SUV (Innova / Ertiga) — ₹2,800</option>
+                      <option value="Luxury (Camry / Mercedes)">Luxury (Camry / Mercedes) — ₹5,500</option>
+                      <option value="Tempo Traveller 12-Seater">Tempo Traveller 12-Seater — ₹4,200</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Fare (₹)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={formData.fare}
+                      onChange={e => setFormData({ ...formData, fare: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl font-mono font-bold text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-2">
+                    Driver & Vehicle Allocation (Optional)
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div>
+                      <span className="text-[10px] text-slate-600 font-medium block mb-1">Driver Name</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. Manjunath"
+                        value={formData.driverName}
+                        onChange={e => setFormData({ ...formData, driverName: e.target.value })}
+                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-600 font-medium block mb-1">Driver Phone</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. 98450 99999"
+                        value={formData.driverPhone}
+                        onChange={e => setFormData({ ...formData, driverPhone: e.target.value })}
+                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-mono bg-white"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-600 font-medium block mb-1">Vehicle Plate</span>
+                      <input
+                        type="text"
+                        placeholder="KA 04 MP 1234"
+                        value={formData.vehicleNumber}
+                        onChange={e => setFormData({ ...formData, vehicleNumber: e.target.value })}
+                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-mono uppercase bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Payment Method</label>
+                    <select
+                      value={formData.paymentStatus}
+                      onChange={e => setFormData({ ...formData, paymentStatus: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold"
+                    >
+                      <option value="PENDING">Pay to Driver at Drop</option>
+                      <option value="PAID">Collected at Desk (Cash/UPI)</option>
+                      <option value="BILLED_TO_ROOM">Bill to Room Folio</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Booking Status</label>
+                    <select
+                      value={formData.bookingStatus}
+                      onChange={e => setFormData({ ...formData, bookingStatus: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold"
+                    >
+                      <option value="CONFIRMED">CONFIRMED</option>
+                      <option value="ASSIGNED">ASSIGNED</option>
+                      <option value="IN_TRANSIT">IN_TRANSIT</option>
+                      <option value="COMPLETED">COMPLETED</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Special Instructions / Remarks (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Flight 6E-204 arrival, 2 big suitcases, child seat requested..."
+                    value={formData.notes || ''}
+                    onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer (Pinned) */}
+              <div className="px-5 sm:px-6 py-3.5 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0">
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Estimated Total: <strong className="text-slate-900 font-bold text-sm">₹{Number(formData.fare || 0).toLocaleString('en-IN')}</strong>
                 </span>
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                  {inHouseGuests.slice(0, 5).map(g => (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => handleSelectInHouseGuest(g)}
-                      className="px-2.5 py-1 bg-white hover:bg-sky-50 text-slate-800 border border-slate-200 rounded-lg text-[11px] font-semibold transition shrink-0"
-                    >
-                      {g.guest} ({g.room || 'Room'})
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateBooking} className="mt-4 space-y-3.5 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Guest Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Ramesh Kumar"
-                    value={formData.guestName}
-                    onChange={e => setFormData({ ...formData, guestName: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Room Number (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 102"
-                    value={formData.roomNumber}
-                    onChange={e => setFormData({ ...formData, roomNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Contact Phone *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. +91 98450 12345"
-                  value={formData.phone}
-                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Pickup Location</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.pickupLocation}
-                  onChange={e => setFormData({ ...formData, pickupLocation: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                />
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {quickLocations.slice(0, 3).map(loc => (
-                    <button
-                      key={loc}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, pickupLocation: loc })}
-                      className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded"
-                    >
-                      {loc.split('(')[0]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Drop Location</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.dropLocation}
-                  onChange={e => setFormData({ ...formData, dropLocation: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                />
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {quickLocations.slice(1, 4).map(loc => (
-                    <button
-                      key={loc}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, dropLocation: loc })}
-                      className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded"
-                    >
-                      {loc.split('(')[0]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Pickup Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.pickupDate}
-                    onChange={e => setFormData({ ...formData, pickupDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Pickup Time</label>
-                  <input
-                    type="time"
-                    required
-                    value={formData.pickupTime}
-                    onChange={e => setFormData({ ...formData, pickupTime: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-mono font-bold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Cab Category</label>
-                  <select
-                    value={formData.cabType}
-                    onChange={e => handleCabTypeChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold"
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsNewBookingModalOpen(false)}
+                    className="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold transition cursor-pointer"
                   >
-                    <option value="Sedan (Dzire / Etios)">Sedan (Dzire / Etios) — ₹1,800</option>
-                    <option value="SUV (Innova / Ertiga)">SUV (Innova / Ertiga) — ₹2,800</option>
-                    <option value="Luxury (Camry / Mercedes)">Luxury (Camry / Mercedes) — ₹5,500</option>
-                    <option value="Tempo Traveller 12-Seater">Tempo Traveller 12-Seater — ₹4,200</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Fare (₹)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={formData.fare}
-                    onChange={e => setFormData({ ...formData, fare: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-mono font-bold text-slate-900"
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 grid grid-cols-3 gap-2">
-                <div>
-                  <span className="text-[10px] text-slate-500 font-bold block mb-1">Driver Name</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Manjunath"
-                    value={formData.driverName}
-                    onChange={e => setFormData({ ...formData, driverName: e.target.value })}
-                    className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 font-bold block mb-1">Driver Phone</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. 98450 99999"
-                    value={formData.driverPhone}
-                    onChange={e => setFormData({ ...formData, driverPhone: e.target.value })}
-                    className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs font-mono"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 font-bold block mb-1">Vehicle Plate</span>
-                  <input
-                    type="text"
-                    placeholder="KA 04 MP 1234"
-                    value={formData.vehicleNumber}
-                    onChange={e => setFormData({ ...formData, vehicleNumber: e.target.value })}
-                    className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs font-mono uppercase"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Payment Method</label>
-                  <select
-                    value={formData.paymentStatus}
-                    onChange={e => setFormData({ ...formData, paymentStatus: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold"
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold transition shadow-sm cursor-pointer flex items-center space-x-1.5"
                   >
-                    <option value="PENDING">Pay to Driver at Drop</option>
-                    <option value="PAID">Collected at Desk (Cash/UPI)</option>
-                    <option value="BILLED_TO_ROOM">Bill to Room Folio</option>
-                  </select>
+                    <Check className="w-4 h-4" />
+                    <span>Create Cab Booking</span>
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Booking Status</label>
-                  <select
-                    value={formData.bookingStatus}
-                    onChange={e => setFormData({ ...formData, bookingStatus: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold"
-                  >
-                    <option value="CONFIRMED">CONFIRMED</option>
-                    <option value="ASSIGNED">ASSIGNED</option>
-                    <option value="IN_TRANSIT">IN_TRANSIT</option>
-                    <option value="COMPLETED">COMPLETED</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsNewBookingModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold transition shadow-sm cursor-pointer"
-                >
-                  Create Cab Booking
-                </button>
               </div>
             </form>
           </div>
@@ -793,90 +843,113 @@ export default function CabBookingView() {
 
       {/* MODAL 2: EDIT / UPDATE STATUS */}
       {editingBooking && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-sm text-slate-900">
-                Update Trip #{editingBooking.id}
-              </h3>
-              <button onClick={() => setEditingBooking(null)} className="text-slate-400 hover:text-slate-600">
+        <div 
+          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+          onClick={() => setEditingBooking(null)}
+        >
+          <div 
+            className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-sky-50 border border-sky-100 text-sky-700 flex items-center justify-center font-bold">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">
+                    Update Trip #{editingBooking.id}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    {editingBooking.guestName || editingBooking.guest_name} • {editingBooking.cabType || editingBooking.cab_type || 'Cab'}
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setEditingBooking(null)} 
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                title="Close (Esc)"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleUpdateSubmit} className="mt-3.5 space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-600 font-bold mb-1">Trip Status</label>
-                <select
-                  value={editingBooking.bookingStatus || editingBooking.booking_status}
-                  onChange={e => setEditingBooking({ ...editingBooking, bookingStatus: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-slate-800"
-                >
-                  <option value="CONFIRMED">CONFIRMED</option>
-                  <option value="ASSIGNED">ASSIGNED</option>
-                  <option value="IN_TRANSIT">IN_TRANSIT</option>
-                  <option value="COMPLETED">COMPLETED</option>
-                  <option value="CANCELLED">CANCELLED</option>
-                </select>
+            <form onSubmit={handleUpdateSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="p-5 overflow-y-auto flex-1 space-y-3.5 text-xs">
+                <div>
+                  <label className="block text-slate-600 font-bold mb-1">Trip Status</label>
+                  <select
+                    value={editingBooking.bookingStatus || editingBooking.booking_status}
+                    onChange={e => setEditingBooking({ ...editingBooking, bookingStatus: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  >
+                    <option value="CONFIRMED">CONFIRMED</option>
+                    <option value="ASSIGNED">ASSIGNED</option>
+                    <option value="IN_TRANSIT">IN_TRANSIT</option>
+                    <option value="COMPLETED">COMPLETED</option>
+                    <option value="CANCELLED">CANCELLED</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-bold mb-1">Driver Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Manjunath"
+                    value={editingBooking.driverName || editingBooking.driver_name || ''}
+                    onChange={e => setEditingBooking({ ...editingBooking, driverName: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-bold mb-1">Driver Contact</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 98450 11223"
+                    value={editingBooking.driverPhone || editingBooking.driver_phone || ''}
+                    onChange={e => setEditingBooking({ ...editingBooking, driverPhone: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-mono focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-bold mb-1">Vehicle Plate Number</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. KA 04 MP 1234"
+                    value={editingBooking.vehicleNumber || editingBooking.vehicle_number || ''}
+                    onChange={e => setEditingBooking({ ...editingBooking, vehicleNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-mono uppercase focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-bold mb-1">Payment Status</label>
+                  <select
+                    value={editingBooking.paymentStatus || editingBooking.payment_status}
+                    onChange={e => setEditingBooking({ ...editingBooking, paymentStatus: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  >
+                    <option value="PENDING">PENDING</option>
+                    <option value="PAID">PAID</option>
+                    <option value="BILLED_TO_ROOM">BILLED_TO_ROOM</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-slate-600 font-bold mb-1">Driver Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Manjunath"
-                  value={editingBooking.driverName || editingBooking.driver_name || ''}
-                  onChange={e => setEditingBooking({ ...editingBooking, driverName: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-600 font-bold mb-1">Driver Contact</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 98450 11223"
-                  value={editingBooking.driverPhone || editingBooking.driver_phone || ''}
-                  onChange={e => setEditingBooking({ ...editingBooking, driverPhone: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-600 font-bold mb-1">Vehicle Plate Number</label>
-                <input
-                  type="text"
-                  placeholder="e.g. KA 04 MP 1234"
-                  value={editingBooking.vehicleNumber || editingBooking.vehicle_number || ''}
-                  onChange={e => setEditingBooking({ ...editingBooking, vehicleNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-mono uppercase"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-600 font-bold mb-1">Payment Status</label>
-                <select
-                  value={editingBooking.paymentStatus || editingBooking.payment_status}
-                  onChange={e => setEditingBooking({ ...editingBooking, paymentStatus: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-slate-800"
-                >
-                  <option value="PENDING">PENDING</option>
-                  <option value="PAID">PAID</option>
-                  <option value="BILLED_TO_ROOM">BILLED_TO_ROOM</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/70 flex justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setEditingBooking(null)}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold"
+                  className="px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold transition shadow-sm"
+                  className="px-4 py-1.5 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold transition shadow-sm cursor-pointer"
                 >
                   Save Changes
                 </button>
