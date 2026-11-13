@@ -603,7 +603,7 @@ export default function ChannelManagerView() {
 
           <p className="text-xs text-slate-300 leading-relaxed">
             Real-time multi-OTA distribution engine connecting MakeMyTrip, Goibibo, Booking.com, Agoda, Expedia, and Airbnb.
-            Synchronize room rates, available inventory, stop-sells, and auto-ingest reservations directly into AuraStay HMS.
+            Synchronize room rates, available inventory, stop-sells, and auto-ingest reservations directly into Aavasa HMS.
           </p>
         </div>
 
@@ -765,7 +765,7 @@ export default function ChannelManagerView() {
                 </span>
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Aiosell pushes your tariffs and available room counts to these OTAs and delivers bookings directly into AuraStay HMS.
+                Aiosell pushes your tariffs and available room counts to these OTAs and delivers bookings directly into Aavasa HMS.
               </p>
             </div>
 
@@ -943,7 +943,7 @@ export default function ChannelManagerView() {
                 <option value="suite">SUITE (suite - 5 Rooms in Sandbox)</option>
                 {(roomTypes || []).map(rt => (
                   <option key={rt.id} value={rt.name.toLowerCase().replace(/\s+/g, '-')}>
-                    {rt.name} ({rt.label || 'AuraStay Master'})
+                    {rt.name} ({rt.label || 'Aavasa Master'})
                   </option>
                 ))}
               </select>
@@ -1478,11 +1478,11 @@ export default function ChannelManagerView() {
                 </span>
               </div>
               <h2 className="text-xl font-black tracking-tight">
-                How Third-Party OTA Bookings Lock Rooms in AuraStay
+                How Third-Party OTA Bookings Lock Rooms in Aavasa
               </h2>
               <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
                 When a guest reserves on Booking.com, MakeMyTrip, Agoda, or Expedia, Aiosell calls your real backend webhook.
-                AuraStay instantly assigns a clean physical room, changes its status to <strong className="text-rose-400">OCCUPIED</strong> in the database, locks the room card in Front Office, and decrements inventory across all remaining OTAs to guarantee zero overbookings.
+                Aavasa instantly assigns a clean physical room, changes its status to <strong className="text-rose-400">OCCUPIED</strong> in the database, locks the room card in Front Office, and decrements inventory across all remaining OTAs to guarantee zero overbookings.
               </p>
             </div>
 
@@ -1596,7 +1596,7 @@ export default function ChannelManagerView() {
                 </div>
                 <h4 className="font-bold text-emerald-950">Stop-Sell Push to All OTAs</h4>
                 <p className="text-slate-600 text-[11px] leading-relaxed">
-                  Remaining available inventory is recalculated. If all rooms of that category are booked, AuraStay triggers an automated Stop-Sell to Aiosell, shutting down sales across all other OTAs worldwide.
+                  Remaining available inventory is recalculated. If all rooms of that category are booked, Aavasa triggers an automated Stop-Sell to Aiosell, shutting down sales across all other OTAs worldwide.
                 </p>
                 <div className="text-[10px] font-mono text-emerald-800 bg-emerald-100 p-1.5 rounded">
                   Zero Overbooking Guaranteed
@@ -1613,7 +1613,7 @@ export default function ChannelManagerView() {
                 <span>Onboarding Exchange: What You Send vs What Aiosell Sends</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Exact protocol for connecting AuraStay HMS to the Aiosell partner network.
+                Exact protocol for connecting Aavasa HMS to the Aiosell partner network.
               </p>
             </div>
 

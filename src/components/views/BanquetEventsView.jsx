@@ -269,6 +269,9 @@ export default function BanquetEventsView() {
     }
 
     const dueAmount = Number(booking.totalAmount) - Number(booking.paidAmount);
+    const origin = window.location.origin;
+    const pathPrefix = window.location.pathname.replace(/\/[^/]*$/, '');
+    const logoUrl = `${origin}${pathPrefix}/aavasa-logo.jpg`;
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -302,7 +305,7 @@ export default function BanquetEventsView() {
       <body>
         <div class="header">
           <div>
-            <img src="/aavasa-logo.jpg" alt="Aavasa" class="logo" />
+            <img src="${logoUrl}" alt="Aavasa" class="logo" />
             <div class="title-section" style="margin-top: 8px;">
               <h1>Shivanandi Hotel & Convention</h1>
               <p>Aavasa — Hospitality Simplified</p>

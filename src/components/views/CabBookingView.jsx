@@ -191,6 +191,10 @@ export default function CabBookingView() {
   const handlePrintVoucher = (b) => {
     const printWindow = window.open('', '_blank', 'width=750,height=800');
     if (!printWindow) return;
+    const origin = window.location.origin;
+    const pathPrefix = window.location.pathname.replace(/\/[^/]*$/, '');
+    const logoUrl = `${origin}${pathPrefix}/aavasa-logo.jpg`;
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -214,7 +218,7 @@ export default function CabBookingView() {
       <body>
         <div class="header">
           <div style="display:flex; align-items:center; gap: 12px;">
-            <img src="/aavasa-logo.jpg" alt="Aavasa" class="logo" />
+            <img src="${logoUrl}" alt="Aavasa" class="logo" />
             <div class="title-area">
               <h1>Shivanandi Hotel Travel Desk</h1>
               <p>Aavasa — Hospitality Simplified • Bengaluru, Karnataka</p>

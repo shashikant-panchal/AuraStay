@@ -1,4 +1,4 @@
-name: Deploy AuraStay to GitHub Pages
+name: Deploy Aavasa to GitHub Pages
 
 on:
   push:

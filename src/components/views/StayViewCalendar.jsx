@@ -22,9 +22,13 @@ import {
   User,
   BedDouble,
   DollarSign,
-  Trash2
+  Trash2,
+  Receipt,
+  UserCheck
 } from 'lucide-react';
 import FolioBillingModal from '../modals/FolioBillingModal';
+import CheckInModal from '../modals/CheckInModal';
+import CollectPaymentModal from '../modals/CollectPaymentModal';
 
 export default function StayViewCalendar() {
   const { 
@@ -41,12 +45,33 @@ export default function StayViewCalendar() {
 
   // Unallocated bookings banner state
   const [isUnallocatedOpen, setIsUnallocatedOpen] = useState(false);
-  const [unallocatedList, setUnallocatedList] = useState([]);
-
+  
   // Selected booking modal state
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isFolioModalOpen, setIsFolioModalOpen] = useState(false);
   const [folioActiveBooking, setFolioActiveBooking] = useState(null);
+
+  // Check In and Payment Modals
+  const [checkInModalRes, setCheckInModalRes] = useState(null);
+  const [collectPaymentModalRes, setCollectPaymentModalRes] = useState(null);
+
+  // Dynamic unallocated bookings from real reservations without assigned room
+  const unallocatedList = React.useMemo(() => {
+    return (reservations || []).filter(res => {
+      if (res.status === 'CANCELLED' || res.status === 'CHECKED_OUT' || res.status === 'CHECKEDOUT') return false;
+      const roomStr = String(res.room_number || res.room || '').trim();
+      return !roomStr || roomStr === '0' || roomStr.toLowerCase() === 'unallocated' || roomStr.toLowerCase() === 'unassigned' || roomStr.toLowerCase() === 'pending';
+    }).map(res => ({
+      id: res.id,
+      guest: res.guest || 'Guest',
+      source: res.source || 'Website / Direct',
+      category: res.room_type || res.roomType || 'Standard Room',
+      checkIn: String(res.check_in || res.checkIn || '').slice(0, 10),
+      checkOut: String(res.check_out || res.checkOut || '').slice(0, 10),
+      amount: `₹ ${Number(res.amount || res.price || 0).toLocaleString('en-IN')}`,
+      raw: res
+    }));
+  }, [reservations]);
 
   // Category collapse states
   const [collapsedCategories, setCollapsedCategories] = useState({});
@@ -219,8 +244,12 @@ export default function StayViewCalendar() {
   };
 
   const handleAllocateRoom = (booking) => {
-    showNotification(`Booking ${booking.id} allocated to Standard Room (104). Check-in prepared!`);
-    setUnallocatedList(prev => prev.filter(b => b.id !== booking.id));
+    const rawRes = booking.raw || (reservations || []).find(r => r.id === booking.id);
+    if (rawRes) {
+      setCheckInModalRes(rawRes);
+    } else {
+      showNotification(`Ready to allocate room for ${booking.guest}`);
+    }
     setIsUnallocatedOpen(false);
   };
 
@@ -760,20 +789,49 @@ export default function StayViewCalendar() {
               </div>
             </div>
 
-            <div className="flex space-x-2.5 pt-1">
+            <div className="flex flex-wrap gap-2 pt-1">
+              {selectedBooking.status !== 'CHECKED_IN' && selectedBooking.status !== 'CHECKEDOUT' && selectedBooking.status !== 'CHECKED_OUT' && (
+                <button
+                  onClick={() => {
+                    const matched = (reservations || []).find(r => r.id === selectedBooking.id);
+                    setCheckInModalRes(matched || selectedBooking);
+                    setSelectedBooking(null);
+                  }}
+                  className="flex-1 min-w-[120px] py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span>Check In</span>
+                </button>
+              )}
+
+              {selectedBooking.payment !== 'PAID' && (
+                <button
+                  onClick={() => {
+                    const matched = (reservations || []).find(r => r.id === selectedBooking.id);
+                    setCollectPaymentModalRes(matched || selectedBooking);
+                    setSelectedBooking(null);
+                  }}
+                  className="flex-1 min-w-[120px] py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                >
+                  <Receipt className="w-3.5 h-3.5" />
+                  <span>Collect ₹</span>
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   setFolioActiveBooking(selectedBooking);
                   setIsFolioModalOpen(true);
                   setSelectedBooking(null);
                 }}
-                className="flex-1 py-2.5 bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs rounded-xl shadow-sm transition"
+                className="flex-1 min-w-[120px] py-2.5 bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs rounded-xl shadow-sm transition cursor-pointer"
               >
-                Open Folio & Ledger
+                Folio & Invoice
               </button>
+
               <button
                 onClick={() => setSelectedBooking(null)}
-                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
               >
                 Close
               </button>
@@ -796,15 +854,34 @@ export default function StayViewCalendar() {
             guest: folioActiveBooking.guest
           }}
           reservation={{
+            id: folioActiveBooking.id,
             guest: folioActiveBooking.guest,
             phone: folioActiveBooking.phone,
             check_in: folioActiveBooking.checkIn,
             check_out: folioActiveBooking.checkOut,
             price: Number(String(folioActiveBooking.amount || '').replace(/[^\d.]/g, '')) || 2500,
-            paid: folioActiveBooking.payment === 'PAID' ? Number(String(folioActiveBooking.amount || '').replace(/[^\d.]/g, '')) : 0,
+            paid: Number(folioActiveBooking.paid || 0),
             payment: folioActiveBooking.payment,
             rate_plan: folioActiveBooking.ratePlan
           }}
+        />
+      )}
+
+      {/* Admin Check-In Modal */}
+      {checkInModalRes && (
+        <CheckInModal
+          isOpen={Boolean(checkInModalRes)}
+          onClose={() => setCheckInModalRes(null)}
+          reservation={checkInModalRes}
+        />
+      )}
+
+      {/* Admin Collect Payment Modal */}
+      {collectPaymentModalRes && (
+        <CollectPaymentModal
+          isOpen={Boolean(collectPaymentModalRes)}
+          onClose={() => setCollectPaymentModalRes(null)}
+          reservation={collectPaymentModalRes}
         />
       )}
     </div>

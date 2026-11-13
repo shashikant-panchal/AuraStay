@@ -137,7 +137,7 @@ export default function HotelAdminLogin() {
               <button
                 type="button"
                 onClick={() => {
-                  setEmail('admin@aurastay.com');
+                  setEmail('admin@aavasa.com');
                   setPassword('admin123');
                 }}
                 className="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold text-center transition"

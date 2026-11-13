@@ -566,6 +566,8 @@ export function DashboardProvider({ children }) {
       (inputEmail === 'shivanandi' && inputPass === '12345') ||
       (inputEmail === 'demo' && inputPass === '12345') ||
       (inputEmail.includes('shivanandi') && inputPass === '12345') ||
+      (inputEmail === 'admin@aavasa.com' && inputPass === 'admin123') ||
+      (inputEmail === 'admin@shivanandi.com' && inputPass === 'admin123') ||
       (inputEmail === 'admin@aurastay.com' && inputPass === 'admin123') ||
       (inputEmail.includes('admin') && inputPass.length >= 4)
     ) {

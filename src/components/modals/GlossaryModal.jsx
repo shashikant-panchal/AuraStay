@@ -182,7 +182,7 @@ export default function GlossaryModal() {
 
         {/* Footer */}
         <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-          <span>AuraStay VARO Revenue Engine v4.2.0</span>
+          <span>Aavasa Revenue Engine v4.2.0</span>
           <button
             onClick={() => setIsGlossaryOpen(false)}
             className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-lg transition"

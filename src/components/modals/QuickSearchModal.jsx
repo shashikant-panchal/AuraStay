@@ -115,7 +115,7 @@ export default function QuickSearchModal() {
 
         <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
           <span>Navigate with mouse or keyboard</span>
-          <span>AuraStay VARO Navigation</span>
+          <span>Aavasa Navigation</span>
         </div>
       </div>
     </div>

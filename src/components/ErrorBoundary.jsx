@@ -12,7 +12,7 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('AuraStay ErrorBoundary caught an exception:', error, errorInfo);
+    console.error('Aavasa ErrorBoundary caught an exception:', error, errorInfo);
   }
 
   componentDidUpdate(prevProps) {

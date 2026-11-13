@@ -32,8 +32,8 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
   const [bookingMode, setBookingMode] = useState('RESERVATION'); // 'ENQUIRY' | 'RESERVATION'
   const [groupMode, setGroupMode] = useState('SINGLE'); // 'SINGLE' | 'GROUP'
   const [bookingStatus, setBookingStatus] = useState('Confirmed'); // 'Confirmed' | 'Tentative' | 'Hold Until' | 'Maintenance'
-  const [counter, setCounter] = useState('AuraStay Suite-2259');
-  const [operator, setOperator] = useState('AuraStay Admin');
+  const [counter, setCounter] = useState('Shivanandi-FrontDesk');
+  const [operator, setOperator] = useState('Aavasa Admin');
 
   // Primary Guest
   const [isAddGuestModalOpen, setIsAddGuestModalOpen] = useState(false);
@@ -359,7 +359,7 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
                   onChange={(e) => setCounter(e.target.value)}
                   className="appearance-none bg-white border border-slate-300 rounded-lg px-3 py-1.5 pr-8 font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs shadow-2xs"
                 >
-                  <option value="AuraStay Suite-2259">AuraStay Suite-2259</option>
+                  <option value="Shivanandi-FrontDesk">Shivanandi-FrontDesk</option>
                   <option value="Front Desk Counter 1">Front Desk Counter 1</option>
                   <option value="Front Desk Counter 2">Front Desk Counter 2</option>
                 </select>
@@ -377,7 +377,7 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
                   onChange={(e) => setOperator(e.target.value)}
                   className="appearance-none bg-white border border-slate-300 rounded-lg px-3 py-1.5 pr-8 font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs shadow-2xs"
                 >
-                  <option value="AuraStay Admin">AuraStay Admin</option>
+                  <option value="Aavasa Admin">Aavasa Admin</option>
                   <option value="Front Desk Agent">Front Desk Agent</option>
                   <option value="Self Check-in">Self Check-in</option>
                 </select>

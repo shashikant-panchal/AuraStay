@@ -142,7 +142,7 @@ export default function Header() {
           <button
             onClick={() => navigateTo('dashboard')}
             className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
-            title="AuraStay Exceed Dashboard"
+            title="Aavasa Dashboard"
           >
             <Menu className="w-5 h-5" />
           </button>

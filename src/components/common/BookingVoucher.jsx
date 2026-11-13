@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { Printer, X } from 'lucide-react';
+import aavasaLogo from '../../assets/aavasa-logo.jpg';
 
 /**
  * Architectural Neoclassical Hotel Emblem Logo matching Image 2 & 3
@@ -6,7 +8,7 @@ import React, { useState } from 'react';
 export function HotelVoucherLogo({ className = "w-16 h-16" }) {
   return (
     <img
-      src="/aavasa-logo.jpg"
+      src={aavasaLogo || "/aavasa-logo.jpg"}
       alt="Aavasa — Hospitality Simplified"
       className={`${className} object-contain rounded-md`}
     />
@@ -147,27 +149,210 @@ export default function BookingVoucher({
   // Formatter helper
   const fmt = (val) => Number(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  return (
+  const handlePrintVoucher = () => {
+    const printWindow = window.open('', '_blank', 'width=850,height=950');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+    const origin = window.location.origin;
+    const pathPrefix = window.location.pathname.replace(/\/[^/]*$/, '');
+    const logoUrl = `${origin}${pathPrefix}/aavasa-logo.jpg`;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${voucherType} - ${displayVoucherNo}</title>
+        <style>
+          @page { size: A4; margin: 12mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; color: #1e293b; line-height: 1.45; font-size: 12px; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #034a7f; padding-bottom: 12px; margin-bottom: 16px; }
+          .logo { max-height: 60px; object-fit: contain; }
+          .hotel-details h1 { margin: 0; font-size: 20px; color: #083d63; text-transform: uppercase; letter-spacing: 0.5px; }
+          .hotel-details p { margin: 2px 0; color: #475569; font-size: 11px; }
+          .voucher-title { text-align: right; }
+          .voucher-title h2 { margin: 0; font-size: 20px; color: #034a7f; text-transform: uppercase; }
+          .meta-badge { font-family: monospace; font-weight: bold; background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; }
+          .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
+          .box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; }
+          .box-title { font-weight: 800; text-transform: uppercase; font-size: 11px; color: #034a7f; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 6px; }
+          .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+          .row .label { color: #64748b; font-weight: 500; }
+          .row .val { color: #0f172a; font-weight: 600; text-align: right; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 14px; font-size: 11.5px; }
+          th { background: #034a7f; color: #ffffff; text-align: left; padding: 6px 10px; font-weight: 700; font-size: 11px; text-transform: uppercase; }
+          td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; }
+          .totals-table { margin-left: auto; width: 340px; margin-top: 10px; }
+          .totals-table td { padding: 4px 8px; }
+          .total-row { font-size: 13px; font-weight: 800; color: #083d63; border-top: 2px solid #034a7f; }
+          .terms { border-top: 1px solid #cbd5e1; padding-top: 10px; margin-top: 14px; font-size: 10.5px; color: #475569; }
+          .terms h4 { margin: 0 0 4px 0; font-size: 11px; color: #0f172a; text-transform: uppercase; }
+          .terms ul { margin: 0; padding-left: 18px; line-height: 1.5; }
+          .footer-note { text-align: center; font-size: 10.5px; color: #64748b; margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <img src="${logoUrl}" alt="Aavasa" class="logo" onerror="this.style.display='none'" />
+            <div class="hotel-details">
+              <h1>${hotelName}</h1>
+              <p><strong>${operatingUnit}</strong></p>
+              <p>${hotelAddress}</p>
+              <p>Phone: ${hotelPhone} | Email: ${hotelEmail}</p>
+            </div>
+          </div>
+          <div class="voucher-title">
+            <h2>${voucherType}</h2>
+            <div class="meta-badge">${displayVoucherNo}</div>
+            <p style="margin:4px 0 0; color:#64748b; font-size:11px;">Date: ${displayDate}</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="box">
+            <div class="box-title">Guest Information</div>
+            <div class="row"><span class="label">Primary Guest:</span><span class="val">${guestName}</span></div>
+            <div class="row"><span class="label">Mobile Number:</span><span class="val">${phone || 'N/A'}</span></div>
+            <div class="row"><span class="label">Email Address:</span><span class="val">${email || 'N/A'}</span></div>
+            <div class="row"><span class="label">City / Address:</span><span class="val">${address}</span></div>
+            <div class="row"><span class="label">GSTIN / Company:</span><span class="val">${gstin}</span></div>
+          </div>
+
+          <div class="box">
+            <div class="box-title">Stay & Room Details</div>
+            <div class="row"><span class="label">Room Allocated:</span><span class="val">Room #${roomNum} (${roomCategory})</span></div>
+            <div class="row"><span class="label">Check-In Date:</span><span class="val">${formatDateDDMMMYYYY(checkInRaw)} (12:00 PM)</span></div>
+            <div class="row"><span class="label">Check-Out Date:</span><span class="val">${formatDateDDMMMYYYY(checkOutRaw)} (11:00 AM)</span></div>
+            <div class="row"><span class="label">Duration:</span><span class="val">${nights} Night(s)</span></div>
+            <div class="row"><span class="label">Rate Plan:</span><span class="val">${reservation?.rate_plan || 'EP - Room Only'}</span></div>
+          </div>
+        </div>
+
+        <div style="font-weight: 800; text-transform: uppercase; font-size: 11px; color: #034a7f; margin-bottom: 4px;">Accommodation & Room Charges</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th style="text-align:center;">Qty / Nights</th>
+              <th style="text-align:right;">Tariff Rate</th>
+              <th style="text-align:right;">Amount (${selectedCurrency})</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Room #${roomNum} — ${roomCategory}</strong><br/><small style="color:#64748b;">Accommodation for ${nights} night(s) from ${formatDateDDMMMYYYY(checkInRaw)} to ${formatDateDDMMMYYYY(checkOutRaw)}</small></td>
+              <td style="text-align:center;">${nights}</td>
+              <td style="text-align:right;">${selectedCurrency} ${fmt(tariffRate)}</td>
+              <td style="text-align:right; font-weight:700;">${selectedCurrency} ${fmt(subtotalCharges)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="totals-table">
+          <tr>
+            <td style="color:#64748b;">Subtotal Tariff:</td>
+            <td style="text-align:right; font-weight:600;">${selectedCurrency} ${fmt(subtotalCharges)}</td>
+          </tr>
+          ${discountAmount > 0 ? `
+          <tr>
+            <td style="color:#d97706;">Discount (${discountPercent}%):</td>
+            <td style="text-align:right; font-weight:600; color:#d97706;">-${selectedCurrency} ${fmt(discountAmount)}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="color:#64748b;">CGST (6%):</td>
+            <td style="text-align:right;">${selectedCurrency} ${fmt(cgst)}</td>
+          </tr>
+          <tr>
+            <td style="color:#64748b;">SGST (6%):</td>
+            <td style="text-align:right;">${selectedCurrency} ${fmt(sgst)}</td>
+          </tr>
+          <tr class="total-row">
+            <td>Grand Total (Incl. Taxes):</td>
+            <td style="text-align:right;">${selectedCurrency} ${fmt(grandTotal)}</td>
+          </tr>
+          <tr>
+            <td style="color:#059669; font-weight:700;">Total Paid / Advance:</td>
+            <td style="text-align:right; font-weight:700; color:#059669;">${selectedCurrency} ${fmt(totalPaid)}</td>
+          </tr>
+          <tr style="font-weight:800; font-size:12.5px; border-top:1px dashed #cbd5e1; color:${balanceDue > 0 ? '#dc2626' : '#059669'};">
+            <td>Balance Due:</td>
+            <td style="text-align:right;">${selectedCurrency} ${fmt(balanceDue)}</td>
+          </tr>
+        </table>
+
+        <div class="terms">
+          <h4>Terms & Conditions & Property Policies</h4>
+          <ul>
+            <li><strong>Check-in Time:</strong> 12:00 PM | <strong>Check-out Time:</strong> 11:00 AM.</li>
+            <li>Government-issued photo identification (Aadhaar Card / Passport / Driving License) is mandatory for all adult guests at check-in.</li>
+            <li>Tariff is inclusive of applicable GST taxes. Any incidentals or extended stay charges are payable prior to departure.</li>
+            <li>Early check-in and late check-out are subject to availability and property management approval.</li>
+          </ul>
+        </div>
+
+        <div class="footer-note">
+          Thank you for choosing <strong>${hotelName}</strong>. Managed by <strong>Aavasa — Hospitality Simplified</strong>.
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.focus();
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const voucherContent = (
     <div
       id="printable-booking-voucher"
       className="bg-white text-slate-800 p-6 sm:p-8 max-w-4xl mx-auto font-sans leading-normal text-xs"
       style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
     >
-      {/* Currency Switcher Bar (Hidden in Print) */}
-      <div className="no-print flex items-center justify-between pb-3 mb-2 border-b border-slate-100 text-xs">
-        <span className="text-slate-500 font-semibold">Display Currency:</span>
-        <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl">
-          {['₹', '$'].map((cur) => (
+      {/* Action Toolbar: Print & Currency Switcher Bar (Hidden in Print) */}
+      <div className="no-print flex items-center justify-between pb-3 mb-3 border-b border-slate-100 text-xs gap-3">
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handlePrintVoucher}
+            className="px-3.5 py-1.5 bg-[#034a7f] hover:bg-[#023861] text-white rounded-xl font-bold text-xs flex items-center space-x-1.5 transition shadow-xs cursor-pointer"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Print {voucherType === 'BOOKING VOUCHER' ? 'Booking Voucher' : 'Tax Invoice'}</span>
+          </button>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <span className="text-slate-500 font-semibold">Currency:</span>
+          <div className="flex items-center space-x-1 bg-slate-100 p-0.5 rounded-lg">
+            {['₹', '$'].map((cur) => (
+              <button
+                key={cur}
+                onClick={() => setSelectedCurrency(cur)}
+                className={`px-2.5 py-0.5 rounded font-bold text-xs transition ${
+                  selectedCurrency === cur ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                {cur === '₹' ? '₹ INR' : '$ USD'}
+              </button>
+            ))}
+          </div>
+
+          {onClose && (
             <button
-              key={cur}
-              onClick={() => setSelectedCurrency(cur)}
-              className={`px-3 py-0.5 rounded-lg font-bold text-xs transition ${
-                selectedCurrency === cur ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
-              }`}
+              onClick={onClose}
+              className="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition"
+              title="Close"
             >
-              {cur === '₹' ? '₹ INR (Rupee)' : '$ USD'}
+              <X className="w-4 h-4" />
             </button>
-          ))}
+          )}
         </div>
       </div>
 
@@ -493,8 +678,8 @@ export default function BookingVoucher({
                 <tr>
                   <td className="py-1.5 px-2.5 font-mono">{displayDate}</td>
                   <td className="py-1.5 px-2.5 font-bold">Advance Payment / UPI</td>
-                  <td className="py-1.5 px-2.5 font-mono text-slate-500">AST-REC-982</td>
-                  <td className="py-1.5 px-2.5">Check-in Advance Deposit</td>
+                  <td className="py-1.5 px-2.5 font-mono text-slate-500">ADV-{displayVoucherNo}</td>
+                  <td className="py-1.5 px-2.5">Advance Deposit Received</td>
                   <td className="py-1.5 px-2.5 text-right font-mono font-bold text-emerald-700">
                     {selectedCurrency} {fmt(totalPaid)}
                   </td>
@@ -508,11 +693,13 @@ export default function BookingVoucher({
       {/* 6. Terms & Conditions Section */}
       <div className="mt-4 pt-2">
         <h4 className="text-[11px] font-black uppercase text-slate-800 tracking-wider">
-          TERMS & CODITIONS.
+          TERMS & CONDITIONS & PROPERTY POLICIES
         </h4>
-        <p className="text-[11px] font-mono text-slate-600 mt-1">
-          145646545362
-        </p>
+        <ul className="text-[11px] text-slate-600 mt-1 list-disc pl-4 space-y-0.5">
+          <li>Standard Check-in: 12:00 PM | Standard Check-out: 11:00 AM.</li>
+          <li>Government photo identification (Aadhaar / Passport / DL) is mandatory for all adult guests at check-in.</li>
+          <li>Tariff is inclusive of applicable taxes. Incidentals or room service are payable upon departure.</li>
+        </ul>
       </div>
 
       {/* Bottom Horizontal Divider */}
@@ -520,8 +707,20 @@ export default function BookingVoucher({
 
       {/* 7. Footer Note */}
       <div className="text-center text-[11px] text-slate-600 font-medium pb-2">
-        Thank you for choosing <strong className="text-slate-800">{hotelName}</strong> for your stay. This is a system generated booking voucher.
+        Thank you for choosing <strong className="text-slate-800">{hotelName}</strong>. Powered by <strong className="text-slate-800">Aavasa — Hospitality Simplified</strong>.
       </div>
     </div>
   );
+
+  if (onClose) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+        <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-6">
+          {voucherContent}
+        </div>
+      </div>
+    );
+  }
+
+  return voucherContent;
 }

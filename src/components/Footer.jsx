@@ -12,7 +12,7 @@ export default function Footer() {
         <div className="flex items-center space-x-3">
           <span className="text-slate-300">|</span>
           <span>
-            Powered by <strong className="text-slate-700">AuraStay Hospitality Suite</strong> (v4.2.0)
+            Powered by <strong className="text-slate-700">Aavasa Hospitality Suite</strong> (v4.2.0)
           </span>
         </div>
 

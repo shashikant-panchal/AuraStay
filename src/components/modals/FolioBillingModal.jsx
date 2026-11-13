@@ -171,7 +171,190 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
   };
 
   const handlePrint = () => {
-    window.print();
+    const printWindow = window.open('', '_blank', 'width=850,height=950');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+    const origin = window.location.origin;
+    const pathPrefix = window.location.pathname.replace(/\/[^/]*$/, '');
+    const logoUrl = `${origin}${pathPrefix}/aavasa-logo.jpg`;
+
+    const hotelName = currentHotel?.name || 'Shivanandi';
+    const operatingUnit = 'Aavasa — Hospitality Simplified';
+    const hotelAddress = currentHotel?.city ? `${currentHotel.city}, Karnataka, India` : 'Bengaluru, Karnataka, India';
+    const docTitle = voucherType === 'BOOKING VOUCHER' ? 'Booking Voucher' : 'Tax Invoice';
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${docTitle} - Room ${roomNum} - ${guestName}</title>
+        <style>
+          @page { size: A4; margin: 12mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; color: #1e293b; line-height: 1.45; font-size: 12px; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #034a7f; padding-bottom: 12px; margin-bottom: 16px; }
+          .logo { max-height: 60px; object-fit: contain; }
+          .hotel-details h1 { margin: 0; font-size: 20px; color: #083d63; text-transform: uppercase; }
+          .hotel-details p { margin: 2px 0; color: #475569; font-size: 11px; }
+          .voucher-title { text-align: right; }
+          .voucher-title h2 { margin: 0; font-size: 20px; color: #034a7f; text-transform: uppercase; }
+          .meta-badge { font-family: monospace; font-weight: bold; background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; }
+          .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
+          .box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; }
+          .box-title { font-weight: 800; text-transform: uppercase; font-size: 11px; color: #034a7f; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 6px; }
+          .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+          .row .label { color: #64748b; font-weight: 500; }
+          .row .val { color: #0f172a; font-weight: 600; text-align: right; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 14px; font-size: 11.5px; }
+          th { background: #034a7f; color: #ffffff; text-align: left; padding: 6px 10px; font-weight: 700; font-size: 11px; text-transform: uppercase; }
+          td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; }
+          .totals-table { margin-left: auto; width: 340px; margin-top: 10px; }
+          .totals-table td { padding: 4px 8px; }
+          .total-row { font-size: 13px; font-weight: 800; color: #083d63; border-top: 2px solid #034a7f; }
+          .terms { border-top: 1px solid #cbd5e1; padding-top: 10px; margin-top: 14px; font-size: 10.5px; color: #475569; }
+          .terms h4 { margin: 0 0 4px 0; font-size: 11px; color: #0f172a; text-transform: uppercase; }
+          .terms ul { margin: 0; padding-left: 18px; line-height: 1.5; }
+          .footer-note { text-align: center; font-size: 10.5px; color: #64748b; margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <img src="${logoUrl}" alt="Aavasa" class="logo" onerror="this.style.display='none'" />
+            <div class="hotel-details">
+              <h1>${hotelName}</h1>
+              <p><strong>${operatingUnit}</strong></p>
+              <p>${hotelAddress}</p>
+              <p>Phone: +91 79785 78046 | frontdesk@aavasa.com</p>
+            </div>
+          </div>
+          <div class="voucher-title">
+            <h2>${docTitle}</h2>
+            <div class="meta-badge">FOL-2026-${roomNum}</div>
+            <p style="margin:4px 0 0; color:#64748b; font-size:11px;">Date: ${new Date().toLocaleDateString('en-GB')}</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="box">
+            <div class="box-title">Guest Details</div>
+            <div class="row"><span class="label">Guest Name:</span><span class="val">${guestName}</span></div>
+            <div class="row"><span class="label">Mobile Number:</span><span class="val">${phone}</span></div>
+            <div class="row"><span class="label">Allocated Room:</span><span class="val">Room #${roomNum} (${room?.type || room?.category || 'Standard Room'})</span></div>
+          </div>
+
+          <div class="box">
+            <div class="box-title">Stay Duration</div>
+            <div class="row"><span class="label">Check-In:</span><span class="val">${checkIn}</span></div>
+            <div class="row"><span class="label">Check-Out:</span><span class="val">${checkOut}</span></div>
+            <div class="row"><span class="label">Rate Plan:</span><span class="val">${reservation?.rate_plan || 'EP - Room Only'}</span></div>
+          </div>
+        </div>
+
+        <div style="font-weight: 800; text-transform: uppercase; font-size: 11px; color: #034a7f; margin-bottom: 4px;">Itemized Charges</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Description</th>
+              <th style="text-align:right;">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${folioItems.map(item => `
+              <tr>
+                <td>${item.date}</td>
+                <td><span style="font-weight:600; color:#475569;">${item.category}</span></td>
+                <td>${item.description}</td>
+                <td style="text-align:right; font-weight:600;">₹ ${Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <table class="totals-table">
+          <tr>
+            <td style="color:#64748b;">Subtotal Charges:</td>
+            <td style="text-align:right; font-weight:600;">₹ ${subtotalCharges.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          </tr>
+          ${discountAmount > 0 ? `
+          <tr>
+            <td style="color:#d97706;">Discount (${discountPercent}%):</td>
+            <td style="text-align:right; font-weight:600; color:#d97706;">-₹ ${discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="color:#64748b;">CGST (6%):</td>
+            <td style="text-align:right;">₹ ${cgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          </tr>
+          <tr>
+            <td style="color:#64748b;">SGST (6%):</td>
+            <td style="text-align:right;">₹ ${sgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          </tr>
+          <tr class="total-row">
+            <td>Grand Total:</td>
+            <td style="text-align:right;">₹ ${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          </tr>
+          <tr>
+            <td style="color:#059669; font-weight:700;">Payments Recorded:</td>
+            <td style="text-align:right; font-weight:700; color:#059669;">₹ ${totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          </tr>
+          <tr style="font-weight:800; font-size:12.5px; border-top:1px dashed #cbd5e1; color:${balanceDue > 0 ? '#dc2626' : '#059669'};">
+            <td>Balance Due:</td>
+            <td style="text-align:right;">₹ ${balanceDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          </tr>
+        </table>
+
+        ${paymentEntries.length > 0 ? `
+          <div style="font-weight: 800; text-transform: uppercase; font-size: 11px; color: #034a7f; margin-top: 14px; margin-bottom: 4px;">Payment Transactions</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Mode</th>
+                <th>Reference</th>
+                <th style="text-align:right;">Paid (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${paymentEntries.map(p => `
+                <tr>
+                  <td>${p.date}</td>
+                  <td><strong>${p.mode}</strong></td>
+                  <td><span style="font-family:monospace; color:#64748b;">${p.ref || 'PAID'}</span></td>
+                  <td style="text-align:right; font-weight:700; color:#059669;">₹ ${Number(p.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        ` : ''}
+
+        <div class="terms">
+          <h4>Property Terms & Policies</h4>
+          <ul>
+            <li>Check-in: 12:00 PM | Check-out: 11:00 AM.</li>
+            <li>Government-issued photo identification is mandatory for all adult guests during registration.</li>
+            <li>All incidental expenses must be settled upon checkout.</li>
+          </ul>
+        </div>
+
+        <div class="footer-note">
+          Thank you for staying at <strong>${hotelName}</strong>. Managed by <strong>Aavasa — Hospitality Simplified</strong>.
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.focus();
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   return (

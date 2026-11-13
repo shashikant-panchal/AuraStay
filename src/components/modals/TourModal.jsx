@@ -22,10 +22,10 @@ export default function TourModal() {
 
   const tourSteps = [
     {
-      title: "Welcome to AuraStay VARO",
+      title: "Welcome to Aavasa",
       tab: "overview",
       icon: TrendingUp,
-      desc: "VARO is AuraStay’s dedicated Revenue Management and Analytics engine. It empowers hoteliers to optimize RevPAR, ADR, and unconstrained occupancy through deterministic forecasting and intelligent exception detection."
+      desc: "Aavasa is your dedicated Hotel Management & Revenue Optimization platform. It empowers hoteliers to seamlessly manage reservations, front office operations, room allocations, dynamic tariffs, and channel distribution."
     },
     {
       title: "Today's Revenue Actions & Live KPIs",

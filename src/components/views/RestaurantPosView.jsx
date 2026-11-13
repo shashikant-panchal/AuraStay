@@ -157,8 +157,9 @@ export default function RestaurantPosView() {
       return;
     }
     const orderItemsSummary = cart.map(i => `${i.qty}x ${i.name}`).join(', ');
+    const kotId = `KOT-${Date.now().toString().slice(-4)}`;
     const newKotOrder = {
-      orderId: `KOT-${Date.now().toString().slice(-4)}`,
+      orderId: kotId,
       roomTable: selectedTable?.name || 'Table 01',
       guest: selectedTable?.guest || 'Dine-In Guest',
       items: orderItemsSummary,
@@ -182,7 +183,58 @@ export default function RestaurantPosView() {
       localStorage.setItem('aurastay_pos_tables', JSON.stringify(updated));
     } catch {}
 
-    showNotification(`KOT #${newKotOrder.orderId} sent to Kitchen Display System (KDS)! Items: ${orderItemsSummary}`);
+    // Open Kitchen Slip print window
+    const printWindow = window.open('', '_blank', 'width=450,height=600');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>KOT #${kotId}</title>
+          <style>
+            body { font-family: monospace; padding: 16px; font-size: 13px; color: #000; }
+            .center { text-align: center; }
+            .line { border-bottom: 1px dashed #000; margin: 8px 0; }
+            table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+            th, td { text-align: left; padding: 5px 0; font-size: 13px; }
+            .qty { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <div class="center">
+            <h2 style="margin:0 0 4px 0; font-size:16px;">KITCHEN ORDER TICKET (KOT)</h2>
+            <p style="margin:2px 0;"><strong>Aavasa — Shivanandi</strong></p>
+            <p style="margin:2px 0;">Token: <strong>#${kotId}</strong> | ${new Date().toLocaleTimeString()}</p>
+            <p style="margin:4px 0 0; font-size: 15px;"><strong>${selectedTable?.name || 'Table'} (${selectedTable?.area || 'Dining'})</strong></p>
+          </div>
+          <div class="line"></div>
+          <table>
+            <thead>
+              <tr><th>ITEM</th><th class="qty">QTY</th></tr>
+            </thead>
+            <tbody>
+              ${cart.map(i => `<tr><td>${i.name}</td><td class="qty"><strong>x${i.qty}</strong></td></tr>`).join('')}
+            </tbody>
+          </table>
+          <div class="line"></div>
+          <div class="center" style="margin-top:12px;">
+            <p style="margin:0; font-size:11px;">* Dispatched to Chef & KDS *</p>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.focus();
+                window.print();
+              }, 300);
+            };
+          </script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+
+    showNotification(`KOT #${kotId} sent to Kitchen Display System (KDS)! Items: ${orderItemsSummary}`);
   };
 
   const handleSettleTable = () => {
@@ -217,7 +269,7 @@ export default function RestaurantPosView() {
         <div>
           <div className="flex items-center space-x-2 mb-1.5">
             <span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 px-2 py-0.5 rounded tracking-wider">
-              AURASTAY PMS
+              AAVASA HMS
             </span>
             <span className="text-[10.5px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-wider">
               <Trophy className="w-3.5 h-3.5 text-amber-500" /> MASTERY: 0%

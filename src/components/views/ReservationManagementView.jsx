@@ -30,12 +30,14 @@ import {
   AlertTriangle,
   Receipt,
   CalendarPlus,
-  UserCheck
+  UserCheck,
+  Printer
 } from 'lucide-react';
 import BookingPaymentsModal from '../modals/BookingPaymentsModal';
 import FolioBillingModal from '../modals/FolioBillingModal';
 import CheckInModal from '../modals/CheckInModal';
 import CollectPaymentModal from '../modals/CollectPaymentModal';
+import BookingVoucher from '../common/BookingVoucher';
 import BookARoomView from './BookARoomView';
 
 export default function ReservationManagementView({ isSubTab = false }) {
@@ -679,6 +681,15 @@ export default function ReservationManagementView({ isSubTab = false }) {
                           <Receipt className="w-3 h-3" />
                           <span>Collect ₹</span>
                         </button>
+
+                        <button
+                          onClick={() => setInvoiceModalData(res)}
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10.5px] font-bold flex items-center space-x-1 transition border border-slate-300 cursor-pointer"
+                          title="View & Print Official Voucher / Invoice"
+                        >
+                          <Printer className="w-3 h-3 text-slate-600" />
+                          <span>Voucher</span>
+                        </button>
                       </div>
                     </td>
 
@@ -824,66 +835,17 @@ export default function ReservationManagementView({ isSubTab = false }) {
         </div>
       )}
 
-      {/* INVOICE MODAL (for AST-B-001) */}
+      {/* OFFICIAL AAVASA BOOKING VOUCHER & TAX INVOICE MODAL */}
       {invoiceModalData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-sm">Tax Invoice</h3>
-                <p className="text-xs text-slate-400 font-mono">{invoiceModalData.invoiceNumber}</p>
-              </div>
-              <button
-                onClick={() => setInvoiceModalData(null)}
-                className="text-white/80 hover:text-white p-1 rounded-lg"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 space-y-3 text-xs">
-              <div className="border-b pb-3 space-y-1">
-                <div className="font-bold text-slate-900">Billed To: {invoiceModalData.guest}</div>
-                <div className="text-slate-500">Booking ID: #{invoiceModalData.id}</div>
-                <div className="text-slate-500">Date: {invoiceModalData.createdAt}</div>
-              </div>
-              <div className="flex justify-between py-1 font-medium">
-                <span>Room Tariff ({invoiceModalData.roomType || 'Stay'})</span>
-                <span>₹{(Number(invoiceModalData.total || invoiceModalData.amount || 0) / 1.18).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between py-1 text-slate-500">
-                <span>CGST (9%)</span>
-                <span>₹{(((Number(invoiceModalData.total || invoiceModalData.amount || 0) / 1.18) * 0.09)).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between py-1 text-slate-500 border-b pb-2">
-                <span>SGST (9%)</span>
-                <span>₹{(((Number(invoiceModalData.total || invoiceModalData.amount || 0) / 1.18) * 0.09)).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between pt-1 font-bold text-slate-900 text-sm">
-                <span>Total Amount Paid</span>
-                <span>₹{Number(invoiceModalData.total || invoiceModalData.amount || 0).toFixed(2)}</span>
-              </div>
-            </div>
-
-            <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2">
-              <button
-                onClick={() => {
-                  showNotification('Downloading Invoice PDF...');
-                  setInvoiceModalData(null);
-                }}
-                className="px-3.5 py-1.5 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-semibold"
-              >
-                Download PDF
-              </button>
-              <button
-                onClick={() => setInvoiceModalData(null)}
-                className="px-3.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700 text-xs font-semibold"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <BookingVoucher
+          reservation={invoiceModalData}
+          room={{
+            room_number: (invoiceModalData.rooms && invoiceModalData.rooms[0]) || invoiceModalData.room || invoiceModalData.room_number || '101',
+            category: invoiceModalData.roomType || invoiceModalData.room_type || 'Standard Room'
+          }}
+          voucherType="TAX INVOICE & BOOKING VOUCHER"
+          onClose={() => setInvoiceModalData(null)}
+        />
       )}
 
       {/* Interactive Folio & Ledger Modal */}
