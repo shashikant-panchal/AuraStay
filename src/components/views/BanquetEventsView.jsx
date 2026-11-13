@@ -24,6 +24,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 export default function BanquetEventsView() {
   const {
+    currentHotel = {},
     showNotification,
     activeTab: contextActiveTab,
     setActiveTab: setContextActiveTab
@@ -120,26 +121,27 @@ export default function BanquetEventsView() {
 
   // Fetch live banquet bookings from Supabase
   const fetchBookings = async () => {
-    if (!isSupabaseConfigured()) return;
+    if (!isSupabaseConfigured) return;
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('banquet_bookings')
-        .select('*')
-        .order('date', { ascending: true });
+        .select('*');
 
       if (error) throw error;
       if (data) {
-        setBookings(data.map(b => ({
+        const hotelId = currentHotel?.id || 'shivanandi';
+        const filtered = data.filter(b => !b.hotel_id || b.hotel_id === hotelId);
+        setBookings(filtered.map(b => ({
           id: b.id,
-          guestName: b.guest_name,
-          phone: b.phone,
-          venue: b.venue_name,
-          date: b.date,
+          guestName: b.guest_name || b.client_name,
+          phone: b.phone || b.client_phone,
+          venue: b.venue_name || b.venue,
+          date: b.date || b.event_date,
           timeSlot: b.time_slot,
-          eventType: b.event_type,
+          eventType: b.event_type || b.event_name,
           pax: b.pax,
-          cateringPackage: b.catering_package,
+          cateringPackage: b.catering_package || b.menu_package,
           totalAmount: Number(b.total_amount || 0),
           paidAmount: Number(b.paid_amount || 0),
           status: b.status || 'CONFIRMED',
@@ -197,19 +199,25 @@ export default function BanquetEventsView() {
     setIsNewBookingModalOpen(false);
     showNotification(`Banquet booking registered for ${formGuestName} on ${formDate}.`);
 
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured) {
       try {
         await supabase.from('banquet_bookings').insert([{
           id: newBooking.id,
-          hotel_id: 'hotel_aurastay_01',
+          hotel_id: currentHotel?.id || 'shivanandi',
+          event_name: `${formEventType} - ${formGuestName}`,
+          client_name: formGuestName,
           guest_name: formGuestName,
+          client_phone: formPhone,
           phone: formPhone,
+          venue: finalVenueName,
           venue_name: finalVenueName,
+          event_date: formDate,
           date: formDate,
           time_slot: formTimeSlot,
           event_type: formEventType,
           pax: parseInt(formPax, 10) || 50,
           catering_package: finalMenuName,
+          menu_package: finalMenuName,
           total_amount: calculatedTotal,
           paid_amount: Number(formAdvance) || 0,
           status: 'CONFIRMED',
@@ -389,7 +397,7 @@ export default function BanquetEventsView() {
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
     showNotification(`Booking ${bookingId} status updated to ${newStatus}.`);
 
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured) {
       try {
         await supabase.from('banquet_bookings').update({ status: newStatus }).eq('id', bookingId);
       } catch (err) {

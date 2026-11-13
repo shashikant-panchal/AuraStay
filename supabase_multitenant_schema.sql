@@ -206,6 +206,21 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'organisation') THEN
         ALTER TABLE reservations ADD COLUMN organisation TEXT;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'actual_check_in_time') THEN
+        ALTER TABLE reservations ADD COLUMN actual_check_in_time TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'actual_check_out_time') THEN
+        ALTER TABLE reservations ADD COLUMN actual_check_out_time TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'id_city') THEN
+        ALTER TABLE reservations ADD COLUMN id_city TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'due') THEN
+        ALTER TABLE reservations ADD COLUMN due NUMERIC(10, 2) DEFAULT 0.00;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reservations' AND column_name = 'payment_ref') THEN
+        ALTER TABLE reservations ADD COLUMN payment_ref TEXT;
+    END IF;
 END $$;
 
 -- 6. Banquet Bookings Table (Exceed HMS MICE & Events)
@@ -228,6 +243,20 @@ CREATE TABLE IF NOT EXISTS banquet_bookings (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Safely add columns if banquet_bookings table already existed
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'banquet_bookings' AND column_name = 'guest_name') THEN
+        ALTER TABLE banquet_bookings ADD COLUMN guest_name TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'banquet_bookings' AND column_name = 'venue_name') THEN
+        ALTER TABLE banquet_bookings ADD COLUMN venue_name TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'banquet_bookings' AND column_name = 'catering_package') THEN
+        ALTER TABLE banquet_bookings ADD COLUMN catering_package TEXT;
+    END IF;
+END $$;
 
 -- 7. F&B Orders Table
 CREATE TABLE IF NOT EXISTS fnb_orders (
@@ -315,6 +344,17 @@ CREATE TABLE IF NOT EXISTS financial_invoices (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Safely add columns if financial_invoices table already existed
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'financial_invoices' AND column_name = 'reservation_id') THEN
+        ALTER TABLE financial_invoices ADD COLUMN reservation_id TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'financial_invoices' AND column_name = 'room_number') THEN
+        ALTER TABLE financial_invoices ADD COLUMN room_number TEXT;
+    END IF;
+END $$;
+
 -- 13. Lost & Found Items Registry Table
 CREATE TABLE IF NOT EXISTS lost_and_found_items (
     id TEXT PRIMARY KEY,
@@ -349,7 +389,44 @@ CREATE TABLE IF NOT EXISTS material_requisitions (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 9. Enable Realtime Publications for all applications
+-- 15. Hotel Expenses & Outflow Vouchers Table
+CREATE TABLE IF NOT EXISTS hotel_expenses (
+    id TEXT PRIMARY KEY,
+    hotel_id TEXT NOT NULL DEFAULT 'shivanandi',
+    payee TEXT NOT NULL,
+    category TEXT DEFAULT 'Utility Bills',
+    amount NUMERIC(10, 2) DEFAULT 0.00,
+    payment_mode TEXT DEFAULT 'UPI',
+    status TEXT DEFAULT 'PAID',
+    expense_date TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 16. Cab Bookings & Travel Desk Table (Aavasa HMS Logistics)
+CREATE TABLE IF NOT EXISTS public.cab_bookings (
+    id TEXT PRIMARY KEY,
+    hotel_id TEXT NOT NULL DEFAULT 'shivanandi',
+    guest_name TEXT NOT NULL,
+    room_number TEXT,
+    phone TEXT NOT NULL,
+    pickup_location TEXT NOT NULL,
+    drop_location TEXT NOT NULL,
+    pickup_time TEXT NOT NULL,
+    cab_type TEXT NOT NULL DEFAULT 'Sedan (Dzire / Etios)',
+    driver_name TEXT,
+    driver_phone TEXT,
+    vehicle_number TEXT,
+    fare NUMERIC NOT NULL DEFAULT 0,
+    payment_status TEXT NOT NULL DEFAULT 'PENDING',
+    booking_status TEXT NOT NULL DEFAULT 'CONFIRMED',
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 17. Enable Realtime Publications for all operational tables
 DO $$
 BEGIN
     BEGIN
@@ -372,9 +449,41 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE banquet_bookings;
     EXCEPTION WHEN duplicate_object THEN NULL;
     END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE fnb_orders;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE housekeeping_tasks;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE inventory_items;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE purchase_orders;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE material_requisitions;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE financial_invoices;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE hotel_expenses;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE cab_bookings;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
 END $$;
 
--- 10. Disable RLS to allow seamless sync across Admin, SuperAdmin, and Guest Portals
+-- 18. Disable RLS to allow seamless sync across Admin, SuperAdmin, and Guest Portals
 ALTER TABLE IF EXISTS hotels DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS room_types DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS rooms DISABLE ROW LEVEL SECURITY;
@@ -388,46 +497,123 @@ ALTER TABLE IF EXISTS purchase_orders DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS financial_invoices DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS lost_and_found_items DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS material_requisitions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS hotel_expenses DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS cab_bookings DISABLE ROW LEVEL SECURITY;
 
--- 11. Clean Reset: Clear all old test reservations and reset room inventory
-DELETE FROM reservations;
-UPDATE rooms SET status = 'VACANT_READY', guest = NULL, booking_id = NULL, check_out = NULL;
-DELETE FROM banquet_bookings;
-DELETE FROM fnb_orders;
+-- 19. Cross-Feature Automated Synchronization Triggers
+-- Trigger A: Reservation Check-In/Check-Out updates Room Status & generates Housekeeping task
+CREATE OR REPLACE FUNCTION trg_sync_reservation_to_room()
+RETURNS TRIGGER AS $$
+DECLARE
+    clean_room_num TEXT;
+BEGIN
+    IF NEW.room_number IS NOT NULL OR NEW.room IS NOT NULL THEN
+        clean_room_num := regexp_replace(COALESCE(NEW.room_number, NEW.room), '^Room\s*', '', 'i');
 
--- 12. Cab Bookings & Travel Desk Table (Aavasa HMS Logistics)
-CREATE TABLE IF NOT EXISTS public.cab_bookings (
-    id TEXT PRIMARY KEY,
-    hotel_id TEXT NOT NULL DEFAULT 'shivanandi',
-    guest_name TEXT NOT NULL,
-    room_number TEXT,
-    phone TEXT NOT NULL,
-    pickup_location TEXT NOT NULL,
-    drop_location TEXT NOT NULL,
-    pickup_time TEXT NOT NULL,
-    cab_type TEXT NOT NULL DEFAULT 'Sedan (Dzire / Etios)',
-    driver_name TEXT,
-    driver_phone TEXT,
-    vehicle_number TEXT,
-    fare NUMERIC NOT NULL DEFAULT 0,
-    payment_status TEXT NOT NULL DEFAULT 'PENDING',
-    booking_status TEXT NOT NULL DEFAULT 'CONFIRMED',
-    notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+        IF NEW.status = 'CHECKED_IN' THEN
+            UPDATE rooms
+            SET status = 'OCCUPIED',
+                guest = NEW.guest,
+                booking_id = NEW.id,
+                check_out = NEW.check_out
+            WHERE (regexp_replace(room_number, '^Room\s*', '', 'i') = clean_room_num
+                   OR id::text = COALESCE(NEW.room_number, NEW.room))
+              AND (hotel_id = NEW.hotel_id OR hotel_id IS NULL);
 
-ALTER TABLE IF EXISTS public.cab_bookings DISABLE ROW LEVEL SECURITY;
+        ELSIF NEW.status = 'CHECKED_OUT' THEN
+            UPDATE rooms
+            SET status = 'DIRTY',
+                guest = NULL,
+                booking_id = NULL
+            WHERE (regexp_replace(room_number, '^Room\s*', '', 'i') = clean_room_num
+                   OR id::text = COALESCE(NEW.room_number, NEW.room))
+              AND (hotel_id = NEW.hotel_id OR hotel_id IS NULL);
+
+            -- Auto-generate Housekeeping Room Turnover task
+            INSERT INTO housekeeping_tasks (id, hotel_id, room_number, task_type, priority, assigned_to, status, notes)
+            VALUES (
+                'HK-' || floor(random()*9000 + 1000)::text,
+                COALESCE(NEW.hotel_id, 'shivanandi'),
+                clean_room_num,
+                'Full Room Turnover (Departure Clean)',
+                'Urgent',
+                'Unassigned',
+                'PENDING',
+                'Automated turnover task generated from guest check-out for ' || COALESCE(NEW.guest, 'Guest')
+            )
+            ON CONFLICT (id) DO NOTHING;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_reservation_room_sync ON reservations;
+CREATE TRIGGER trg_reservation_room_sync
+AFTER INSERT OR UPDATE OF status, room_number, room ON reservations
+FOR EACH ROW EXECUTE FUNCTION trg_sync_reservation_to_room();
+
+-- Trigger B: Housekeeping Task Completion Updates Room to VACANT_READY
+CREATE OR REPLACE FUNCTION trg_sync_housekeeping_to_room()
+RETURNS TRIGGER AS $$
+DECLARE
+    clean_room_num TEXT;
+BEGIN
+    IF NEW.status = 'COMPLETED' AND (OLD.status IS DISTINCT FROM 'COMPLETED') THEN
+        clean_room_num := regexp_replace(NEW.room_number, '^Room\s*', '', 'i');
+        UPDATE rooms
+        SET status = 'VACANT_READY',
+            housekeeping = 'Clean',
+            guest = NULL,
+            booking_id = NULL
+        WHERE (regexp_replace(room_number, '^Room\s*', '', 'i') = clean_room_num
+               OR id::text = NEW.room_number)
+          AND (hotel_id = NEW.hotel_id OR hotel_id IS NULL)
+          AND status = 'DIRTY';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_housekeeping_room_sync ON housekeeping_tasks;
+CREATE TRIGGER trg_housekeeping_room_sync
+AFTER INSERT OR UPDATE OF status ON housekeeping_tasks
+FOR EACH ROW EXECUTE FUNCTION trg_sync_housekeeping_to_room();
+
+-- 20. Seed Hotels (Shivanandi, Aavasa, Demo Hotel)
 INSERT INTO hotels (id, slug, name, short_name, owner_name, email, password, mobile, total_rooms, plan)
-VALUES ('hotel_aurastay_01', 'demo-hotel-property-1', 'DEMO HOTEL Property 1', 'DEMO', 'SHIVANANDI', 'shivanandi@aurastay.com', '12345', '7978578046', 20, 'Enterprise')
+VALUES 
+('hotel_aurastay_01', 'demo-hotel-property-1', 'DEMO HOTEL Property 1', 'DEMO', 'SHIVANANDI', 'shivanandi@aurastay.com', '12345', '7978578046', 20, 'Enterprise'),
+('shivanandi', 'shivanandi', 'Hotel Shivanandi', 'SHIV', 'Shivanandi Admin', 'admin@shivanandi.com', 'admin', '7978578046', 20, 'Enterprise'),
+('aavasa', 'aavasa', 'Aavasa Grand Hotel', 'AAVASA', 'Aavasa Management', 'admin@aavasa.com', 'admin123', '9845099999', 30, 'Enterprise')
 ON CONFLICT (id) DO UPDATE SET 
     name = EXCLUDED.name,
     owner_name = EXCLUDED.owner_name;
 
+-- 21. Seed Room Types
 INSERT INTO room_types (id, hotel_id, name, label, bedding_type, max_adults, max_extra, max_children, area_sqft, base_price, extra_bed_price, child_price, amenities, description, is_booking_engine)
 VALUES
 ('rt-deluxe', 'hotel_aurastay_01', 'Deluxe Room', 'Room', 'King Bed', 2, 1, 1, 350.00, 2500.00, 800.00, 400.00, ARRAY['Air Conditioning', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Private Bathroom', 'Daily Housekeeping', 'Electric Kettle'], 'Spacious deluxe room featuring plush king bedding, work desk, and ensuite bath.', true),
 ('rt-exec', 'hotel_aurastay_01', 'Executive Suite', 'Suite', 'Suite', 3, 1, 2, 550.00, 4500.00, 1000.00, 500.00, ARRAY['Air Conditioning', 'Balcony', 'City view', 'Bathtub', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Minibar'], 'Luxury executive suite with dedicated living room area and private balcony.', true),
 ('rt-pres', 'hotel_aurastay_01', 'Presidential Suite', 'Suite', '2 King Bed(s)', 4, 2, 2, 850.00, 8000.00, 1500.00, 800.00, ARRAY['Air Conditioning', 'Balcony', 'City view', 'Bathtub', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Minibar', 'Safe', 'Wardrobe or closet'], 'Ultra-premium presidential suite with master bedrooms, private dining, and jacuzzi.', true),
-('rt-std', 'hotel_aurastay_01', 'Standard Room', 'Room', 'Twin Beds', 2, 0, 1, 280.00, 1800.00, 600.00, 300.00, ARRAY['Air Conditioning', 'Free High-Speed Wi-Fi', 'Private Bathroom', 'Daily Housekeeping'], 'Cozy standard room ideal for business and leisure travelers.', true)
+('rt-std', 'hotel_aurastay_01', 'Standard Room', 'Room', 'Twin Beds', 2, 0, 1, 280.00, 1800.00, 600.00, 300.00, ARRAY['Air Conditioning', 'Free High-Speed Wi-Fi', 'Private Bathroom', 'Daily Housekeeping'], 'Cozy standard room ideal for business and leisure travelers.', true),
+('rt-shiv-deluxe', 'shivanandi', 'Deluxe Room', 'Room', 'King Bed', 2, 1, 1, 350.00, 2500.00, 800.00, 400.00, ARRAY['Air Conditioning', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Private Bathroom', 'Daily Housekeeping', 'Electric Kettle'], 'Spacious deluxe room featuring plush king bedding, work desk, and ensuite bath.', true),
+('rt-shiv-exec', 'shivanandi', 'Executive Suite', 'Suite', 'Suite', 3, 1, 2, 550.00, 4500.00, 1000.00, 500.00, ARRAY['Air Conditioning', 'Balcony', 'City view', 'Bathtub', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Minibar'], 'Luxury executive suite with dedicated living room area and private balcony.', true),
+('rt-aavasa-deluxe', 'aavasa', 'Deluxe Room', 'Room', 'King Bed', 2, 1, 1, 350.00, 2500.00, 800.00, 400.00, ARRAY['Air Conditioning', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Private Bathroom', 'Daily Housekeeping', 'Electric Kettle'], 'Spacious deluxe room featuring plush king bedding, work desk, and ensuite bath.', true),
+('rt-aavasa-exec', 'aavasa', 'Executive Suite', 'Suite', 'Suite', 3, 1, 2, 550.00, 4500.00, 1000.00, 500.00, ARRAY['Air Conditioning', 'Balcony', 'City view', 'Bathtub', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Minibar'], 'Luxury executive suite with dedicated living room area and private balcony.', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- 22. Seed Rooms for Shivanandi & Hotel Properties
+INSERT INTO rooms (hotel_id, room_number, floor, type, bed, status, housekeeping, price)
+VALUES
+('shivanandi', '101', '1st Floor', 'Deluxe Room', 'King Bed', 'VACANT_READY', 'Clean', 2500.00),
+('shivanandi', '102', '1st Floor', 'Deluxe Room', 'King Bed', 'VACANT_READY', 'Clean', 2500.00),
+('shivanandi', '103', '1st Floor', 'Deluxe Room', 'King Bed', 'VACANT_READY', 'Clean', 2500.00),
+('shivanandi', '104', '1st Floor', 'Deluxe Room', 'King Bed', 'VACANT_READY', 'Clean', 2500.00),
+('shivanandi', '105', '1st Floor', 'Executive Suite', 'King Bed', 'VACANT_READY', 'Clean', 4500.00),
+('shivanandi', '106', '1st Floor', 'Executive Suite', 'King Bed', 'VACANT_READY', 'Clean', 4500.00),
+('shivanandi', '201', '2nd Floor', 'Deluxe Room', 'King Bed', 'VACANT_READY', 'Clean', 2500.00),
+('shivanandi', '202', '2nd Floor', 'Deluxe Room', 'King Bed', 'VACANT_READY', 'Clean', 2500.00),
+('shivanandi', '203', '2nd Floor', 'Standard Room', 'Twin Beds', 'VACANT_READY', 'Clean', 1800.00),
+('shivanandi', '204', '2nd Floor', 'Presidential Suite', '2 King Bed(s)', 'VACANT_READY', 'Clean', 8000.00)
+ON CONFLICT (hotel_id, room_number) DO NOTHING;

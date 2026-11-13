@@ -59,7 +59,7 @@ const MENU_ITEMS = [
 ];
 
 export default function RestaurantPosView() {
-  const { navigateTo, showNotification, fnbOrders = [], addFnbOrder, rooms = [] } = useDashboard();
+  const { navigateTo, showNotification, fnbOrders = [], addFnbOrder, settleFnbOrder, rooms = [] } = useDashboard();
 
   const [tables, setTables] = useState(() => {
     try {
@@ -244,6 +244,14 @@ export default function RestaurantPosView() {
     try {
       localStorage.setItem('aurastay_pos_tables', JSON.stringify(updated));
     } catch {}
+
+    if (settleFnbOrder) {
+      const activeOrder = fnbOrders.find(o => o.roomTable === selectedTable.name && o.status !== 'BILLED');
+      if (activeOrder) {
+        settleFnbOrder(activeOrder.orderId);
+      }
+    }
+
     setCart([]);
     showNotification(`Bill ₹${grandTotal} settled via UPI/Card. ${selectedTable.name} ready for next guest.`);
   };

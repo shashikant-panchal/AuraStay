@@ -144,7 +144,7 @@ export default function HousekeepingView() {
   // Load live tasks from Supabase if configured
   useEffect(() => {
     async function loadTasksFromSupabase() {
-      if (!isSupabaseConfigured()) return;
+      if (!isSupabaseConfigured) return;
       try {
         const { data, error } = await supabase
           .from('housekeeping_tasks')
@@ -248,6 +248,14 @@ export default function HousekeepingView() {
   const handleUpdateTaskStatus = async (taskId, newStatus) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
     showNotification(`Task ${taskId} marked as ${newStatus}.`);
+
+    // If task is completed and relates to a room, mark room VACANT_READY
+    if (newStatus === 'COMPLETED') {
+      const taskObj = tasks.find(t => t.id === taskId);
+      if (taskObj && taskObj.room && updateRoomStatus) {
+        updateRoomStatus(taskObj.room, 'VACANT_READY');
+      }
+    }
 
     if (isSupabaseConfigured) {
       try {

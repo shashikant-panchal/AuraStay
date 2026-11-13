@@ -92,7 +92,7 @@ export function DashboardProvider({ children }) {
           'aurastay_housekeepers'
         ];
         legacyKeys.forEach(k => {
-          try { localStorage.removeItem(k); } catch(e){}
+          try { localStorage.removeItem(k); } catch (e) { }
         });
       }
     } catch (e) {
@@ -173,6 +173,21 @@ export function DashboardProvider({ children }) {
     } catch (e) { }
   }, [cabBookings]);
 
+  // Folios State (Itemized charges & payments per reservation/room)
+  const [folios, setFolios] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aurastay_folios_v2');
+      if (saved) return JSON.parse(saved);
+    } catch (e) { }
+    return {};
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aurastay_folios_v2', JSON.stringify(folios));
+    } catch (e) { }
+  }, [folios]);
+
   // Modals state
   const [isGlossaryOpen, setIsGlossaryOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -199,13 +214,15 @@ export function DashboardProvider({ children }) {
 
     async function loadSupabaseData() {
       try {
-        const [roomsRes, resRes, fnbRes, staffRes, chanRes, roomTypesRes] = await Promise.all([
+        const [roomsRes, resRes, fnbRes, staffRes, chanRes, roomTypesRes, cabsRes, invoicesRes] = await Promise.all([
           supabase.from('rooms').select('*').order('room_number'),
           supabase.from('reservations').select('*').order('created_at', { ascending: false }),
           supabase.from('fnb_orders').select('*').order('created_at', { ascending: false }),
           supabase.from('staff_users').select('*').order('id'),
           supabase.from('ota_channels').select('*').order('id'),
-          supabase.from('room_types').select('*').order('name')
+          supabase.from('room_types').select('*').order('name'),
+          supabase.from('cab_bookings').select('*').order('created_at', { ascending: false }),
+          supabase.from('financial_invoices').select('*').order('created_at', { ascending: false })
         ]);
 
         if (isMounted) {
@@ -309,6 +326,61 @@ export function DashboardProvider({ children }) {
                 });
                 return combined;
               });
+            }
+          }
+
+          if (cabsRes?.data && cabsRes.data.length > 0) {
+            const hotelCabs = cabsRes.data.filter(c => !c.hotel_id || c.hotel_id === currentHotel.id);
+            if (hotelCabs.length > 0) {
+              setCabBookings(hotelCabs.map(c => ({
+                id: c.id,
+                hotelId: c.hotel_id || currentHotel.id,
+                guestName: c.guest_name,
+                roomNumber: c.room_number,
+                phone: c.phone,
+                pickupLocation: c.pickup_location,
+                dropLocation: c.drop_location,
+                pickupTime: c.pickup_time,
+                cabType: c.cab_type,
+                driverName: c.driver_name,
+                driverPhone: c.driver_phone,
+                vehicleNumber: c.vehicle_number,
+                fare: Number(c.fare) || 0,
+                paymentStatus: c.payment_status,
+                bookingStatus: c.booking_status,
+                notes: c.notes,
+                createdAt: c.created_at
+              })));
+            }
+          }
+
+          if (invoicesRes?.data && invoicesRes.data.length > 0) {
+            const hotelInvoices = invoicesRes.data.filter(inv => !inv.hotel_id || inv.hotel_id === currentHotel.id);
+            const folioMap = {};
+            hotelInvoices.forEach(inv => {
+              const resId = inv.reservation_id || inv.id?.replace(/^FOL-/, '');
+              if (resId) {
+                let parsedNotes = {};
+                try {
+                  parsedNotes = JSON.parse(inv.notes || '{}');
+                } catch (e) { }
+                folioMap[resId] = {
+                  reservationId: resId,
+                  roomNumber: inv.room_number,
+                  guestName: inv.client_name,
+                  phone: inv.client_phone,
+                  subtotal: Number(inv.subtotal || 0),
+                  grandTotal: Number(inv.total_amount || 0),
+                  totalPaid: Number(inv.paid_amount || 0),
+                  balanceDue: Math.max(0, Number(inv.total_amount || 0) - Number(inv.paid_amount || 0)),
+                  folioItems: parsedNotes.folioItems || [],
+                  paymentEntries: parsedNotes.paymentEntries || [],
+                  discountPercent: parsedNotes.discountPercent || 0
+                };
+              }
+            });
+            if (Object.keys(folioMap).length > 0) {
+              setFolios(prev => ({ ...prev, ...folioMap }));
             }
           }
 
@@ -484,6 +556,75 @@ export function DashboardProvider({ children }) {
           }
         } else if (payload.eventType === 'DELETE' && payload.old) {
           setRoomTypes(prev => prev.filter(t => t.id !== payload.old.id));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cab_bookings' }, payload => {
+        if (payload.eventType === 'INSERT' && payload.new) {
+          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
+            const newCab = {
+              id: payload.new.id,
+              hotelId: payload.new.hotel_id || currentHotel.id,
+              guestName: payload.new.guest_name,
+              roomNumber: payload.new.room_number,
+              phone: payload.new.phone,
+              pickupLocation: payload.new.pickup_location,
+              dropLocation: payload.new.drop_location,
+              pickupTime: payload.new.pickup_time,
+              cabType: payload.new.cab_type,
+              driverName: payload.new.driver_name,
+              driverPhone: payload.new.driver_phone,
+              vehicleNumber: payload.new.vehicle_number,
+              fare: Number(payload.new.fare) || 0,
+              paymentStatus: payload.new.payment_status,
+              bookingStatus: payload.new.booking_status,
+              notes: payload.new.notes,
+              createdAt: payload.new.created_at
+            };
+            setCabBookings(prev => [newCab, ...prev.filter(c => c.id !== newCab.id)]);
+          }
+        } else if (payload.eventType === 'UPDATE' && payload.new) {
+          setCabBookings(prev => prev.map(c => c.id === payload.new.id ? {
+            ...c,
+            guestName: payload.new.guest_name || c.guestName,
+            roomNumber: payload.new.room_number || c.roomNumber,
+            driverName: payload.new.driver_name,
+            driverPhone: payload.new.driver_phone,
+            vehicleNumber: payload.new.vehicle_number,
+            fare: Number(payload.new.fare) || c.fare,
+            paymentStatus: payload.new.payment_status,
+            bookingStatus: payload.new.booking_status,
+            notes: payload.new.notes
+          } : c));
+        } else if (payload.eventType === 'DELETE' && payload.old) {
+          setCabBookings(prev => prev.filter(c => c.id !== payload.old.id));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_invoices' }, payload => {
+        if (payload.new && (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE')) {
+          const inv = payload.new;
+          if (!inv.hotel_id || inv.hotel_id === currentHotel.id) {
+            const resId = inv.reservation_id || inv.id?.replace(/^FOL-/, '');
+            if (resId) {
+              let parsedNotes = {};
+              try { parsedNotes = JSON.parse(inv.notes || '{}'); } catch (e) { }
+              setFolios(prev => ({
+                ...prev,
+                [resId]: {
+                  reservationId: resId,
+                  roomNumber: inv.room_number,
+                  guestName: inv.client_name,
+                  phone: inv.client_phone,
+                  subtotal: Number(inv.subtotal || 0),
+                  grandTotal: Number(inv.total_amount || 0),
+                  totalPaid: Number(inv.paid_amount || 0),
+                  balanceDue: Math.max(0, Number(inv.total_amount || 0) - Number(inv.paid_amount || 0)),
+                  folioItems: parsedNotes.folioItems || [],
+                  paymentEntries: parsedNotes.paymentEntries || [],
+                  discountPercent: parsedNotes.discountPercent || 0
+                }
+              }));
+            }
+          }
         }
       })
       .subscribe((status) => {
@@ -731,7 +872,7 @@ export function DashboardProvider({ children }) {
   // Change room status (Housekeeping)
   const updateRoomStatus = async (roomIdentifier, newStatus) => {
     const cleanNum = String(roomIdentifier).replace(/\D/g, '') || String(roomIdentifier);
-    setRooms(prev => prev.map(r => 
+    setRooms(prev => prev.map(r =>
       (String(r.roomNumber) === cleanNum || String(r.id) === String(roomIdentifier) || String(r.name) === String(roomIdentifier))
         ? { ...r, status: newStatus }
         : r
@@ -929,6 +1070,20 @@ export function DashboardProvider({ children }) {
 
   const addFnbOrder = async (order) => {
     setFnbOrders(prev => [order, ...prev]);
+
+    // If billed to room, post charge directly to room folio
+    const rMatch = String(order.roomTable || '').match(/\b(?:Room\s*)?(\d{2,4})\b/i);
+    if (rMatch && order.paymentStatus === 'BILLED_TO_ROOM') {
+      const cleanRoom = rMatch[1];
+      addFolioCharge(cleanRoom, {
+        category: 'F&B',
+        description: `Restaurant Dining (${order.orderId}): ${order.items}`,
+        amount: Number(order.total) || 0,
+        rate: Number(order.total) || 0,
+        qty: 1
+      });
+    }
+
     if (isSupabaseConfigured) {
       try {
         await supabase.from('fnb_orders').insert({
@@ -938,12 +1093,125 @@ export function DashboardProvider({ children }) {
           guest: order.guest || 'Guest',
           items: order.items,
           total: order.total,
-          status: order.status || 'PREPARING'
+          status: order.status || 'PREPARING',
+          time: order.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         });
       } catch (err) {
         console.warn('Supabase F&B insert error:', err);
       }
     }
+  };
+
+  const settleFnbOrder = async (orderId, paymentMode = 'UPI') => {
+    setFnbOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, status: 'BILLED' } : o));
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('fnb_orders').update({ status: 'BILLED' }).eq('id', orderId);
+      } catch (err) {
+        console.warn('Supabase settle FNB order error:', err);
+      }
+    }
+  };
+
+  // Folio API: retrieve folio by reservation id or room number
+  const getFolio = (key) => {
+    if (!key) return null;
+    const cleanKey = String(key).trim();
+    const cleanNum = cleanKey.replace(/\D/g, '');
+    return folios[cleanKey] || (cleanNum ? folios[cleanNum] : null) || null;
+  };
+
+  // Folio API: save/update folio and sync to Supabase financial_invoices
+  const saveFolio = async (key, folioData) => {
+    if (!key) return;
+    const cleanKey = String(key).trim();
+    const cleanNum = String(folioData.roomNumber || cleanKey).replace(/\D/g, '');
+    const updated = {
+      ...folioData,
+      roomNumber: cleanNum || folioData.roomNumber,
+      updatedAt: new Date().toISOString()
+    };
+
+    setFolios(prev => {
+      const next = { ...prev, [cleanKey]: updated };
+      if (cleanNum && cleanNum !== cleanKey) {
+        next[cleanNum] = updated;
+      }
+      return next;
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        const invId = `FOL-${cleanKey}`;
+        await supabase.from('financial_invoices').upsert({
+          id: invId,
+          hotel_id: currentHotel.id,
+          reservation_id: folioData.reservationId || cleanKey,
+          room_number: cleanNum,
+          client_name: folioData.guestName || 'In-House Guest',
+          client_phone: folioData.phone || '',
+          category: 'Room Stay & Folio Ledger',
+          subtotal: Number(folioData.subtotal || 0),
+          cgst: Number(folioData.cgstAmount || Math.round(Number(folioData.subtotal || 0) * 0.06)),
+          sgst: Number(folioData.sgstAmount || Math.round(Number(folioData.subtotal || 0) * 0.06)),
+          total_amount: Number(folioData.grandTotal || 0),
+          paid_amount: Number(folioData.totalPaid || 0),
+          payment_mode: folioData.paymentEntries?.[folioData.paymentEntries.length - 1]?.mode || 'UPI',
+          status: (Number(folioData.balanceDue || 0) <= 0 && Number(folioData.totalPaid || 0) > 0) ? 'SETTLED' : 'PENDING',
+          notes: JSON.stringify({
+            folioItems: folioData.folioItems || [],
+            paymentEntries: folioData.paymentEntries || [],
+            discountPercent: folioData.discountPercent || 0
+          }),
+          updated_at: new Date().toISOString()
+        });
+      } catch (err) {
+        console.warn('Supabase saveFolio error:', err);
+      }
+    }
+  };
+
+  // Folio API: post itemized charge
+  const addFolioCharge = async (key, chargeItem) => {
+    if (!key) return;
+    const cleanKey = String(key).trim();
+    const existing = getFolio(cleanKey) || {
+      folioItems: [],
+      paymentEntries: [],
+      discountPercent: 0,
+      totalPaid: 0
+    };
+
+    const newItem = {
+      id: chargeItem.id || `chg-${Date.now().toString().slice(-4)}`,
+      date: chargeItem.date || new Date().toISOString().split('T')[0],
+      category: chargeItem.category || 'Incidental',
+      description: chargeItem.description || 'Charge',
+      rate: Number(chargeItem.rate || chargeItem.amount || 0),
+      qty: Number(chargeItem.qty || 1),
+      amount: Number(chargeItem.amount || 0),
+      gst: chargeItem.gst !== undefined ? chargeItem.gst : 12
+    };
+
+    const updatedItems = [...(existing.folioItems || []), newItem];
+    const subtotal = updatedItems.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
+    const discount = Math.round((subtotal * (existing.discountPercent || 0)) / 100);
+    const net = subtotal - discount;
+    const grandTotal = net + Math.round(net * 0.12);
+    const totalPaid = (existing.paymentEntries || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const balanceDue = Math.max(0, grandTotal - totalPaid);
+
+    const updatedFolio = {
+      ...existing,
+      folioItems: updatedItems,
+      subtotal,
+      grandTotal,
+      totalPaid,
+      balanceDue
+    };
+
+    await saveFolio(cleanKey, updatedFolio);
+    showNotification(`Charge of ₹${newItem.amount.toLocaleString('en-IN')} posted to Folio (#${cleanKey}).`);
   };
 
   // Update reservation payment (Collect Payment & Settle Folio)
@@ -966,7 +1234,11 @@ export function DashboardProvider({ children }) {
       try {
         const { error } = await supabase
           .from('reservations')
-          .update({ payment: newPayment })
+          .update({
+            payment: newPayment,
+            paid: Number(paid) || 0,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', reservationId);
         if (error) console.warn('Supabase payment update error:', error);
       } catch (err) {
@@ -984,6 +1256,18 @@ export function DashboardProvider({ children }) {
       created_at: new Date().toISOString()
     };
     setCabBookings(prev => [booking, ...prev]);
+
+    // If billed to room, post charge to that room's folio
+    if (booking.paymentStatus === 'BILLED_TO_ROOM' && booking.roomNumber) {
+      const cleanRoom = String(booking.roomNumber).replace(/\D/g, '') || String(booking.roomNumber);
+      addFolioCharge(cleanRoom, {
+        category: 'Travel / Cab',
+        description: `Cab Ride #${booking.id}: ${booking.pickupLocation} ➔ ${booking.dropLocation} (${booking.cabType || 'Cab'})`,
+        amount: Number(booking.fare) || 0,
+        rate: Number(booking.fare) || 0,
+        qty: 1
+      });
+    }
 
     if (isSupabaseConfigured) {
       try {
@@ -1125,12 +1409,39 @@ export function DashboardProvider({ children }) {
           status: 'CHECKED_IN',
           room: roomNumber ? `Room ${roomNumber}` : undefined,
           room_number: roomNumber || undefined,
+          actual_check_in_time: actualCheckInTime || new Date().toISOString(),
+          guest_id_type: idType,
+          guest_id_number: idNumber,
           paid: updatedRes?.paid,
-          payment: updatedRes?.payment
+          payment: updatedRes?.payment,
+          payment_mode: paymentMode,
+          updated_at: new Date().toISOString()
         }).eq('id', reservationId);
       } catch (err) {
         console.warn('Supabase reservation check-in update error:', err);
       }
+    }
+
+    if (Number(collectedAmount) > 0) {
+      const cleanKey = reservationId;
+      const existing = getFolio(cleanKey) || {};
+      const newPay = {
+        id: `pay-${Date.now().toString().slice(-4)}`,
+        date: new Date().toISOString().split('T')[0],
+        mode: paymentMode,
+        ref: paymentRef || 'CHECKIN-ADV',
+        amount: Number(collectedAmount),
+        note: 'Check-in Advance Deposit'
+      };
+      await saveFolio(cleanKey, {
+        ...existing,
+        reservationId,
+        roomNumber,
+        guestName: updatedRes?.guest,
+        phone: updatedRes?.guestPhone,
+        paymentEntries: [...(existing.paymentEntries || []), newPay],
+        totalPaid: (existing.totalPaid || 0) + Number(collectedAmount)
+      });
     }
 
     showNotification(`Guest successfully checked into Room ${roomNumber || ''}! Status: CHECKED IN`);
@@ -1172,18 +1483,35 @@ export function DashboardProvider({ children }) {
           await supabase.from('rooms').update({
             status: 'DIRTY',
             guest: null,
-            booking_id: null
+            booking_id: null,
+            updated_at: new Date().toISOString()
           }).eq('room_number', String(targetRoom));
-        } catch (err) {}
+        } catch (err) { }
+
+        // Automatically create turnover task in housekeeping_tasks table
+        try {
+          await supabase.from('housekeeping_tasks').insert([{
+            id: `HK-${Date.now().toString().slice(-4)}`,
+            hotel_id: currentHotel.id,
+            room_number: String(targetRoom),
+            task_type: 'Checkout Turnover & Deep Clean',
+            priority: 'High',
+            assigned_to: 'Turnover Staff',
+            status: 'PENDING',
+            notes: `Auto turnover task created upon checkout of reservation #${reservationId}.`
+          }]);
+        } catch (e) { }
       }
     }
 
     if (isSupabaseConfigured) {
       try {
         await supabase.from('reservations').update({
-          status: 'CHECKED_OUT'
+          status: 'CHECKED_OUT',
+          actual_check_out_time: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         }).eq('id', reservationId);
-      } catch (err) {}
+      } catch (err) { }
     }
 
     showNotification(`Reservation #${reservationId} checked out. Room ${targetRoom || ''} marked DIRTY for housekeeping turnover.`);
@@ -1224,11 +1552,36 @@ export function DashboardProvider({ children }) {
       try {
         await supabase.from('reservations').update({
           paid: updatedRes?.paid,
-          payment: updatedRes?.payment
+          payment: updatedRes?.payment,
+          payment_mode: paymentMethod,
+          updated_at: new Date().toISOString()
         }).eq('id', reservationId);
       } catch (err) {
         console.warn('Supabase collect payment error:', err);
       }
+
+      // Record transaction in financial_invoices
+      try {
+        const cleanKey = reservationId;
+        const existing = getFolio(cleanKey) || {};
+        const newPay = {
+          id: `pay-${Date.now().toString().slice(-4)}`,
+          date: new Date().toISOString().split('T')[0],
+          mode: paymentMethod,
+          ref: reference || `TXN-${Date.now().toString().slice(-5)}`,
+          amount: numAmount,
+          note: notes || 'Front Desk Payment Collection'
+        };
+        await saveFolio(cleanKey, {
+          ...existing,
+          reservationId,
+          roomNumber: updatedRes?.room_number || updatedRes?.room,
+          guestName: updatedRes?.guest,
+          phone: updatedRes?.guestPhone,
+          paymentEntries: [...(existing.paymentEntries || []), newPay],
+          totalPaid: (existing.totalPaid || 0) + numAmount
+        });
+      } catch (e) { }
     }
 
     showNotification(`Payment of ₹${numAmount.toLocaleString()} collected via ${paymentMethod}!`);
@@ -1376,7 +1729,7 @@ export function DashboardProvider({ children }) {
     try {
       const saved = localStorage.getItem('aurastay_desk_tasks');
       if (saved) return JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) { }
     return [
       { id: 'tsk-1', text: 'Wake-up Call for Room 101 at 07:30 AM', priority: 'HIGH', completed: false, time: '07:30 AM' },
       { id: 'tsk-2', text: 'Airport Taxi Pickup for Flight 6E-421 (Mr. Ramesh)', priority: 'HIGH', completed: false, time: '11:00 AM' },
@@ -1388,7 +1741,7 @@ export function DashboardProvider({ children }) {
   useEffect(() => {
     try {
       localStorage.setItem('aurastay_desk_tasks', JSON.stringify(frontDeskTasks));
-    } catch (e) {}
+    } catch (e) { }
   }, [frontDeskTasks]);
 
   const addDeskTask = (text, priority = 'NORMAL', time = 'Anytime') => {
@@ -1528,14 +1881,36 @@ export function DashboardProvider({ children }) {
       return r;
     }));
 
-    showNotification(`Room #${num} checked out. Room marked DIRTY for housekeeping.`);
+    showNotification(`Room #${num} checked out. Room marked DIRTY for housekeeping turnover.`);
 
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('rooms').update({ status: 'DIRTY' }).eq('room_number', num);
+        await supabase.from('rooms').update({
+          status: 'DIRTY',
+          guest: null,
+          booking_id: null,
+          updated_at: new Date().toISOString()
+        }).eq('room_number', num);
+
         if (reservationId) {
-          await supabase.from('reservations').update({ status: 'CHECKED_OUT' }).eq('id', reservationId);
+          await supabase.from('reservations').update({
+            status: 'CHECKED_OUT',
+            actual_check_out_time: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }).eq('id', reservationId);
         }
+
+        // Automatically create turnover task in housekeeping_tasks table
+        await supabase.from('housekeeping_tasks').insert([{
+          id: `HK-${Date.now().toString().slice(-4)}`,
+          hotel_id: currentHotel.id,
+          room_number: num,
+          task_type: 'Checkout Turnover & Deep Clean',
+          priority: 'High',
+          assigned_to: 'Turnover Staff',
+          status: 'PENDING',
+          notes: `Checkout turnover clean for room #${num}.`
+        }]);
       } catch (err) {
         console.warn('Supabase checkout room sync:', err);
       }
@@ -1769,6 +2144,11 @@ export function DashboardProvider({ children }) {
       addCabBooking,
       updateCabBooking,
       deleteCabBooking,
+      folios,
+      getFolio,
+      saveFolio,
+      addFolioCharge,
+      settleFnbOrder,
       activePopoverModule,
       notificationMessage,
       isRefreshing,

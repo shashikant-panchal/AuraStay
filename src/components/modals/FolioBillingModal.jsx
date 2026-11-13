@@ -27,6 +27,8 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
     checkoutRoom, 
     updateReservation, 
     updateReservationPayment, 
+    getFolio,
+    saveFolio,
     currentHotel 
   } = useDashboard();
 
@@ -53,6 +55,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
   useEffect(() => {
     if (isOpen && room) {
       const roomNum = String(room.room_number || room.roomNumber || room.number || '101');
+      const resId = reservation?.id || room?.booking_id || room?.activeReservation?.id || roomNum;
       const checkIn = reservation?.check_in || reservation?.checkIn || '2026-11-04';
       const roomPrice = Number(room.price || room.tariff || reservation?.price || 2500);
 
@@ -61,14 +64,21 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
         { id: 'pay-1', date: checkIn, mode: reservation?.payment_method || 'UPI', ref: reservation?.transaction_id || 'ADV-PAY', amount: paidAmt, note: 'Advance / Booking Payment' }
       ] : [];
 
-      setFolioItems([
-        { id: 'chg-1', date: checkIn, category: 'Room Tariff', description: `Room #${roomNum} - Accommodation Tariff`, rate: roomPrice, qty: 1, amount: roomPrice, gst: 12 }
-      ]);
+      const savedFolio = getFolio ? (getFolio(resId) || getFolio(roomNum)) : null;
 
-      setPaymentEntries(initialPayments);
+      if (savedFolio && savedFolio.folioItems && savedFolio.folioItems.length > 0) {
+        setFolioItems(savedFolio.folioItems);
+        setPaymentEntries(savedFolio.paymentEntries?.length ? savedFolio.paymentEntries : initialPayments);
+        setDiscountPercent(savedFolio.discountPercent || 0);
+      } else {
+        setFolioItems([
+          { id: 'chg-1', date: checkIn, category: 'Room Tariff', description: `Room #${roomNum} - Accommodation Tariff`, rate: roomPrice, qty: 1, amount: roomPrice, gst: 12 }
+        ]);
+        setPaymentEntries(initialPayments);
+        setDiscountPercent(0);
+      }
 
       setActiveTab('charges');
-      setDiscountPercent(0);
       setNewDescription('');
       setNewAmount('');
       setIsPostingCharge(false);
@@ -117,10 +127,26 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
       gst: newCategory === 'F&B' ? 5 : 12
     };
 
-    setFolioItems(prev => [...prev, newItem]);
+    const updatedItems = [...folioItems, newItem];
+    setFolioItems(updatedItems);
     setNewDescription('');
     setNewAmount('');
     setIsPostingCharge(false);
+
+    const resId = reservation?.id || room?.booking_id || room?.activeReservation?.id || roomNum;
+    if (saveFolio) {
+      saveFolio(resId, {
+        reservationId: resId,
+        roomNumber: roomNum,
+        guestName,
+        phone,
+        folioItems: updatedItems,
+        paymentEntries,
+        discountPercent,
+        subtotal: updatedItems.reduce((s, it) => s + (Number(it.amount) || 0), 0)
+      });
+    }
+
     showNotification(`Added ${newCategory} charge of ₹${newAmount} to Folio.`);
   };
 
@@ -141,18 +167,36 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
       note: 'Folio Settlement'
     };
 
-    setPaymentEntries(prev => [...prev, newPayment]);
+    const updatedPayments = [...paymentEntries, newPayment];
+    setPaymentEntries(updatedPayments);
     setPayAmount('');
     setPayRef('');
 
-    const resId = reservation?.id || room?.booking_id || room?.activeReservation?.id;
+    const resId = reservation?.id || room?.booking_id || room?.activeReservation?.id || roomNum;
+    const updatedPaid = totalPaid + amt;
+    const updatedDue = Math.max(0, grandTotal - updatedPaid);
+
     if (resId && updateReservationPayment) {
-      const updatedPaid = totalPaid + amt;
-      const updatedDue = Math.max(0, grandTotal - updatedPaid);
       updateReservationPayment(resId, {
         paid: updatedPaid,
         due: updatedDue,
         paymentStatus: updatedDue <= 0 ? 'PAID' : 'PARTIAL'
+      });
+    }
+
+    if (saveFolio) {
+      saveFolio(resId, {
+        reservationId: resId,
+        roomNumber: roomNum,
+        guestName,
+        phone,
+        folioItems,
+        paymentEntries: updatedPayments,
+        discountPercent,
+        subtotal: subtotalCharges,
+        grandTotal,
+        totalPaid: updatedPaid,
+        balanceDue: updatedDue
       });
     }
 

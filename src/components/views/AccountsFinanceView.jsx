@@ -208,8 +208,81 @@ export default function AccountsFinanceView() {
     };
   }, [allInvoices, totalExpenses]);
 
+  // Load from Supabase on mount / hotel change
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let isMounted = true;
+    const fetchFinanceData = async () => {
+      try {
+        const hotelId = currentHotel?.id || 'shivanandi';
+        const [invRes, expRes] = await Promise.all([
+          supabase.from('financial_invoices').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`),
+          supabase.from('hotel_expenses').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`)
+        ]);
+
+        if (!isMounted) return;
+
+        if (invRes.data && invRes.data.length > 0) {
+          const mappedInvs = invRes.data.map(inv => {
+            const sub = Number(inv.subtotal) || 0;
+            const cgst = Number(inv.cgst) || 0;
+            const sgst = Number(inv.sgst) || 0;
+            const total = Number(inv.total_amount) || 0;
+            const paid = Number(inv.paid_amount) || 0;
+            const due = Math.max(0, total - paid);
+            return {
+              id: inv.id,
+              clientName: inv.client_name,
+              clientPhone: inv.client_phone || '—',
+              category: inv.category || 'Room Stay Accommodation',
+              sacCode: inv.category === 'Restaurant & F&B Dining' ? '996331' : inv.category === 'Banquet & Events' ? '9985' : '9963',
+              subtotal: sub,
+              cgst: cgst,
+              sgst: sgst,
+              total: total,
+              paid: paid,
+              due: due,
+              paymentMode: inv.payment_mode || 'UPI',
+              status: inv.status || 'PAID',
+              date: inv.created_at ? new Date(inv.created_at).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')
+            };
+          });
+
+          setCustomInvoices(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newOnes = mappedInvs.filter(m => !existingIds.has(m.id));
+            return [...prev, ...newOnes];
+          });
+        }
+
+        if (expRes.data && expRes.data.length > 0) {
+          const mappedExps = expRes.data.map(exp => ({
+            id: exp.id,
+            payee: exp.payee,
+            category: exp.category,
+            amount: Number(exp.amount) || 0,
+            mode: exp.payment_mode || 'UPI',
+            status: exp.status || 'PAID',
+            date: exp.expense_date || (exp.created_at ? new Date(exp.created_at).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'))
+          }));
+          setExpenses(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newOnes = mappedExps.filter(m => !existingIds.has(m.id));
+            return [...prev, ...newOnes];
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to load finance data from Supabase:', err);
+      }
+    };
+
+    fetchFinanceData();
+    return () => { isMounted = false; };
+  }, [currentHotel]);
+
   // Create Custom Invoice
-  const handleCreateInvoice = (e) => {
+  const handleCreateInvoice = async (e) => {
     e.preventDefault();
     if (!invClientName) return;
 
@@ -241,10 +314,32 @@ export default function AccountsFinanceView() {
     showNotification(`Generated GST Tax Invoice #${newInv.id} for ${newInv.clientName}`);
     setInvClientName('');
     setInvPhone('');
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('financial_invoices').upsert([{
+          id: newInv.id,
+          hotel_id: currentHotel?.id || 'shivanandi',
+          client_name: newInv.clientName,
+          client_phone: newInv.clientPhone,
+          category: newInv.category,
+          subtotal: newInv.subtotal,
+          cgst: newInv.cgst,
+          sgst: newInv.sgst,
+          total_amount: newInv.total,
+          paid_amount: newInv.paid,
+          payment_mode: newInv.paymentMode,
+          status: newInv.status,
+          notes: invNotes
+        }]);
+      } catch (err) {
+        console.warn('Failed to insert invoice into Supabase:', err);
+      }
+    }
   };
 
   // Record Hotel Expense
-  const handleAddExpense = (e) => {
+  const handleAddExpense = async (e) => {
     e.preventDefault();
     if (!expPayee) return;
 
@@ -262,10 +357,28 @@ export default function AccountsFinanceView() {
     setIsAddExpenseModalOpen(false);
     showNotification(`Expense voucher #${newExp.id} of ₹${newExp.amount} recorded.`);
     setExpPayee('');
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('hotel_expenses').insert([{
+          id: newExp.id,
+          hotel_id: currentHotel?.id || 'shivanandi',
+          payee: newExp.payee,
+          category: newExp.category,
+          amount: newExp.amount,
+          payment_mode: newExp.mode,
+          status: newExp.status,
+          expense_date: newExp.date,
+          notes: expNotes
+        }]);
+      } catch (err) {
+        console.warn('Failed to insert expense into Supabase:', err);
+      }
+    }
   };
 
   // Settle Invoice Balance
-  const handleSettleInvoice = (inv) => {
+  const handleSettleInvoice = async (inv) => {
     setCustomInvoices(prev => prev.map(item => {
       if (item.id === inv.id) {
         return {
@@ -279,6 +392,16 @@ export default function AccountsFinanceView() {
     }));
     if (inv.refId && updateReservationPayment) {
       updateReservationPayment(inv.refId, { paid: inv.total, due: 0, paymentStatus: 'PAID' });
+    }
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('financial_invoices').update({
+          paid_amount: inv.total,
+          status: 'PAID'
+        }).eq('id', inv.id);
+      } catch (err) {
+        console.warn('Failed to update invoice in Supabase:', err);
+      }
     }
     showNotification(`Invoice #${inv.id} settled in full.`);
   };
