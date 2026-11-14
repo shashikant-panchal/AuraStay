@@ -1,0 +1,5 @@
+project_id = "pdsfctfixxfazchamznm"
+
+[functions.aiosell-webhook]
+verify_jwt = false
+

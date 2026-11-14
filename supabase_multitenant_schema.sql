@@ -597,41 +597,12 @@ CREATE TRIGGER trg_housekeeping_room_sync
 AFTER INSERT OR UPDATE OF status ON housekeeping_tasks
 FOR EACH ROW EXECUTE FUNCTION trg_sync_housekeeping_to_room();
 
--- 20. Seed Hotels (Shivanandi, Aavasa, Demo Hotel)
-INSERT INTO hotels (id, slug, name, short_name, owner_name, email, password, mobile, total_rooms, plan)
-VALUES 
-('hotel_aurastay_01', 'demo-hotel-property-1', 'DEMO HOTEL Property 1', 'DEMO', 'SHIVANANDI', 'shivanandi@aurastay.com', '12345', '7978578046', 20, 'Enterprise'),
-('shivanandi', 'shivanandi', 'Hotel Shivanandi', 'SHIV', 'Shivanandi Admin', 'admin@shivanandi.com', '12345', '7978578046', 20, 'Enterprise'),
-('aavasa', 'aavasa', 'Aavasa Grand Hotel', 'AAVASA', 'Aavasa Management', 'admin@aavasa.com', 'admin123', '9845099999', 30, 'Enterprise')
-ON CONFLICT (id) DO UPDATE SET 
-    name = EXCLUDED.name,
-    password = EXCLUDED.password,
-    owner_name = EXCLUDED.owner_name;
-
--- 21. Seed Room Types
-INSERT INTO room_types (id, hotel_id, name, label, bedding_type, max_adults, max_extra, max_children, area_sqft, base_price, extra_bed_price, child_price, amenities, description, is_booking_engine)
-VALUES
-('rt-deluxe', 'hotel_aurastay_01', 'Deluxe Room', 'Room', 'King Bed', 2, 1, 1, 350.00, 2500.00, 800.00, 400.00, ARRAY['Air Conditioning', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Private Bathroom', 'Daily Housekeeping', 'Electric Kettle'], 'Spacious deluxe room featuring plush king bedding, work desk, and ensuite bath.', true),
-('rt-exec', 'hotel_aurastay_01', 'Executive Suite', 'Suite', 'Suite', 3, 1, 2, 550.00, 4500.00, 1000.00, 500.00, ARRAY['Air Conditioning', 'Balcony', 'City view', 'Bathtub', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Minibar'], 'Luxury executive suite with dedicated living room area and private balcony.', true),
-('rt-pres', 'hotel_aurastay_01', 'Presidential Suite', 'Suite', '2 King Bed(s)', 4, 2, 2, 850.00, 8000.00, 1500.00, 800.00, ARRAY['Air Conditioning', 'Balcony', 'City view', 'Bathtub', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Minibar', 'Safe', 'Wardrobe or closet'], 'Ultra-premium presidential suite with master bedrooms, private dining, and jacuzzi.', true),
-('rt-std', 'hotel_aurastay_01', 'Standard Room', 'Room', 'Twin Beds', 2, 0, 1, 280.00, 1800.00, 600.00, 300.00, ARRAY['Air Conditioning', 'Free High-Speed Wi-Fi', 'Private Bathroom', 'Daily Housekeeping'], 'Cozy standard room ideal for business and leisure travelers.', true),
-('rt-shiv-deluxe', 'shivanandi', 'Deluxe Room', 'Room', 'King Bed', 2, 1, 1, 350.00, 2500.00, 800.00, 400.00, ARRAY['Air Conditioning', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Private Bathroom', 'Daily Housekeeping', 'Electric Kettle'], 'Spacious deluxe room featuring plush king bedding, work desk, and ensuite bath.', true),
-('rt-shiv-exec', 'shivanandi', 'Executive Suite', 'Suite', 'Suite', 3, 1, 2, 550.00, 4500.00, 1000.00, 500.00, ARRAY['Air Conditioning', 'Balcony', 'City view', 'Bathtub', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Minibar'], 'Luxury executive suite with dedicated living room area and private balcony.', true),
-('rt-aavasa-deluxe', 'aavasa', 'Deluxe Room', 'Room', 'King Bed', 2, 1, 1, 350.00, 2500.00, 800.00, 400.00, ARRAY['Air Conditioning', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Private Bathroom', 'Daily Housekeeping', 'Electric Kettle'], 'Spacious deluxe room featuring plush king bedding, work desk, and ensuite bath.', true),
-('rt-aavasa-exec', 'aavasa', 'Executive Suite', 'Suite', 'Suite', 3, 1, 2, 550.00, 4500.00, 1000.00, 500.00, ARRAY['Air Conditioning', 'Balcony', 'City view', 'Bathtub', 'Flat-screen Smart TV', 'Free High-Speed Wi-Fi', 'Minibar'], 'Luxury executive suite with dedicated living room area and private balcony.', true)
-ON CONFLICT (id) DO NOTHING;
-
--- 22. Seed Rooms for Shivanandi & Hotel Properties
-INSERT INTO rooms (hotel_id, room_number, floor, type, bed, status, housekeeping, price)
-VALUES
-('shivanandi', '101', '1st Floor', 'Deluxe Room', 'King Bed', 'VACANT_READY', 'Clean', 2500.00),
-('shivanandi', '102', '1st Floor', 'Deluxe Room', 'King Bed', 'VACANT_READY', 'Clean', 2500.00),
-('shivanandi', '103', '1st Floor', 'Deluxe Room', 'King Bed', 'VACANT_READY', 'Clean', 2500.00),
-('shivanandi', '104', '1st Floor', 'Deluxe Room', 'King Bed', 'VACANT_READY', 'Clean', 2500.00),
-('shivanandi', '105', '1st Floor', 'Executive Suite', 'King Bed', 'VACANT_READY', 'Clean', 4500.00),
-('shivanandi', '106', '1st Floor', 'Executive Suite', 'King Bed', 'VACANT_READY', 'Clean', 4500.00),
-('shivanandi', '201', '2nd Floor', 'Deluxe Room', 'King Bed', 'VACANT_READY', 'Clean', 2500.00),
-('shivanandi', '202', '2nd Floor', 'Deluxe Room', 'King Bed', 'VACANT_READY', 'Clean', 2500.00),
-('shivanandi', '203', '2nd Floor', 'Standard Room', 'Twin Beds', 'VACANT_READY', 'Clean', 1800.00),
-('shivanandi', '204', '2nd Floor', 'Presidential Suite', '2 King Bed(s)', 'VACANT_READY', 'Clean', 8000.00)
-ON CONFLICT (hotel_id, room_number) DO NOTHING;
+-- 20. Clean State: No default credentials or seed entries.
+-- All Hotel Admin credentials are provisioned exclusively via AuraStaySuperAdmin.
+DELETE FROM reservations;
+DELETE FROM rooms;
+DELETE FROM room_types;
+DELETE FROM hotels;
+DELETE FROM banquet_bookings;
+DELETE FROM fnb_orders;
+DELETE FROM guest_users;

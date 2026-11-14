@@ -1,26 +1,40 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import aavasaLogo from '../assets/aavasa-logo.jpg';
 import { initialMockData } from '../data/mockData';
 import { mockRooms, mockReservations, mockFnbOrders, mockStaffUsers, mockOtaChannels } from '../data/suiteData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { broadcastCrossDeviceSync, fetchLiveStateViaEdgeFunction } from '../services/aiosellService';
 
 const DEFAULT_HOTEL = {
-  id: 'shivanandi',
-  slug: 'shivanandi',
-  name: 'Shivanandi',
-  shortName: 'SHIV',
+  id: '',
+  slug: '',
+  name: 'AuraStay Property',
+  shortName: 'AST',
   logoUrl: aavasaLogo || './aavasa-logo.jpg',
-  ownerName: 'Shivanandi',
+  ownerName: 'Property Admin',
   ownerRole: 'Property Admin',
-  email: 'admin@shivanandi.com',
-  password: 'admin',
-  mobile: '7978578046',
-  address: 'Bengaluru, Karnataka, India',
+  email: '',
+  password: '',
+  mobile: '',
+  address: 'India',
   city: 'Bengaluru',
-  totalRooms: 45,
+  totalRooms: 0,
   currency: 'INR',
   currencySymbol: '₹'
 };
+
+function belongsToCurrentHotel(recordHotelId, activeHotel, totalHotelsCount = 1) {
+  if (!recordHotelId) return true;
+  const recId = String(recordHotelId).trim().toLowerCase();
+  const curId = String(activeHotel?.id || '').trim().toLowerCase();
+  const curSlug = String(activeHotel?.slug || '').trim().toLowerCase();
+  if (curId && recId === curId) return true;
+  if (curSlug && recId === curSlug) return true;
+  if (totalHotelsCount <= 1 && (recId === 'hotel_aurastay_01' || recId === 'shivanandi')) {
+    return true;
+  }
+  return false;
+}
 
 const DashboardContext = createContext(null);
 
@@ -167,425 +181,275 @@ export function DashboardProvider({ children }) {
   const [notificationMessage, setNotificationMessage] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // 1. Fetch initial live data from Supabase
-  useEffect(() => {
+  // 1. Fetch live data from Supabase & Edge Function (reusable across startup, realtime broadcast, and silent sync)
+  const loadSupabaseData = useCallback(async () => {
     if (!isSupabaseConfigured) return;
-    let isMounted = true;
 
-    async function loadSupabaseData() {
-      try {
-        const [roomsRes, resRes, fnbRes, staffRes, chanRes, roomTypesRes, cabsRes, invoicesRes] = await Promise.all([
-          supabase.from('rooms').select('*').order('room_number'),
-          supabase.from('reservations').select('*').order('created_at', { ascending: false }),
-          supabase.from('fnb_orders').select('*').order('created_at', { ascending: false }),
-          supabase.from('staff_users').select('*').order('id'),
-          supabase.from('ota_channels').select('*').order('id'),
-          supabase.from('room_types').select('*').order('name'),
-          supabase.from('cab_bookings').select('*').order('created_at', { ascending: false }),
-          supabase.from('financial_invoices').select('*').order('created_at', { ascending: false })
-        ]);
+    try {
+      const [
+        hotelsRes,
+        roomsRes,
+        resRes,
+        fnbRes,
+        staffRes,
+        chanRes,
+        roomTypesRes,
+        cabsRes,
+        invoicesRes,
+        edgeState
+      ] = await Promise.all([
+        supabase.from('hotels').select('*'),
+        supabase.from('rooms').select('*').order('room_number'),
+        supabase.from('reservations').select('*').order('created_at', { ascending: false }),
+        supabase.from('fnb_orders').select('*').order('created_at', { ascending: false }),
+        supabase.from('staff_users').select('*').order('id'),
+        supabase.from('ota_channels').select('*').order('id'),
+        supabase.from('room_types').select('*').order('name'),
+        supabase.from('cab_bookings').select('*').order('created_at', { ascending: false }),
+        supabase.from('financial_invoices').select('*').order('created_at', { ascending: false }),
+        fetchLiveStateViaEdgeFunction(currentHotel?.id).catch(() => null)
+      ]);
 
-        if (isMounted) {
-          let tablesFound = false;
-          if (roomsRes.data) {
-            // Filter rooms for current hotel tenant
-            const hotelRooms = roomsRes.data.filter(r => !r.hotel_id || r.hotel_id === currentHotel.id);
-            setRooms(hotelRooms.map(r => ({
-              id: r.id,
-              hotelId: r.hotel_id || currentHotel.id,
-              roomNumber: r.room_number,
-              floor: r.floor,
-              type: r.type,
-              bed: r.bed,
-              status: r.status,
-              price: Number(r.price),
-              guest: r.guest,
-              bookingId: r.booking_id,
-              checkOut: r.check_out
-            })));
-            tablesFound = true;
-          }
-          if (resRes.data) {
-            // Filter reservations for current hotel tenant
-            const hotelRes = resRes.data.filter(r => !r.hotel_id || r.hotel_id === currentHotel.id);
-            setReservations(hotelRes.map(r => ({
-              id: r.id,
-              hotelId: r.hotel_id || currentHotel.id,
-              guest: r.guest,
-              guestEmail: r.guest_email || '',
-              guestPhone: r.guest_phone || '',
-              room: r.room,
-              checkIn: r.check_in,
-              checkOut: r.check_out,
-              source: r.source || 'Direct',
-              amount: Number(r.amount) || 0,
-              paid: Number(r.paid) || (r.payment === 'PAID' ? Number(r.amount) || 0 : 0),
-              paymentMode: r.payment_mode || 'UPI',
-              status: r.status || 'CONFIRMED',
-              payment: r.payment || 'PENDING',
-              createdAt: r.created_at,
-              ratePlan: r.rate_plan || 'EP - Room Only',
-              adults: Number(r.adults) || 2,
-              children: Number(r.children) || 0,
-              notes: r.notes || ''
-            })));
-          }
-          if (fnbRes.data) {
-            const hotelFnb = fnbRes.data.filter(o => !o.hotel_id || o.hotel_id === currentHotel.id);
-            setFnbOrders(hotelFnb.map(o => ({
-              orderId: o.id,
-              roomTable: o.room_table,
-              guest: o.guest,
-              items: o.items,
-              total: Number(o.total),
-              status: o.status,
-              time: o.time
-            })));
-          }
-          if (staffRes.data) {
-            setStaffUsers(staffRes.data);
-          }
-          if (chanRes.data && chanRes.data.length > 0) {
-            setOtaChannels(chanRes.data.map(c => ({
-              name: c.name,
-              status: c.status,
-              syncStatus: c.sync_status,
-              mappedRooms: c.mapped_rooms,
-              activeBookings: c.active_bookings,
-              commission: c.commission
-            })));
-          }
-          if (roomTypesRes?.data && roomTypesRes.data.length > 0) {
-            const hotelRt = roomTypesRes.data.filter(t => !t.hotel_id || t.hotel_id === currentHotel.id);
-            if (hotelRt.length > 0) {
-              const mapped = hotelRt.map(t => ({
-                id: t.id,
-                hotelId: t.hotel_id || currentHotel.id,
-                name: t.name,
-                label: t.label || 'Room',
-                beddingType: t.bedding_type || 'King Bed',
-                maxAdults: Number(t.max_adults) || 2,
-                maxExtra: Number(t.max_extra) || 1,
-                maxChildren: Number(t.max_children) || 1,
-                areaSqft: Number(t.area_sqft) || 350,
-                basePrice: Number(t.base_price) || 2500,
-                extraBedPrice: Number(t.extra_bed_price) || 800,
-                childPrice: Number(t.child_price) || 400,
-                amenities: t.amenities || ['Free High-Speed Wi-Fi', 'Air conditioning'],
-                description: t.description || '',
-                notes: t.notes || '',
-                isBookingEngine: t.is_booking_engine !== false
-              }));
-              setRoomTypes(prev => {
-                const combined = [...mapped];
-                const existingNames = new Set(mapped.map(m => String(m.name).toLowerCase()));
-                (prev || []).forEach(p => {
-                  if (!existingNames.has(String(p.name).toLowerCase())) {
-                    combined.push(p);
-                  }
-                });
-                return combined;
-              });
-            }
-          }
+      const allHotels = Array.isArray(hotelsRes?.data) ? hotelsRes.data : [];
+      const totalHotelsCount = allHotels.length;
 
-          if (cabsRes?.data && cabsRes.data.length > 0) {
-            const hotelCabs = cabsRes.data.filter(c => !c.hotel_id || c.hotel_id === currentHotel.id);
-            if (hotelCabs.length > 0) {
-              setCabBookings(hotelCabs.map(c => ({
-                id: c.id,
-                hotelId: c.hotel_id || currentHotel.id,
-                guestName: c.guest_name,
-                roomNumber: c.room_number,
-                phone: c.phone,
-                pickupLocation: c.pickup_location,
-                dropLocation: c.drop_location,
-                pickupTime: c.pickup_time,
-                cabType: c.cab_type,
-                driverName: c.driver_name,
-                driverPhone: c.driver_phone,
-                vehicleNumber: c.vehicle_number,
-                fare: Number(c.fare) || 0,
-                paymentStatus: c.payment_status,
-                bookingStatus: c.booking_status,
-                notes: c.notes,
-                createdAt: c.created_at
-              })));
-            }
-          }
+      // Verify current session against live SuperAdmin 'hotels' table
+      if (isLoggedIn && !hotelsRes?.error) {
+        const curId = String(currentHotel?.id || '').trim().toLowerCase();
+        const curEmail = String(currentHotel?.email || '').trim().toLowerCase();
+        const matchedHotel = allHotels.find(h => {
+          const hId = String(h.id || '').trim().toLowerCase();
+          const hSlug = String(h.slug || '').trim().toLowerCase();
+          const hEmail = String(h.email || '').trim().toLowerCase();
+          return (curId && (hId === curId || hSlug === curId)) || (curEmail && hEmail === curEmail);
+        });
 
-          if (invoicesRes?.data && invoicesRes.data.length > 0) {
-            const hotelInvoices = invoicesRes.data.filter(inv => !inv.hotel_id || inv.hotel_id === currentHotel.id);
-            const folioMap = {};
-            hotelInvoices.forEach(inv => {
-              const resId = inv.reservation_id || inv.id?.replace(/^FOL-/, '');
-              if (resId) {
-                let parsedNotes = {};
-                try {
-                  parsedNotes = JSON.parse(inv.notes || '{}');
-                } catch (e) { }
-                folioMap[resId] = {
-                  reservationId: resId,
-                  roomNumber: inv.room_number,
-                  guestName: inv.client_name,
-                  phone: inv.client_phone,
-                  subtotal: Number(inv.subtotal || 0),
-                  grandTotal: Number(inv.total_amount || 0),
-                  totalPaid: Number(inv.paid_amount || 0),
-                  balanceDue: Math.max(0, Number(inv.total_amount || 0) - Number(inv.paid_amount || 0)),
-                  folioItems: parsedNotes.folioItems || [],
-                  paymentEntries: parsedNotes.paymentEntries || [],
-                  discountPercent: parsedNotes.discountPercent || 0
-                };
-              }
-            });
-            if (Object.keys(folioMap).length > 0) {
-              setFolios(prev => ({ ...prev, ...folioMap }));
-            }
-          }
-
-          if (tablesFound) {
-            setIsLiveConnected(true);
-          }
+        if (!matchedHotel || (matchedHotel.status && matchedHotel.status !== 'ACTIVE')) {
+          setIsLoggedIn(false);
+          setCurrentHotel(DEFAULT_HOTEL);
+          localStorage.removeItem('aurastay_hotel_auth');
+          localStorage.removeItem('aurastay_hotel_session');
         }
-      } catch (err) {
-        console.info('Supabase database initializing...', err);
       }
+
+      let tablesFound = false;
+
+      const sourceRooms = Array.isArray(roomsRes?.data)
+        ? roomsRes.data
+        : (Array.isArray(edgeState?.rooms) ? edgeState.rooms : null);
+
+      if (sourceRooms !== null) {
+        const hotelRooms = sourceRooms.filter(r => belongsToCurrentHotel(r.hotel_id, currentHotel, totalHotelsCount));
+        setRooms(hotelRooms.map(r => ({
+          id: r.id,
+          hotelId: r.hotel_id || currentHotel?.id,
+          roomNumber: r.room_number,
+          room_number: r.room_number,
+          floor: r.floor,
+          type: r.type,
+          category: r.type,
+          bed: r.bed,
+          status: r.status,
+          price: Number(r.price) || 0,
+          guest: r.guest,
+          bookingId: r.booking_id,
+          booking_id: r.booking_id,
+          checkOut: r.check_out,
+          check_out: r.check_out,
+          housekeeping: r.housekeeping || (r.status === 'DIRTY' ? 'Dirty' : 'Clean'),
+          keyCardNo: r.key_card_no,
+          isSmoking: !!r.is_smoking,
+          phoneExtension: r.phone_extension
+        })));
+        tablesFound = true;
+      }
+
+      const sourceReservations = Array.isArray(resRes?.data)
+        ? resRes.data
+        : (Array.isArray(edgeState?.reservations) ? edgeState.reservations : null);
+
+      if (sourceReservations !== null) {
+        const hotelRes = sourceReservations.filter(r => belongsToCurrentHotel(r.hotel_id, currentHotel, totalHotelsCount));
+        setReservations(hotelRes.map(r => ({
+          id: r.id,
+          hotelId: r.hotel_id || currentHotel?.id,
+          guest: r.guest,
+          guestEmail: r.guest_email || '',
+          guest_email: r.guest_email || '',
+          guestPhone: r.guest_phone || '',
+          guest_phone: r.guest_phone || '',
+          room: r.room,
+          room_number: r.room_number || (String(r.room || '').match(/\b(\d+)\b/)?.[1] || ''),
+          room_type: r.room_type || '',
+          checkIn: r.check_in,
+          check_in: r.check_in,
+          checkOut: r.check_out,
+          check_out: r.check_out,
+          source: r.source || 'Direct',
+          amount: Number(r.amount) || 0,
+          paid: Number(r.paid) || (r.payment === 'PAID' ? Number(r.amount) || 0 : 0),
+          paymentMode: r.payment_mode || 'UPI',
+          payment_mode: r.payment_mode || 'UPI',
+          status: r.status || 'CONFIRMED',
+          payment: r.payment || 'PENDING',
+          createdAt: r.created_at,
+          created_at: r.created_at,
+          ratePlan: r.rate_plan || 'EP - Room Only',
+          rate_plan: r.rate_plan || 'EP - Room Only',
+          adults: Number(r.adults) || 2,
+          children: Number(r.children) || 0,
+          notes: r.notes || ''
+        })));
+        tablesFound = true;
+      }
+
+      if (Array.isArray(fnbRes?.data)) {
+        const hotelFnb = fnbRes.data.filter(o => belongsToCurrentHotel(o.hotel_id, currentHotel, totalHotelsCount));
+        setFnbOrders(hotelFnb.map(o => ({
+          orderId: o.id,
+          roomTable: o.room_table,
+          guest: o.guest,
+          items: o.items,
+          total: Number(o.total) || 0,
+          status: o.status,
+          time: o.time
+        })));
+      }
+
+      if (Array.isArray(staffRes?.data)) {
+        setStaffUsers(staffRes.data);
+      }
+
+      if (Array.isArray(chanRes?.data) && chanRes.data.length > 0) {
+        setOtaChannels(chanRes.data.map(c => ({
+          name: c.name,
+          status: c.status,
+          syncStatus: c.sync_status,
+          mappedRooms: c.mapped_rooms,
+          activeBookings: c.active_bookings,
+          commission: c.commission
+        })));
+      }
+
+      if (Array.isArray(roomTypesRes?.data)) {
+        const hotelRt = roomTypesRes.data.filter(t => belongsToCurrentHotel(t.hotel_id, currentHotel, totalHotelsCount));
+        setRoomTypes(hotelRt.map(t => ({
+          id: t.id,
+          hotelId: t.hotel_id || currentHotel?.id,
+          name: t.name,
+          label: t.label || 'Room',
+          beddingType: t.bedding_type || 'King Bed',
+          maxAdults: Number(t.max_adults) || 2,
+          maxExtra: Number(t.max_extra) || 1,
+          maxChildren: Number(t.max_children) || 1,
+          areaSqft: Number(t.area_sqft) || 350,
+          basePrice: Number(t.base_price) || 2500,
+          extraBedPrice: Number(t.extra_bed_price) || 800,
+          childPrice: Number(t.child_price) || 400,
+          amenities: t.amenities || ['Free High-Speed Wi-Fi', 'Air conditioning'],
+          description: t.description || '',
+          notes: t.notes || '',
+          isBookingEngine: t.is_booking_engine !== false
+        })));
+      }
+
+      if (Array.isArray(cabsRes?.data)) {
+        const hotelCabs = cabsRes.data.filter(c => belongsToCurrentHotel(c.hotel_id, currentHotel, totalHotelsCount));
+        setCabBookings(hotelCabs.map(c => ({
+          id: c.id,
+          hotelId: c.hotel_id || currentHotel?.id,
+          guestName: c.guest_name,
+          roomNumber: c.room_number,
+          phone: c.phone,
+          pickupLocation: c.pickup_location,
+          dropLocation: c.drop_location,
+          pickupTime: c.pickup_time,
+          cabType: c.cab_type,
+          driverName: c.driver_name,
+          driverPhone: c.driver_phone,
+          vehicleNumber: c.vehicle_number,
+          fare: Number(c.fare) || 0,
+          paymentStatus: c.payment_status,
+          bookingStatus: c.booking_status,
+          notes: c.notes,
+          createdAt: c.created_at
+        })));
+      }
+
+      if (Array.isArray(invoicesRes?.data)) {
+        const hotelInvoices = invoicesRes.data.filter(inv => belongsToCurrentHotel(inv.hotel_id, currentHotel, totalHotelsCount));
+        const folioMap = {};
+        hotelInvoices.forEach(inv => {
+          const resId = inv.reservation_id || inv.id?.replace(/^FOL-/, '');
+          if (resId) {
+            let parsedNotes = {};
+            try {
+              parsedNotes = JSON.parse(inv.notes || '{}');
+            } catch (e) { }
+            folioMap[resId] = {
+              reservationId: resId,
+              roomNumber: inv.room_number,
+              guestName: inv.client_name,
+              phone: inv.client_phone,
+              subtotal: Number(inv.subtotal || 0),
+              grandTotal: Number(inv.total_amount || 0),
+              totalPaid: Number(inv.paid_amount || 0),
+              balanceDue: Math.max(0, Number(inv.total_amount || 0) - Number(inv.paid_amount || 0)),
+              folioItems: parsedNotes.folioItems || [],
+              paymentEntries: parsedNotes.paymentEntries || [],
+              discountPercent: parsedNotes.discountPercent || 0
+            };
+          }
+        });
+        setFolios(folioMap);
+      }
+
+      if (tablesFound) {
+        setIsLiveConnected(true);
+      }
+    } catch (err) {
+      console.info('Supabase database initializing...', err);
     }
+  }, [currentHotel, isLoggedIn]);
 
+  useEffect(() => {
     loadSupabaseData();
-    return () => { isMounted = false; };
-  }, [currentHotel]);
+    const pollTimer = setInterval(() => {
+      loadSupabaseData();
+    }, 4000);
+    return () => clearInterval(pollTimer);
+  }, [loadSupabaseData]);
 
-  // 2. Realtime WebSocket subscription
+  // 2. Realtime WebSocket & Cross-Device Webhook Broadcast Subscription
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    const channel = supabase.channel(`aurastay-realtime-${currentHotel.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, payload => {
-        if (payload.eventType === 'INSERT' && payload.new) {
-          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
-            const newRm = {
-              id: payload.new.id,
-              hotelId: payload.new.hotel_id || currentHotel.id,
-              roomNumber: payload.new.room_number,
-              floor: payload.new.floor,
-              type: payload.new.type,
-              bed: payload.new.bed,
-              status: payload.new.status,
-              price: Number(payload.new.price),
-              guest: payload.new.guest,
-              bookingId: payload.new.booking_id,
-              checkOut: payload.new.check_out
-            };
-            setRooms(prev => [newRm, ...prev.filter(r => r.roomNumber !== newRm.roomNumber)]);
-          }
-        } else if (payload.eventType === 'UPDATE' && payload.new) {
-          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
-            setRooms(prev => prev.map(r => String(r.roomNumber || r.room_number) === String(payload.new.room_number) ? {
-              ...r,
-              status: payload.new.status,
-              guest: payload.new.guest,
-              bookingId: payload.new.booking_id,
-              checkOut: payload.new.check_out
-            } : r));
-          }
-        } else if (payload.eventType === 'DELETE' && payload.old) {
-          setRooms(prev => prev.filter(r => r.id !== payload.old.id && String(r.roomNumber) !== String(payload.old.room_number)));
-        }
+    const channel = supabase.channel(`aurastay-realtime-${currentHotel?.id || 'global'}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hotels' }, () => {
+        loadSupabaseData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => {
+        loadSupabaseData();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, payload => {
+        loadSupabaseData();
         if (payload.eventType === 'INSERT' && payload.new) {
-          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
-            const item = {
-              id: payload.new.id,
-              hotelId: payload.new.hotel_id || currentHotel.id,
-              guest: payload.new.guest,
-              room: payload.new.room,
-              checkIn: payload.new.check_in,
-              checkOut: payload.new.check_out,
-              source: payload.new.source,
-              amount: Number(payload.new.amount),
-              status: payload.new.status,
-              payment: payload.new.payment
-            };
-            setReservations(prev => [item, ...prev.filter(r => r.id !== item.id)]);
-
-            // Immediately mark room as OCCUPIED in rooms state if matched
-            const rMatch = String(payload.new.room || '').match(/\b(\d+)\b/);
-            if (rMatch) {
-              const rNum = rMatch[1];
-              setRooms(prev => prev.map(rm => String(rm.roomNumber || rm.room_number) === rNum ? {
-                ...rm,
-                status: 'OCCUPIED',
-                guest: payload.new.guest,
-                bookingId: payload.new.id,
-                checkOut: payload.new.check_out
-              } : rm));
-            }
-
-            showNotification(`🎉 New Online Guest Booking #${payload.new.id} received! Room ${payload.new.room} is now reserved & locked.`);
-          }
-        } else if (payload.eventType === 'UPDATE' && payload.new) {
-          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
-            setReservations(prev => prev.map(r => r.id === payload.new.id ? {
-              ...r,
-              status: payload.new.status,
-              payment: payload.new.payment,
-              amount: Number(payload.new.amount) || r.amount
-            } : r));
-
-            // If reservation was cancelled, immediately unlock room back to VACANT_READY
-            if (payload.new.status === 'CANCELLED') {
-              const rMatch = String(payload.new.room || '').match(/\b(\d+)\b/);
-              if (rMatch) {
-                const rNum = rMatch[1];
-                setRooms(prev => prev.map(rm => String(rm.roomNumber || rm.room_number) === rNum ? {
-                  ...rm,
-                  status: 'VACANT_READY',
-                  guest: null,
-                  bookingId: null,
-                  checkOut: null
-                } : rm));
-              }
-              showNotification(`⚠️ Reservation #${payload.new.id} for ${payload.new.guest || 'Guest'} has been CANCELLED. Room released to Vacant.`);
-            }
-          }
-        } else if (payload.eventType === 'DELETE' && payload.old) {
-          setReservations(prev => prev.filter(r => r.id !== payload.old.id));
+          showNotification(`🎉 New Booking #${payload.new.id} received for ${payload.new.guest || 'Guest'} (${payload.new.room || 'Room'})!`);
+        } else if (payload.eventType === 'UPDATE' && payload.new && payload.new.status === 'CANCELLED') {
+          showNotification(`⚠️ Reservation #${payload.new.id} for ${payload.new.guest || 'Guest'} has been CANCELLED. Room released to Vacant.`);
         }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'fnb_orders' }, payload => {
-        if (payload.eventType === 'INSERT' && payload.new) {
-          const item = {
-            orderId: payload.new.id,
-            roomTable: payload.new.room_table,
-            guest: payload.new.guest,
-            items: payload.new.items,
-            total: Number(payload.new.total),
-            status: payload.new.status,
-            time: payload.new.time
-          };
-          setFnbOrders(prev => [item, ...prev.filter(o => o.orderId !== item.orderId)]);
-        } else if (payload.eventType === 'UPDATE' && payload.new) {
-          setFnbOrders(prev => prev.map(o => o.orderId === payload.new.id ? { ...o, status: payload.new.status } : o));
-        }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fnb_orders' }, () => {
+        loadSupabaseData();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_types' }, payload => {
-        if (payload.eventType === 'INSERT' && payload.new) {
-          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
-            const newRt = {
-              id: payload.new.id,
-              hotelId: payload.new.hotel_id || currentHotel.id,
-              name: payload.new.name,
-              label: payload.new.label || 'Room',
-              beddingType: payload.new.bedding_type || 'King Bed',
-              maxAdults: Number(payload.new.max_adults) || 2,
-              maxExtra: Number(payload.new.max_extra) || 1,
-              maxChildren: Number(payload.new.max_children) || 1,
-              areaSqft: Number(payload.new.area_sqft) || 350,
-              basePrice: Number(payload.new.base_price) || 2500,
-              extraBedPrice: Number(payload.new.extra_bed_price) || 800,
-              childPrice: Number(payload.new.child_price) || 400,
-              amenities: payload.new.amenities || [],
-              description: payload.new.description || '',
-              notes: payload.new.notes || '',
-              isBookingEngine: payload.new.is_booking_engine !== false
-            };
-            setRoomTypes(prev => [newRt, ...prev.filter(t => t.id !== newRt.id && t.name !== newRt.name)]);
-          }
-        } else if (payload.eventType === 'UPDATE' && payload.new) {
-          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
-            setRoomTypes(prev => prev.map(t => (t.id === payload.new.id || t.name === payload.new.name) ? {
-              ...t,
-              name: payload.new.name,
-              label: payload.new.label,
-              beddingType: payload.new.bedding_type,
-              maxAdults: Number(payload.new.max_adults),
-              maxExtra: Number(payload.new.max_extra),
-              maxChildren: Number(payload.new.max_children),
-              areaSqft: Number(payload.new.area_sqft),
-              basePrice: Number(payload.new.base_price),
-              extraBedPrice: Number(payload.new.extra_bed_price),
-              childPrice: Number(payload.new.child_price),
-              amenities: payload.new.amenities,
-              description: payload.new.description,
-              notes: payload.new.notes,
-              isBookingEngine: payload.new.is_booking_engine
-            } : t));
-          }
-        } else if (payload.eventType === 'DELETE' && payload.old) {
-          setRoomTypes(prev => prev.filter(t => t.id !== payload.old.id));
-        }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_types' }, () => {
+        loadSupabaseData();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cab_bookings' }, payload => {
-        if (payload.eventType === 'INSERT' && payload.new) {
-          if (!payload.new.hotel_id || payload.new.hotel_id === currentHotel.id) {
-            const newCab = {
-              id: payload.new.id,
-              hotelId: payload.new.hotel_id || currentHotel.id,
-              guestName: payload.new.guest_name,
-              roomNumber: payload.new.room_number,
-              phone: payload.new.phone,
-              pickupLocation: payload.new.pickup_location,
-              dropLocation: payload.new.drop_location,
-              pickupTime: payload.new.pickup_time,
-              cabType: payload.new.cab_type,
-              driverName: payload.new.driver_name,
-              driverPhone: payload.new.driver_phone,
-              vehicleNumber: payload.new.vehicle_number,
-              fare: Number(payload.new.fare) || 0,
-              paymentStatus: payload.new.payment_status,
-              bookingStatus: payload.new.booking_status,
-              notes: payload.new.notes,
-              createdAt: payload.new.created_at
-            };
-            setCabBookings(prev => [newCab, ...prev.filter(c => c.id !== newCab.id)]);
-          }
-        } else if (payload.eventType === 'UPDATE' && payload.new) {
-          setCabBookings(prev => prev.map(c => c.id === payload.new.id ? {
-            ...c,
-            guestName: payload.new.guest_name || c.guestName,
-            roomNumber: payload.new.room_number || c.roomNumber,
-            driverName: payload.new.driver_name,
-            driverPhone: payload.new.driver_phone,
-            vehicleNumber: payload.new.vehicle_number,
-            fare: Number(payload.new.fare) || c.fare,
-            paymentStatus: payload.new.payment_status,
-            bookingStatus: payload.new.booking_status,
-            notes: payload.new.notes
-          } : c));
-        } else if (payload.eventType === 'DELETE' && payload.old) {
-          setCabBookings(prev => prev.filter(c => c.id !== payload.old.id));
-        }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cab_bookings' }, () => {
+        loadSupabaseData();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_invoices' }, payload => {
-        if (payload.new && (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE')) {
-          const inv = payload.new;
-          if (!inv.hotel_id || inv.hotel_id === currentHotel.id) {
-            const resId = inv.reservation_id || inv.id?.replace(/^FOL-/, '');
-            if (resId) {
-              let parsedNotes = {};
-              try { parsedNotes = JSON.parse(inv.notes || '{}'); } catch (e) { }
-              setFolios(prev => ({
-                ...prev,
-                [resId]: {
-                  reservationId: resId,
-                  roomNumber: inv.room_number,
-                  guestName: inv.client_name,
-                  phone: inv.client_phone,
-                  subtotal: Number(inv.subtotal || 0),
-                  grandTotal: Number(inv.total_amount || 0),
-                  totalPaid: Number(inv.paid_amount || 0),
-                  balanceDue: Math.max(0, Number(inv.total_amount || 0) - Number(inv.paid_amount || 0)),
-                  folioItems: parsedNotes.folioItems || [],
-                  paymentEntries: parsedNotes.paymentEntries || [],
-                  discountPercent: parsedNotes.discountPercent || 0
-                }
-              }));
-            }
-          }
-        }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_invoices' }, () => {
+        loadSupabaseData();
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -593,109 +457,102 @@ export function DashboardProvider({ children }) {
         }
       });
 
+    const broadcastChannel = supabase.channel('aurastay_sync_broadcast')
+      .on('broadcast', { event: 'webhook_update' }, (msg) => {
+        loadSupabaseData();
+        const data = msg?.payload;
+        if (data?.bookingId && data?.action === 'book') {
+          showNotification(`⚡ Real-Time Sync: Booking #${data.bookingId} (${data.guestName || 'Guest'}) updated across all devices!`);
+        } else if (data?.bookingId && data?.action === 'cancel') {
+          showNotification(`⚡ Real-Time Sync: Booking #${data.bookingId} cancelled across all devices!`);
+        }
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(broadcastChannel);
     };
-  }, [currentHotel]);
+  }, [currentHotel?.id, loadSupabaseData]);
 
-  // Hotel Admin Authentication functions - Strict Enterprise Security
+  // Hotel Admin Authentication functions - Strictly SuperAdmin-Provisioned Credentials Only
   const login = async (email, password) => {
-    if (!email || !password) return false;
-    const inputEmail = email.trim().toLowerCase();
+    if (!email || !password || !isSupabaseConfigured) return false;
+    const inputIdent = email.trim().toLowerCase();
     const inputPass = password.trim();
-    if (!inputEmail || !inputPass) return false;
+    if (!inputIdent || !inputPass) return false;
 
-    // 1. Verify against Supabase 'hotels' table
-    if (isSupabaseConfigured) {
-      try {
-        const { data: hotelData, error } = await supabase
-          .from('hotels')
-          .select('*')
-          .or(`email.ilike.${inputEmail},slug.ilike.${inputEmail},id.ilike.${inputEmail},short_name.ilike.${inputEmail},name.ilike.${inputEmail}`)
-          .maybeSingle();
+    try {
+      const { data: allHotels, error } = await supabase
+        .from('hotels')
+        .select('*');
 
-        if (hotelData && !error) {
-          // Strictly verify password against database record
-          const isDbMatch = hotelData.password === inputPass;
-          const isShivanandiKnown = (hotelData.id === 'shivanandi' || hotelData.slug === 'shivanandi') &&
-            (inputPass === '12345' || inputPass === 'admin123' || inputPass === 'admin');
-
-          if (!isDbMatch && !isShivanandiKnown) {
-            console.warn('Authentication rejected: Incorrect password for hotel', hotelData.id);
-            return false;
-          }
-
-          const hotel = {
-            id: hotelData.id,
-            slug: hotelData.slug,
-            name: hotelData.name,
-            shortName: hotelData.short_name || 'AST',
-            logoUrl: hotelData.logo_url || DEFAULT_HOTEL.logoUrl,
-            ownerName: hotelData.owner_name || 'Hotel Admin',
-            ownerRole: 'Property Admin',
-            email: hotelData.email,
-            password: hotelData.password,
-            mobile: hotelData.mobile || '7978578046',
-            address: hotelData.address || 'India',
-            city: hotelData.city || 'Bengaluru',
-            totalRooms: hotelData.total_rooms || 20,
-            currency: hotelData.currency || 'INR',
-            currencySymbol: hotelData.currency_symbol || '₹'
-          };
-          setCurrentHotel(hotel);
-          setIsLoggedIn(true);
-          localStorage.setItem('aurastay_hotel_auth', 'true');
-          localStorage.setItem('aurastay_hotel_session', JSON.stringify(hotel));
-          showNotification(`Welcome to ${hotel.name} PMS Portal!`);
-          return true;
-        }
-      } catch (e) {
-        console.warn('Supabase hotel login query error:', e);
+      if (error || !Array.isArray(allHotels) || allHotels.length === 0) {
+        return false;
       }
+
+      const hotelData = allHotels.find(h => {
+        const hEmail = String(h.email || '').trim().toLowerCase();
+        const hSlug = String(h.slug || '').trim().toLowerCase();
+        const hId = String(h.id || '').trim().toLowerCase();
+        const hShort = String(h.short_name || '').trim().toLowerCase();
+        const hName = String(h.name || '').trim().toLowerCase();
+        return (
+          hEmail === inputIdent ||
+          hSlug === inputIdent ||
+          hId === inputIdent ||
+          hShort === inputIdent ||
+          hName === inputIdent
+        );
+      });
+
+      if (!hotelData) {
+        return false;
+      }
+
+      if (hotelData.status && hotelData.status !== 'ACTIVE') {
+        console.warn('Authentication rejected: Hotel account is not ACTIVE:', hotelData.id);
+        return false;
+      }
+
+      // Strictly verify exact password provisioned by SuperAdmin in Supabase
+      if (!hotelData.password || hotelData.password !== inputPass) {
+        console.warn('Authentication rejected: Invalid password for hotel', hotelData.id);
+        return false;
+      }
+
+      const hotel = {
+        id: hotelData.id,
+        slug: hotelData.slug || hotelData.id,
+        name: hotelData.name,
+        shortName: hotelData.short_name || 'AST',
+        logoUrl: hotelData.logo_url || DEFAULT_HOTEL.logoUrl,
+        ownerName: hotelData.owner_name || 'Hotel Admin',
+        ownerRole: 'Property Admin',
+        email: hotelData.email,
+        password: hotelData.password,
+        mobile: hotelData.mobile || '',
+        address: hotelData.address || 'India',
+        city: hotelData.city || 'Bengaluru',
+        totalRooms: Number(hotelData.total_rooms) || 0,
+        currency: hotelData.currency || 'INR',
+        currencySymbol: hotelData.currency_symbol || '₹'
+      };
+      setCurrentHotel(hotel);
+      setIsLoggedIn(true);
+      localStorage.setItem('aurastay_hotel_auth', 'true');
+      localStorage.setItem('aurastay_hotel_session', JSON.stringify(hotel));
+      showNotification(`Welcome to ${hotel.name} PMS Portal!`);
+      return true;
+    } catch (e) {
+      console.warn('Supabase hotel login query error:', e);
+      return false;
     }
-
-    // 2. Strict check for known hotel accounts (offline fallback with exact credentials)
-    const knownAccounts = [
-      {
-        ident: ['shivanandi', 'shivanandi@aurastay.com', 'shivanandi hotel'],
-        passwords: ['12345', 'admin123', 'admin'],
-        hotel: { ...DEFAULT_HOTEL, id: 'shivanandi', name: 'Shivanandi', shortName: 'SHIV' }
-      },
-      {
-        ident: ['admin@shivanandi.com'],
-        passwords: ['12345', 'admin123'],
-        hotel: { ...DEFAULT_HOTEL, id: 'shivanandi', name: 'Shivanandi', shortName: 'SHIV', email: 'admin@shivanandi.com' }
-      },
-      {
-        ident: ['admin@aavasa.com', 'aavasa'],
-        passwords: ['admin123'],
-        hotel: { ...DEFAULT_HOTEL, id: 'aavasa', name: 'Aavasa Grand Hotel', shortName: 'AAVASA', email: 'admin@aavasa.com' }
-      },
-      {
-        ident: ['demo', 'hotel_aurastay_01'],
-        passwords: ['12345'],
-        hotel: { ...DEFAULT_HOTEL, id: 'hotel_aurastay_01', name: 'Demo Hotel Property 1', shortName: 'DEMO' }
-      }
-    ];
-
-    const matched = knownAccounts.find(acc => acc.ident.includes(inputEmail));
-    if (matched) {
-      if (matched.passwords.includes(inputPass)) {
-        setCurrentHotel(matched.hotel);
-        setIsLoggedIn(true);
-        localStorage.setItem('aurastay_hotel_auth', 'true');
-        localStorage.setItem('aurastay_hotel_session', JSON.stringify(matched.hotel));
-        showNotification(`Welcome to ${matched.hotel.name}!`);
-        return true;
-      }
-      return false; // Correct account, wrong password
-    }
-
-    return false;
   };
 
   const logout = () => {
     setIsLoggedIn(false);
+    setCurrentHotel(DEFAULT_HOTEL);
     localStorage.removeItem('aurastay_hotel_auth');
     localStorage.removeItem('aurastay_hotel_session');
     showNotification('Logged out from Hotel PMS', 'info');
@@ -769,27 +626,12 @@ export function DashboardProvider({ children }) {
   const refreshData = async () => {
     setIsRefreshing(true);
     try {
-      if (isSupabaseConfigured) {
-        const { data: latestRooms } = await supabase.from('rooms').select('*').order('room_number');
-        if (latestRooms) {
-          setRooms(latestRooms.map(r => ({
-            roomNumber: r.room_number,
-            floor: r.floor,
-            type: r.type,
-            bed: r.bed,
-            status: r.status,
-            price: Number(r.price),
-            guest: r.guest,
-            bookingId: r.booking_id,
-            checkOut: r.check_out
-          })));
-        }
-      }
+      await loadSupabaseData();
     } catch (err) {
       console.warn('Refresh error:', err);
     } finally {
       setIsRefreshing(false);
-      showNotification('Inventory synchronized successfully.');
+      showNotification('Live Supabase inventory & reservations synchronized.');
     }
   };
 
@@ -848,6 +690,7 @@ export function DashboardProvider({ children }) {
             .update({ status: newStatus, updated_at: new Date().toISOString() })
             .eq('id', roomIdentifier);
         }
+        await broadcastCrossDeviceSync({ action: 'room_status', roomNumber: cleanNum, status: newStatus });
       } catch (err) {
         console.warn('Supabase room update sync pending table setup', err);
       }
@@ -887,6 +730,7 @@ export function DashboardProvider({ children }) {
         };
         const { error } = await supabase.from('room_types').upsert(payload);
         if (error) console.info('Supabase room_types notice:', error.message);
+        await broadcastCrossDeviceSync({ action: 'room_type_add', id: typeObj.id });
       } catch (err) {
         console.warn('Supabase room_types sync notice:', err);
       }
@@ -899,6 +743,7 @@ export function DashboardProvider({ children }) {
     if (isSupabaseConfigured) {
       try {
         await supabase.from('room_types').update(updatedType).eq('id', id);
+        await broadcastCrossDeviceSync({ action: 'room_type_update', id });
       } catch (err) {
         console.warn('Supabase update room type error:', err);
       }
@@ -911,6 +756,7 @@ export function DashboardProvider({ children }) {
     if (isSupabaseConfigured) {
       try {
         await supabase.from('room_types').delete().eq('id', id);
+        await broadcastCrossDeviceSync({ action: 'room_type_delete', id });
       } catch (err) {
         console.warn('Supabase delete room type error:', err);
       }
@@ -965,6 +811,7 @@ export function DashboardProvider({ children }) {
         if (error && (error.code === 'PGRST204' || error.message?.includes('hotel_id'))) {
           await supabase.from('rooms').insert(payload);
         }
+        await broadcastCrossDeviceSync({ action: 'room_add', roomNumber: cleanNum });
       } catch (err) {
         console.warn('Supabase room insert error:', err);
       }
@@ -990,6 +837,7 @@ export function DashboardProvider({ children }) {
     if (isSupabaseConfigured) {
       try {
         await supabase.from('rooms').delete().eq('room_number', num);
+        await broadcastCrossDeviceSync({ action: 'room_delete', roomNumber: num });
       } catch (err) {
         console.warn('Supabase room delete error:', err);
       }
@@ -1381,6 +1229,7 @@ export function DashboardProvider({ children }) {
       });
     }
 
+    await broadcastCrossDeviceSync({ action: 'checkin', bookingId: reservationId, roomNumber });
     showNotification(`Guest successfully checked into Room ${roomNumber || ''}! Status: CHECKED IN`);
     return updatedRes;
   };
@@ -1448,6 +1297,7 @@ export function DashboardProvider({ children }) {
           actual_check_out_time: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }).eq('id', reservationId);
+        await broadcastCrossDeviceSync({ action: 'checkout', bookingId: reservationId, roomNumber: targetRoom });
       } catch (err) { }
     }
 
@@ -1646,6 +1496,12 @@ export function DashboardProvider({ children }) {
             check_out: reservation.check_out
           }).eq('room_number', cleanRoomNum);
         }
+        await broadcastCrossDeviceSync({
+          action: 'book',
+          bookingId: resId,
+          guestName: reservation.guest,
+          roomNumber: cleanRoomNum
+        });
       } catch (err) {
         console.warn('Supabase reservation insert sync:', err);
       }

@@ -6,16 +6,109 @@ const AIOSELL_USERNAME = Deno.env.get("AIOSELL_WEBHOOK_USERNAME") || "aiosell";
 const AIOSELL_PASSWORD = Deno.env.get("AIOSELL_WEBHOOK_PASSWORD") || "AIOsell@123";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://pdsfctfixxfazchamznm.supabase.co";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "";
+const SUPABASE_KEY =
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
+  Deno.env.get("SUPABASE_ANON_KEY") ||
+  "sb_publishable_qbJiyQ6eiAtwvQA17pG9cg_8bHn3uWi";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Content-Type": "application/json"
 };
+
+async function broadcastRealtimeSync(eventPayload: Record<string, unknown>) {
+  try {
+    const channel = supabase.channel("aurastay_sync_broadcast");
+    await channel.send({
+      type: "broadcast",
+      event: "webhook_update",
+      payload: {
+        ...eventPayload,
+        timestamp: new Date().toISOString()
+      }
+    });
+    supabase.removeChannel(channel);
+  } catch (err) {
+    console.warn("[AuraStay Edge Function] Broadcast notice:", err);
+  }
+}
+
+async function resolveActiveHotelId(preferredHotelId?: string, hotelCode?: string): Promise<string> {
+  if (preferredHotelId && preferredHotelId.trim()) {
+    return preferredHotelId.trim();
+  }
+  try {
+    const { data: hotels } = await supabase
+      .from("hotels")
+      .select("id, slug, status")
+      .order("created_at", { ascending: false });
+
+    if (hotels && hotels.length > 0) {
+      if (hotelCode) {
+        const matched = hotels.find(
+          (h: any) =>
+            String(h.id).toLowerCase() === String(hotelCode).toLowerCase() ||
+            String(h.slug).toLowerCase() === String(hotelCode).toLowerCase()
+        );
+        if (matched) return matched.id;
+      }
+      const active = hotels.find((h: any) => h.status === "ACTIVE") || hotels[0];
+      if (active?.id) return active.id;
+    }
+  } catch (_e) {
+    // ignore
+  }
+  return "shivanandi";
+}
+
+async function handleLiveStateSync(hotelIdParam?: string | null) {
+  const [
+    hotelsRes,
+    roomsRes,
+    resRes,
+    rtRes,
+    fnbRes,
+    cabsRes,
+    invoicesRes,
+    banquetRes,
+    hkRes,
+    invRes
+  ] = await Promise.all([
+    supabase.from("hotels").select("*").order("created_at", { ascending: false }),
+    supabase.from("rooms").select("*").order("room_number", { ascending: true }),
+    supabase.from("reservations").select("*").order("created_at", { ascending: false }),
+    supabase.from("room_types").select("*").order("name", { ascending: true }),
+    supabase.from("fnb_orders").select("*").order("created_at", { ascending: false }),
+    supabase.from("cab_bookings").select("*").order("created_at", { ascending: false }),
+    supabase.from("financial_invoices").select("*").order("created_at", { ascending: false }),
+    supabase.from("banquet_bookings").select("*").order("created_at", { ascending: false }),
+    supabase.from("housekeeping_tasks").select("*").order("created_at", { ascending: false }),
+    supabase.from("inventory_items").select("*").order("created_at", { ascending: false })
+  ]);
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      syncedAt: new Date().toISOString(),
+      hotelId: hotelIdParam || null,
+      hotels: hotelsRes.data || [],
+      rooms: roomsRes.data || [],
+      roomTypes: rtRes.data || [],
+      reservations: resRes.data || [],
+      fnbOrders: fnbRes.data || [],
+      cabBookings: cabsRes.data || [],
+      financialInvoices: invoicesRes.data || [],
+      banquetBookings: banquetRes.data || [],
+      housekeepingTasks: hkRes.data || [],
+      inventoryItems: invRes.data || []
+    }),
+    { headers: corsHeaders, status: 200 }
+  );
+}
 
 serve(async (req: Request) => {
   // 1. Handle CORS Preflight
@@ -23,41 +116,44 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders, status: 200 });
   }
 
+  const url = new URL(req.url);
+
+  // 2. Handle GET live state fetch (for real-time cross-device sync without refreshing)
+  if (req.method === "GET") {
+    const hotelId = url.searchParams.get("hotelId");
+    return await handleLiveStateSync(hotelId);
+  }
+
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ success: false, message: "Method Not Allowed. Use POST." }), {
+    return new Response(JSON.stringify({ success: false, message: "Method Not Allowed. Use GET or POST." }), {
       headers: corsHeaders,
       status: 405
     });
   }
 
-  // 2. Validate HTTP Basic Auth Header
+  // 3. Validate Auth Header (Accepts Basic Auth from Aiosell OR Bearer/apikey/open from PMS Frontend)
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
-  if (!authHeader.startsWith("Basic ")) {
-    return new Response(JSON.stringify({ success: false, message: "Missing Authorization: Basic header." }), {
-      headers: corsHeaders,
-      status: 401
-    });
-  }
+  if (authHeader.startsWith("Basic ")) {
+    try {
+      const b64 = authHeader.replace("Basic ", "").trim();
+      const decoded = atob(b64);
+      const [user, pass] = decoded.split(":");
 
-  try {
-    const b64 = authHeader.replace("Basic ", "").trim();
-    const decoded = atob(b64);
-    const [user, pass] = decoded.split(":");
-
-    if (user !== AIOSELL_USERNAME || pass !== AIOSELL_PASSWORD) {
-      return new Response(JSON.stringify({ success: false, message: "Invalid Aiosell Webhook credentials." }), {
+      if (user !== AIOSELL_USERNAME || pass !== AIOSELL_PASSWORD) {
+        return new Response(JSON.stringify({ success: false, message: "Invalid Aiosell Webhook credentials." }), {
+          headers: corsHeaders,
+          status: 401
+        });
+      }
+    } catch (_e) {
+      return new Response(JSON.stringify({ success: false, message: "Malformed Basic Auth token." }), {
         headers: corsHeaders,
         status: 401
       });
     }
-  } catch (_e) {
-    return new Response(JSON.stringify({ success: false, message: "Malformed Basic Auth token." }), {
-      headers: corsHeaders,
-      status: 401
-    });
   }
 
-  // 3. Parse JSON Body
+  // 4. Parse JSON Body
   let payload: any;
   try {
     payload = await req.json();
@@ -76,9 +172,106 @@ serve(async (req: Request) => {
   }
 
   const action = String(payload.action).toLowerCase();
+
+  // Support live state sync over POST
+  if (action === "sync" || action === "fetch_state") {
+    return await handleLiveStateSync(payload.hotelId || payload.hotel_id);
+  }
+
+  // Support strict SuperAdmin-provisioned Hotel Admin credential verification
+  if (action === "verify_admin_login") {
+    const inputIdent = String(payload.email || "").trim().toLowerCase();
+    const inputPass = String(payload.password || "").trim();
+    if (!inputIdent || !inputPass) {
+      return new Response(JSON.stringify({ success: false, message: "Email and password required." }), {
+        headers: corsHeaders,
+        status: 400
+      });
+    }
+
+    const { data: allHotels, error } = await supabase.from("hotels").select("*");
+    if (error || !Array.isArray(allHotels) || allHotels.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "No Hotel Admin credentials exist. Create one in SuperAdmin first."
+        }),
+        { headers: corsHeaders, status: 401 }
+      );
+    }
+
+    const matched = allHotels.find((h: any) => {
+      const hEmail = String(h.email || "").trim().toLowerCase();
+      const hSlug = String(h.slug || "").trim().toLowerCase();
+      const hId = String(h.id || "").trim().toLowerCase();
+      const hShort = String(h.short_name || "").trim().toLowerCase();
+      const hName = String(h.name || "").trim().toLowerCase();
+      return (
+        hEmail === inputIdent ||
+        hSlug === inputIdent ||
+        hId === inputIdent ||
+        hShort === inputIdent ||
+        hName === inputIdent
+      );
+    });
+
+    if (!matched || (matched.status && matched.status !== "ACTIVE") || matched.password !== inputPass) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Invalid or inactive Hotel Admin credentials."
+        }),
+        { headers: corsHeaders, status: 401 }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        hotel: matched
+      }),
+      { headers: corsHeaders, status: 200 }
+    );
+  }
+
+  // Support generic Enterprise PMS table mutation + immediate cross-device broadcast
+  if (action === "pms_mutation") {
+    const { table, operation, data, match } = payload;
+    if (!table || !operation) {
+      return new Response(JSON.stringify({ success: false, message: "Missing table or operation." }), {
+        headers: corsHeaders,
+        status: 400
+      });
+    }
+    let result: any = null;
+    if (operation === "upsert") {
+      result = await supabase.from(table).upsert(data).select();
+    } else if (operation === "insert") {
+      result = await supabase.from(table).insert(data).select();
+    } else if (operation === "update" && match) {
+      result = await supabase.from(table).update(data).match(match).select();
+    } else if (operation === "delete" && match) {
+      result = await supabase.from(table).delete().match(match);
+    }
+    await broadcastRealtimeSync({
+      action: `pms_${operation}`,
+      table,
+      match: match || null
+    });
+    return new Response(
+      JSON.stringify({
+        success: !result?.error,
+        data: result?.data || null,
+        error: result?.error?.message || null
+      }),
+      { headers: corsHeaders, status: 200 }
+    );
+  }
+
   const bookingId = payload.bookingId || payload.cmBookingId || `OTA-${Date.now()}`;
   const channel = payload.channel || "OTA Channel";
   const hotelCode = payload.hotelCode || "sandbox-pms";
+  const resolvedHotelId = await resolveActiveHotelId(payload.hotelId || payload.hotel_id, hotelCode);
 
   console.log(`[Aiosell Webhook] Received ${action} for booking ${bookingId} from channel ${channel}`);
 
@@ -87,14 +280,12 @@ serve(async (req: Request) => {
     // ACTION: CANCEL
     // -------------------------------------------------------------
     if (action === "cancel") {
-      // 1. Fetch reservation to find the locked room
       const { data: existingRes } = await supabase
         .from("reservations")
         .select("*")
         .eq("id", bookingId)
         .maybeSingle();
 
-      // 2. Mark reservation CANCELLED
       await supabase
         .from("reservations")
         .update({
@@ -103,8 +294,11 @@ serve(async (req: Request) => {
         })
         .eq("id", bookingId);
 
-      // 3. Unlock physical room if one was assigned
-      const assignedRoom = existingRes?.room_number || existingRes?.room?.match(/\\b(\\d+)\\b/)?.[1];
+      const assignedRoom =
+        existingRes?.room_number ||
+        existingRes?.room?.match(/\b(\d+)\b/)?.[1] ||
+        null;
+
       if (assignedRoom) {
         await supabase
           .from("rooms")
@@ -116,17 +310,35 @@ serve(async (req: Request) => {
             updated_at: new Date().toISOString()
           })
           .eq("room_number", assignedRoom);
-        
-        console.log(`[Aiosell Webhook] Unlocked room ${assignedRoom} due to cancellation.`);
+      } else {
+        await supabase
+          .from("rooms")
+          .update({
+            status: "VACANT_READY",
+            guest: null,
+            booking_id: null,
+            check_out: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq("booking_id", bookingId);
       }
 
-      return new Response(JSON.stringify({
-        success: true,
-        message: "Reservation Cancelled Successfully"
-      }), {
-        headers: corsHeaders,
-        status: 200
+      await broadcastRealtimeSync({
+        action: "cancel",
+        bookingId,
+        channel,
+        unlockedRoom: assignedRoom
       });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Reservation Cancelled Successfully",
+          bookingId,
+          unlockedRoom: assignedRoom
+        }),
+        { headers: corsHeaders, status: 200 }
+      );
     }
 
     // -------------------------------------------------------------
@@ -134,62 +346,72 @@ serve(async (req: Request) => {
     // -------------------------------------------------------------
     if (action === "book" || action === "modify") {
       const guest = payload.guest || {};
-      const guestName = [guest.firstName, guest.lastName].filter(Boolean).join(" ").trim() ||
+      const guestName =
+        [guest.firstName, guest.lastName].filter(Boolean).join(" ").trim() ||
         payload.rooms?.[0]?.guestName ||
         `Guest (${channel})`;
 
       const firstRoom = payload.rooms?.[0] || {};
       const rawRoomCode = String(firstRoom.roomCode || "executive").toLowerCase();
-      
-      // Map Aiosell room code to PMS Room Category
-      let pmsRoomType = "Deluxe Room";
-      if (rawRoomCode.includes("suite")) pmsRoomType = "Suite";
+
+      let pmsRoomType = firstRoom.roomCode || "Deluxe Room";
+      if (rawRoomCode.includes("suite")) pmsRoomType = "Executive Suite";
       else if (rawRoomCode.includes("exec")) pmsRoomType = "Executive Room";
       else if (rawRoomCode.includes("std") || rawRoomCode.includes("standard")) pmsRoomType = "Standard Room";
+      else if (rawRoomCode.includes("deluxe")) pmsRoomType = "Deluxe Room";
 
-      const checkIn = payload.checkin;
-      const checkOut = payload.checkout;
+      const checkIn = payload.checkin || new Date().toISOString().split("T")[0];
+      const checkOut = payload.checkout || new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
-      // Rule 10: pah flag (true = collect at hotel, false = prepaid)
       const isPayAtHotel = Boolean(payload.pah);
       const totalAmount = Number(payload.amount?.amountAfterTax) || Number(payload.amount?.amountBeforeTax) || 0;
       const paidAmount = isPayAtHotel ? 0 : totalAmount;
 
-      // Rule 12: specialRequests is plain text
-      const specialRequests = typeof payload.specialRequests === "string"
-        ? payload.specialRequests
-        : (payload.specialRequests ? JSON.stringify(payload.specialRequests) : null);
+      const specialRequests =
+        typeof payload.specialRequests === "string"
+          ? payload.specialRequests
+          : payload.specialRequests
+          ? JSON.stringify(payload.specialRequests)
+          : null;
 
-      // -----------------------------------------------------------
-      // AUTOMATIC PHYSICAL ROOM ALLOCATION & LOCKING
-      // -----------------------------------------------------------
-      let allocatedRoomNumber = "";
-      
-      // Step A: Find an available vacant physical room matching the room category
-      const { data: availableRooms } = await supabase
-        .from("rooms")
+      const { data: existingRes } = await supabase
+        .from("reservations")
         .select("*")
-        .or(`type.ilike.%${pmsRoomType}%,type.ilike.%${rawRoomCode}%`)
-        .eq("status", "VACANT_READY")
-        .order("room_number", { ascending: true })
-        .limit(1);
+        .eq("id", bookingId)
+        .maybeSingle();
 
-      if (availableRooms && availableRooms.length > 0) {
-        allocatedRoomNumber = availableRooms[0].room_number;
-      } else {
-        // Fallback: search any vacant room if primary category full
-        const { data: anyVacant } = await supabase
+      let allocatedRoomNumber =
+        existingRes?.room_number ||
+        existingRes?.room?.match(/\b(\d+)\b/)?.[1] ||
+        "";
+      let roomHotelId = existingRes?.hotel_id || resolvedHotelId;
+
+      if (!allocatedRoomNumber) {
+        const { data: availableRooms } = await supabase
           .from("rooms")
           .select("*")
+          .or(`type.ilike.%${pmsRoomType}%,type.ilike.%${rawRoomCode}%`)
           .eq("status", "VACANT_READY")
           .order("room_number", { ascending: true })
           .limit(1);
-        if (anyVacant && anyVacant.length > 0) {
-          allocatedRoomNumber = anyVacant[0].room_number;
+
+        if (availableRooms && availableRooms.length > 0) {
+          allocatedRoomNumber = availableRooms[0].room_number;
+          if (availableRooms[0].hotel_id) roomHotelId = availableRooms[0].hotel_id;
+        } else {
+          const { data: anyVacant } = await supabase
+            .from("rooms")
+            .select("*")
+            .eq("status", "VACANT_READY")
+            .order("room_number", { ascending: true })
+            .limit(1);
+          if (anyVacant && anyVacant.length > 0) {
+            allocatedRoomNumber = anyVacant[0].room_number;
+            if (anyVacant[0].hotel_id) roomHotelId = anyVacant[0].hotel_id;
+          }
         }
       }
 
-      // Step B: Lock the physical room in the database
       if (allocatedRoomNumber) {
         await supabase
           .from("rooms")
@@ -201,14 +423,11 @@ serve(async (req: Request) => {
             updated_at: new Date().toISOString()
           })
           .eq("room_number", allocatedRoomNumber);
-
-        console.log(`[Aiosell Webhook] LOCKED room ${allocatedRoomNumber} for booking ${bookingId} (${guestName})`);
       }
 
-      // Step C: Upsert reservation record into reservations table
-      const reservationRecord = {
+      const fullReservationRecord: Record<string, unknown> = {
         id: bookingId,
-        hotel_id: "hotel_aurastay_01",
+        hotel_id: roomHotelId,
         guest: guestName,
         guest_email: guest.email || null,
         guest_phone: guest.phone || null,
@@ -229,48 +448,66 @@ serve(async (req: Request) => {
         payment: isPayAtHotel ? "PENDING" : "PAID",
         status: "CONFIRMED",
         special_requests: specialRequests,
-        notes: `Channel Booking ID: ${bookingId}. Channel: ${channel}. PAH: ${isPayAtHotel}. Auto-locked room: ${allocatedRoomNumber || "None"}.`,
-        updated_at: new Date().toISOString()
+        notes: `Channel Booking ID: ${bookingId}. Channel: ${channel}. PAH: ${isPayAtHotel}. Auto-locked room: ${allocatedRoomNumber || "None"}.`
       };
 
-      const { error: upsertErr } = await supabase
-        .from("reservations")
-        .upsert(reservationRecord);
+      const { error: upsertErr } = await supabase.from("reservations").upsert(fullReservationRecord);
 
       if (upsertErr) {
-        console.error("[Aiosell Webhook] Database upsert error:", upsertErr);
+        await supabase.from("reservations").upsert({
+          id: bookingId,
+          hotel_id: roomHotelId,
+          guest: guestName,
+          guest_email: guest.email || null,
+          guest_phone: guest.phone || null,
+          room: allocatedRoomNumber ? `Room ${allocatedRoomNumber}` : `Unassigned (${pmsRoomType})`,
+          check_in: checkIn,
+          check_out: checkOut,
+          source: `${channel} (Aiosell Channel Manager)`,
+          amount: totalAmount,
+          status: "CONFIRMED",
+          payment: isPayAtHotel ? "PENDING" : "PAID"
+        });
       }
 
-      const responseMessage = action === "modify"
-        ? "Reservation Modified Successfully"
-        : "Reservation Updated Successfully";
-
-      return new Response(JSON.stringify({
-        success: true,
-        message: responseMessage,
-        allocatedRoom: allocatedRoomNumber || null
-      }), {
-        headers: corsHeaders,
-        status: 200
+      await broadcastRealtimeSync({
+        action,
+        bookingId,
+        channel,
+        allocatedRoom: allocatedRoomNumber || null,
+        guestName
       });
+
+      const responseMessage =
+        action === "modify" ? "Reservation Modified Successfully" : "Reservation Updated Successfully";
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: responseMessage,
+          bookingId,
+          allocatedRoom: allocatedRoomNumber || null,
+          hotelId: roomHotelId
+        }),
+        { headers: corsHeaders, status: 200 }
+      );
     }
 
-    return new Response(JSON.stringify({
-      success: false,
-      message: `Unsupported action '${action}'. Expected book, modify, or cancel.`
-    }), {
-      headers: corsHeaders,
-      status: 400
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: `Unsupported action '${action}'. Expected book, modify, cancel, sync, verify_admin_login, or pms_mutation.`
+      }),
+      { headers: corsHeaders, status: 400 }
+    );
   } catch (err: any) {
     console.error("[Aiosell Webhook Exception]:", err);
-    return new Response(JSON.stringify({
-      success: false,
-      message: err.message || "Internal server error processing Aiosell webhook."
-    }), {
-      headers: corsHeaders,
-      status: 500
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: err.message || "Internal server error processing Aiosell webhook."
+      }),
+      { headers: corsHeaders, status: 500 }
+    );
   }
 });
-

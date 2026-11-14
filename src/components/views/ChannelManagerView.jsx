@@ -49,7 +49,8 @@ import {
   updateChannelMultiplier,
   parseAiosellWebhookPayload,
   allocateAndLockPhysicalRoom,
-  calculateCategoryInventory
+  calculateCategoryInventory,
+  dispatchWebhookToBackend
 } from '../../services/aiosellService';
 
 export default function ChannelManagerView() {
@@ -60,7 +61,9 @@ export default function ChannelManagerView() {
     setRooms,
     reservations = [],
     setReservations,
-    roomTypes = []
+    roomTypes = [],
+    currentHotel,
+    refreshData
   } = useDashboard();
 
   // Active sub-tab
@@ -109,10 +112,42 @@ export default function ChannelManagerView() {
   const [isFetching, setIsFetching] = useState(false);
   const [fetchedData, setFetchedData] = useState(null);
 
-  // Webhook Simulator State (in-memory logs)
-  const [webhookLogs, setWebhookLogs] = useState([]);
+  // Webhook Simulator State (synced live with Supabase OTA reservations)
+  const [sessionWebhookLogs, setSessionWebhookLogs] = useState([]);
   const [customWebhookPayload, setCustomWebhookPayload] = useState('');
   const [isSimulatingWebhook, setIsSimulatingWebhook] = useState(false);
+
+  const webhookLogs = useMemo(() => {
+    const dbOtaLogs = (reservations || [])
+      .filter(r => {
+        const src = String(r.source || '').toLowerCase();
+        return (
+          src.includes('aiosell') ||
+          src.includes('booking.com') ||
+          src.includes('makemytrip') ||
+          src.includes('goibibo') ||
+          src.includes('agoda') ||
+          src.includes('expedia') ||
+          src.includes('ota')
+        );
+      })
+      .map(r => ({
+        id: `db-wh-${r.id}-${r.status}`,
+        time: r.createdAt ? new Date(r.createdAt).toLocaleTimeString() : 'Live Synced',
+        action: r.status === 'CANCELLED' ? 'cancel' : 'book',
+        channel: String(r.source || 'OTA').replace(/\s*\(Aiosell.*\)/i, ''),
+        bookingId: r.id,
+        guest: r.guest || 'Guest',
+        amount: `₹${Number(r.amount || 0).toLocaleString('en-IN')}`,
+        pah: r.payment === 'PENDING' ? 'Pay At Hotel (PAH)' : 'Prepaid',
+        status: 'PROCESSED_SUCCESS'
+      }));
+
+    const seenKeys = new Set(dbOtaLogs.map(l => `${l.bookingId}-${l.action}`));
+    const extraSession = sessionWebhookLogs.filter(l => !seenKeys.has(`${l.bookingId}-${l.action}`));
+    return [...extraSession, ...dbOtaLogs];
+  }, [reservations, sessionWebhookLogs]);
+  const setWebhookLogs = setSessionWebhookLogs;
 
   // Mark No-Show State
   const [noShowBookingId, setNoShowBookingId] = useState('');
@@ -257,8 +292,8 @@ export default function ChannelManagerView() {
     }
   };
 
-  // Import fetched reservations directly into AuraStay PMS with automatic physical room locking
-  const handleImportFetchedReservations = () => {
+  // Import fetched reservations directly into AuraStay PMS & Supabase Backend with automatic physical room locking
+  const handleImportFetchedReservations = async () => {
     if (!fetchedData || !Array.isArray(fetchedData.data) || fetchedData.data.length === 0) {
       showNotification('No reservation records available to import.');
       return;
@@ -266,29 +301,22 @@ export default function ChannelManagerView() {
 
     let imported = 0;
     const existingIds = new Set((reservations || []).map(r => r.id));
-    let currentRoomsCopy = [...rooms];
 
-    fetchedData.data.slice(0, 10).forEach(item => {
+    for (const item of fetchedData.data.slice(0, 10)) {
       try {
         const parsed = parseAiosellWebhookPayload(item);
-        if (parsed.action === 'book' || parsed.action === 'modify') {
-          if (!existingIds.has(parsed.reservation.id)) {
-            existingIds.add(parsed.reservation.id);
-            const { allocatedRoomNumber, updatedRooms } = allocateAndLockPhysicalRoom(parsed.reservation, currentRoomsCopy);
-            if (allocatedRoomNumber) {
-              parsed.reservation.room = `Room ${allocatedRoomNumber}`;
-              parsed.reservation.room_number = allocatedRoomNumber;
-              currentRoomsCopy = updatedRooms;
-            }
-            setReservations(prev => [parsed.reservation, ...(prev || [])]);
-            imported++;
-          }
+        if ((parsed.action === 'book' || parsed.action === 'modify') && !existingIds.has(parsed.reservation.id)) {
+          existingIds.add(parsed.reservation.id);
+          await dispatchWebhookToBackend(item, currentHotel?.id);
+          imported++;
         }
       } catch (e) {}
-    });
+    }
 
-    setRooms(currentRoomsCopy);
-    showNotification(`Imported ${imported} active OTA reservations and automatically locked physical rooms.`);
+    if (refreshData) {
+      await refreshData();
+    }
+    showNotification(`Imported ${imported} active OTA reservations into Supabase and locked physical rooms across all devices.`);
   };
 
   // 4. Update Multipliers
@@ -307,8 +335,8 @@ export default function ChannelManagerView() {
     }
   };
 
-  // 5. Inbound Webhook Simulation
-  const handleSimulateWebhook = (sampleType) => {
+  // 5. Inbound Webhook Dispatch (Persists to Supabase via Edge Function & Syncs Across All Devices)
+  const handleSimulateWebhook = async (sampleType) => {
     setIsSimulatingWebhook(true);
 
     let samplePayload;
@@ -402,7 +430,7 @@ export default function ChannelManagerView() {
         action: 'modify',
         hotelCode: config.hotelCode,
         channel: 'booking.com',
-        bookingId: webhookLogs[0]?.bookingId || 'BDC-5238846',
+        bookingId: webhookLogs[0]?.bookingId || reservations[0]?.id || 'BDC-5238846',
         cmBookingId: 'CM-BDC-MOD-99',
         bookedOn: new Date().toISOString().replace('T', ' ').slice(0, 19),
         checkin: todayStr,
@@ -439,7 +467,7 @@ export default function ChannelManagerView() {
         action: 'cancel',
         hotelCode: config.hotelCode,
         channel: 'Goibibo',
-        bookingId: webhookLogs[0]?.bookingId || '111222333'
+        bookingId: webhookLogs[0]?.bookingId || reservations[0]?.id || '111222333'
       };
     } else if (sampleType === 'custom') {
       try {
@@ -451,9 +479,11 @@ export default function ChannelManagerView() {
       }
     }
 
-    // Process parsed payload
+    // Dispatch to Supabase Edge Function & persist in Supabase DB for cross-device Realtime sync
     try {
       const parsed = parseAiosellWebhookPayload(samplePayload);
+      const result = await dispatchWebhookToBackend(samplePayload, currentHotel?.id);
+
       const logEntry = {
         id: `wh-${Date.now()}`,
         time: new Date().toLocaleTimeString(),
@@ -468,45 +498,24 @@ export default function ChannelManagerView() {
 
       setWebhookLogs(prev => [logEntry, ...prev]);
 
+      if (refreshData) {
+        await refreshData();
+      }
+
       if (parsed.action === 'book') {
-        // Automatically allocate and LOCK a physical room
-        const { allocatedRoomNumber, updatedRooms } = allocateAndLockPhysicalRoom(parsed.reservation, rooms);
+        const allocatedRoomNumber = result?.allocatedRoomNumber;
         if (allocatedRoomNumber) {
-          parsed.reservation.room = `Room ${allocatedRoomNumber}`;
-          parsed.reservation.room_number = allocatedRoomNumber;
-          setRooms(updatedRooms);
-          logEntry.allocatedRoom = `Locked Room ${allocatedRoomNumber}`;
-          showNotification(`[BOOK LOCKED]: Reservation ${parsed.reservation.id} confirmed! Room ${allocatedRoomNumber} is LOCKED for ${parsed.reservation.guest}.`);
+          showNotification(`[BOOK LOCKED]: Reservation ${parsed.reservation.id} saved to Supabase! Room ${allocatedRoomNumber} is LOCKED across all devices.`);
         } else {
-          showNotification(`[BOOK]: Reservation ${parsed.reservation.id} confirmed from ${parsed.reservation.channel}!`);
+          showNotification(`[BOOK]: Reservation ${parsed.reservation.id} saved to Supabase from ${parsed.reservation.channel}!`);
         }
-        setReservations(prev => [parsed.reservation, ...(prev || [])]);
       } else if (parsed.action === 'modify') {
-        setReservations(prev => prev.map(r => r.id === parsed.reservation.id ? { ...r, ...parsed.reservation } : r));
-        showNotification(`Webhook [MODIFY]: Reservation ${parsed.reservation.id} updated to full new state!`);
+        showNotification(`Webhook [MODIFY]: Reservation ${parsed.reservation.id} updated in Supabase across all devices!`);
       } else if (parsed.action === 'cancel') {
-        // Unlock physical room
-        setRooms(prev => prev.map(r => {
-          if (r.bookingId === parsed.bookingId || r.booking_id === parsed.bookingId) {
-            return {
-              ...r,
-              status: 'VACANT_READY',
-              guest: null,
-              bookingId: null,
-              booking_id: null,
-              checkOut: null,
-              check_out: null,
-              isOtaLocked: false,
-              otaChannel: null
-            };
-          }
-          return r;
-        }));
-        setReservations(prev => prev.map(r => r.id === parsed.bookingId ? { ...r, status: 'CANCELLED' } : r));
-        showNotification(`Webhook [CANCEL]: Booking ${parsed.bookingId} cancelled and physical room UNLOCKED!`);
+        showNotification(`Webhook [CANCEL]: Booking ${parsed.bookingId} cancelled in Supabase and physical room UNLOCKED across all devices!`);
       }
     } catch (err) {
-      showNotification(`Webhook parse error: ${err.message}`);
+      showNotification(`Webhook processing error: ${err.message}`);
     } finally {
       setIsSimulatingWebhook(false);
     }

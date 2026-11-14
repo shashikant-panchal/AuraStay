@@ -39,20 +39,11 @@ export default function DetailedReportView({
   const [filterCity, setFilterCity] = useState('');
   const [filterOrg, setFilterOrg] = useState('All Organisation');
 
-  // Custom guests added by the user
-  const [inHouseGuests, setInHouseGuests] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_custom_inhouse_guests_v2');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return [];
-  });
-
+  // Custom guests added in current session (live in-house guests come from Supabase rooms & reservations)
+  const [inHouseGuests, setInHouseGuests] = useState([]);
   useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_custom_inhouse_guests_v2', JSON.stringify(inHouseGuests));
-    } catch (e) { }
-  }, [inHouseGuests]);
+    try { localStorage.removeItem('aurastay_custom_inhouse_guests_v2'); } catch (e) { }
+  }, []);
 
   // Modal state for adding a guest to a room
   const [isAddGuestModalOpen, setIsAddGuestModalOpen] = useState(false);

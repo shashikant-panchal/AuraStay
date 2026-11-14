@@ -92,7 +92,7 @@ export default function HotelAdminLogin() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. SHIVANANDI or admin@hotel.com"
+                  placeholder="Enter Hotel Email, Slug, or ID created by Super Admin"
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0e4860] focus:border-[#0e4860] font-medium"
                 />
               </div>
@@ -123,32 +123,14 @@ export default function HotelAdminLogin() {
             </button>
           </form>
 
-          {/* Quick Demo Credentials */}
+          {/* SuperAdmin Provisioning Security Notice */}
           <div className="mt-6 pt-5 border-t border-slate-200">
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span className="font-semibold">Quick Login:</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('SHIVANANDI');
-                  setPassword('12345');
-                }}
-                className="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold text-center transition"
-              >
-                SHIVANANDI (12345)
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('admin@aavasa.com');
-                  setPassword('admin123');
-                }}
-                className="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold text-center transition"
-              >
-                Default Admin
-              </button>
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 leading-relaxed">
+              <ShieldCheck className="w-4 h-4 text-[#0e4860] shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-slate-800 block mb-0.5">SuperAdmin-Provisioned Access Only</span>
+                Default credentials are disabled. Only Hotel Admin credentials created and activated in the <span className="font-semibold text-[#0e4860]">AuraStay Super Admin</span> portal can sign in.
+              </div>
             </div>
           </div>
         </div>
