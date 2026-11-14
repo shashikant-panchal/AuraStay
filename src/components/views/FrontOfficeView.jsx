@@ -82,9 +82,9 @@ export default function FrontOfficeView() {
         catMap[type] = { category: type, bar: Number(r.price) || 2000, toSell: 0, sold: 0, available: 0, occupancy: 0 };
       }
       catMap[type].toSell += 1;
-      if (r.status === 'OCCUPIED') {
+      if (r.status === 'OCCUPIED' || r.status === 'RESERVED') {
         catMap[type].sold += 1;
-      } else if (r.status === 'VACANT_READY') {
+      } else if (r.status === 'VACANT_READY' || !r.status) {
         catMap[type].available += 1;
       }
     });
@@ -94,18 +94,35 @@ export default function FrontOfficeView() {
     }));
   }, [rooms]);
 
-  // Dynamic Recent Check-ins derived from live reservations
+  // Dynamic Recent Check-ins & Reservations derived from live reservations
+  const formatShortArrival = (ts, fallbackDate) => {
+    const raw = ts || fallbackDate;
+    if (!raw) return 'Scheduled';
+    try {
+      const normalized = String(raw).includes(' ') && !String(raw).includes('T') ? String(raw).replace(' ', 'T') : String(raw);
+      const d = new Date(normalized);
+      if (Number.isNaN(d.getTime())) return String(raw);
+      if (!ts) return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch {
+      return String(raw);
+    }
+  };
+
   const recentCheckIns = useMemo(() => {
     if (!reservations || reservations.length === 0) return [];
     return reservations.map(r => ({
+      ...r,
       id: r.id,
       guest: r.guest,
       room: r.room,
-      time: 'Recently',
+      time: r.actualCheckInTime || r.actual_check_in_time
+        ? `Checked In: ${formatShortArrival(r.actualCheckInTime || r.actual_check_in_time)}`
+        : `Arrival: ${formatShortArrival('', r.checkIn || r.check_in)}`,
       amount: Number(r.amount) || 0,
-      status: r.status || 'CONFIRMED',
-      phone: r.guestPhone || r.phone || '—',
-      idProof: 'Verified on check-in'
+      status: String(r.status || 'CONFIRMED').toUpperCase(),
+      phone: r.guestPhone || r.guest_phone || r.phone || '—',
+      idProof: r.actualCheckInTime || r.actual_check_in_time ? 'Verified at Check-In' : 'Awaiting Check-In'
     }));
   }, [reservations]);
 
@@ -294,9 +311,9 @@ export default function FrontOfficeView() {
               <div className="space-y-3.5">
                 <div className="flex items-center space-x-3.5">
                   <span className="w-6 h-6 rounded-md bg-amber-50 text-amber-600 border border-amber-200/90 font-black text-xs flex items-center justify-center">
-                    {reservations.filter(r => r.status === 'CONFIRMED').length}
+                    {reservations.filter(r => ['CONFIRMED', 'PENDING', 'RESERVED'].includes(r.status)).length}
                   </span>
-                  <span className="text-xs font-bold text-slate-700">Pending Arrivals</span>
+                  <span className="text-xs font-bold text-slate-700">Pending Arrivals (Reserved)</span>
                 </div>
                 <div className="flex items-center space-x-3.5">
                   <span className="w-6 h-6 rounded-md bg-rose-50 text-rose-600 border border-rose-200/90 font-black text-xs flex items-center justify-center">
@@ -509,7 +526,7 @@ export default function FrontOfficeView() {
                   </span>
                 </div>
                 <div className="text-xs text-slate-500 font-medium">
-                  <span className="text-emerald-600 font-bold">{rooms.filter(r => r.status !== 'OCCUPIED').length}</span> available / <span className="text-sky-600 font-bold">{rooms.filter(r => r.status === 'OCCUPIED').length}</span> sold / <span className="text-slate-600 font-bold">{rooms.length}</span> total
+                  <span className="text-emerald-600 font-bold">{rooms.filter(r => r.status !== 'OCCUPIED' && r.status !== 'RESERVED').length}</span> available / <span className="text-sky-600 font-bold">{rooms.filter(r => r.status === 'OCCUPIED' || r.status === 'RESERVED').length}</span> sold / <span className="text-slate-600 font-bold">{rooms.length}</span> total
                 </div>
               </div>
 
@@ -731,17 +748,38 @@ export default function FrontOfficeView() {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-4 self-end sm:self-center">
-                    <button
-                      onClick={() => {
-                        setFolioActiveItem(chk);
-                        setIsFolioModalOpen(true);
-                      }}
-                      className="bg-[#10b981] hover:bg-[#059669] text-white font-bold text-xs px-3.5 py-1.5 rounded-md tracking-wider transition shadow-2xs"
-                      title="Open Folio & Billing"
-                    >
-                      CHECKEDIN
-                    </button>
+                  <div className="flex items-center space-x-3 self-end sm:self-center">
+                    {['CONFIRMED', 'PENDING', 'RESERVED'].includes(chk.status) ? (
+                      <button
+                        onClick={() => setCheckInTargetRes(chk)}
+                        className="bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-md tracking-wider transition shadow-2xs"
+                        title="Check In Guest & Mark Room Occupied"
+                      >
+                        RESERVED • CHECK IN
+                      </button>
+                    ) : chk.status === 'CHECKED_OUT' || chk.status === 'CHECKEDOUT' ? (
+                      <button
+                        onClick={() => {
+                          setFolioActiveItem(chk);
+                          setIsFolioModalOpen(true);
+                        }}
+                        className="bg-slate-600 hover:bg-slate-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-md tracking-wider transition shadow-2xs"
+                        title="View Settled Booking Invoice"
+                      >
+                        CHECKED OUT
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setFolioActiveItem(chk);
+                          setIsFolioModalOpen(true);
+                        }}
+                        className="bg-[#10b981] hover:bg-[#059669] text-white font-bold text-xs px-3.5 py-1.5 rounded-md tracking-wider transition shadow-2xs"
+                        title="Open Folio & Booking Invoice"
+                      >
+                        OCCUPIED
+                      </button>
+                    )}
                     <span className="font-mono font-bold text-sm text-slate-900">
                       ₹{chk.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
@@ -1055,14 +1093,20 @@ export default function FrontOfficeView() {
             guest: folioActiveItem.guest
           }}
           reservation={{
+            id: folioActiveItem.id,
             guest: folioActiveItem.guest,
             phone: folioActiveItem.phone,
-            check_in: folioActiveItem.time || 'Today',
-            check_out: 'Upcoming',
-            price: Number(folioActiveItem.amount) || 2500,
-            paid: Number(folioActiveItem.amount) || 2500,
-            payment: 'PAID',
-            rate_plan: 'EP - European Plan'
+            email: folioActiveItem.email,
+            room_number: folioActiveItem.room,
+            status: folioActiveItem.status,
+            check_in: folioActiveItem.checkIn || folioActiveItem.check_in || folioActiveItem.time || 'Today',
+            check_out: folioActiveItem.checkOut || folioActiveItem.check_out || 'Upcoming',
+            actual_check_in_time: folioActiveItem.actualCheckInTime || folioActiveItem.actual_check_in_time || null,
+            actual_check_out_time: folioActiveItem.actualCheckOutTime || folioActiveItem.actual_check_out_time || null,
+            price: Number(folioActiveItem.amount || folioActiveItem.price) || 2500,
+            paid: Number(folioActiveItem.paid ?? 0),
+            payment: folioActiveItem.payment || 'PENDING',
+            rate_plan: folioActiveItem.ratePlan || folioActiveItem.rate_plan || 'EP - European Plan'
           }}
         />
       )}

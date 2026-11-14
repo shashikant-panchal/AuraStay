@@ -21,19 +21,18 @@ import {
 import { useDashboard } from '../../context/DashboardContext';
 import BookingVoucher from '../common/BookingVoucher';
 
-export default function FolioBillingModal({ isOpen, onClose, room, reservation }) {
+export default function FolioBillingModal({ isOpen, onClose, room, reservation, initialTab = 'charges' }) {
   const { 
     showNotification, 
     checkoutRoom, 
-    updateReservation, 
     updateReservationPayment, 
     getFolio,
     saveFolio,
     currentHotel 
   } = useDashboard();
 
-  const [activeTab, setActiveTab] = useState('charges'); // charges | payments | invoice
-  const [voucherType, setVoucherType] = useState('BOOKING VOUCHER');
+  const [activeTab, setActiveTab] = useState(initialTab || 'charges'); // charges | payments | invoice
+  const [voucherType, setVoucherType] = useState('BOOKING INVOICE');
   const [discountPercent, setDiscountPercent] = useState(0);
 
   // New charge item state
@@ -78,7 +77,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
         setDiscountPercent(0);
       }
 
-      setActiveTab('charges');
+      setActiveTab(initialTab || 'charges');
       setNewDescription('');
       setNewAmount('');
       setIsPostingCharge(false);
@@ -210,7 +209,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
       }
     }
 
-    const resId = reservation?.id || room.booking_id;
+    const resId = reservation?.id || room.booking_id || room.bookingId || room.activeReservation?.id;
     await checkoutRoom(roomNum, resId);
     onClose();
   };
@@ -230,7 +229,19 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
     const hotelName = currentHotel?.name || 'Hotel PMS';
     const operatingUnit = currentHotel?.ownerName ? `Managed by ${currentHotel.ownerName}` : 'Front Desk & Guest Billing';
     const hotelAddress = currentHotel?.address || (currentHotel?.city ? `${currentHotel.city}, India` : 'India');
-    const docTitle = voucherType === 'BOOKING VOUCHER' ? 'Booking Voucher' : 'Tax Invoice';
+    const actualCheckInRaw = reservation?.actualCheckInTime || reservation?.actual_check_in_time || '';
+    const actualCheckOutRaw = reservation?.actualCheckOutTime || reservation?.actual_check_out_time || '';
+    const fmtPrintTs = (ts) => {
+      if (!ts) return '';
+      try {
+        const normalized = String(ts).includes(' ') && !String(ts).includes('T') ? String(ts).replace(' ', 'T') : String(ts);
+        const d = new Date(normalized);
+        return Number.isNaN(d.getTime()) ? String(ts) : d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+      } catch {
+        return String(ts);
+      }
+    };
+    const docTitle = String(voucherType || '').toLowerCase().includes('tax') ? 'Tax Invoice' : 'Booking Invoice';
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -292,9 +303,11 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
           </div>
 
           <div class="box">
-            <div class="box-title">Stay Duration</div>
-            <div class="row"><span class="label">Check-In:</span><span class="val">${checkIn}</span></div>
-            <div class="row"><span class="label">Check-Out:</span><span class="val">${checkOut}</span></div>
+            <div class="box-title">Stay Duration & Timings</div>
+            <div class="row"><span class="label">Scheduled Check-In:</span><span class="val">${checkIn} (12:00 PM)</span></div>
+            <div class="row"><span class="label">Actual Check-In Time:</span><span class="val">${actualCheckInRaw ? fmtPrintTs(actualCheckInRaw) : 'Pending Check-In'}</span></div>
+            <div class="row"><span class="label">Scheduled Check-Out:</span><span class="val">${checkOut} (11:00 AM)</span></div>
+            <div class="row"><span class="label">Actual Check-Out Time:</span><span class="val">${actualCheckOutRaw ? fmtPrintTs(actualCheckOutRaw) : 'Not Checked Out'}</span></div>
             <div class="row"><span class="label">Rate Plan:</span><span class="val">${reservation?.rate_plan || 'EP - Room Only'}</span></div>
           </div>
         </div>
@@ -416,7 +429,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="text-base font-black tracking-wide">Guest Folio & Booking Voucher</h3>
+                <h3 className="text-base font-black tracking-wide">Guest Folio & Booking Invoice</h3>
                 <span className="text-[10px] font-mono bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-400/30">
                   FOL-2026-{roomNum}
                 </span>
@@ -472,7 +485,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
               }`}
             >
-              Booking Voucher / Invoice
+              Booking Invoice / Tax Invoice
             </button>
           </div>
 
@@ -671,7 +684,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
             </div>
           )}
 
-          {/* BOOKING VOUCHER / TAX INVOICE TAB */}
+          {/* BOOKING INVOICE / TAX INVOICE TAB */}
           {activeTab === 'invoice' ? (
             <div className="space-y-4">
               {/* Document Type Switcher & Action Toolbar (Hidden in Print) */}
@@ -680,14 +693,14 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
                   <span className="text-xs font-bold text-slate-600">Document Format:</span>
                   <div className="bg-slate-200/80 p-0.5 rounded-xl flex space-x-1">
                     <button
-                      onClick={() => setVoucherType('BOOKING VOUCHER')}
+                      onClick={() => setVoucherType('BOOKING INVOICE')}
                       className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        voucherType === 'BOOKING VOUCHER'
+                        voucherType === 'BOOKING INVOICE'
                           ? 'bg-[#034a7f] text-white shadow-xs'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      Booking Voucher
+                      Booking Invoice
                     </button>
                     <button
                       onClick={() => setVoucherType('TAX INVOICE')}
@@ -708,12 +721,12 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
                     className="px-4 py-2 rounded-xl bg-[#034a7f] hover:bg-[#023358] text-white text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-all hover:scale-[1.01]"
                   >
                     <Printer className="w-3.5 h-3.5" />
-                    <span>Print {voucherType === 'BOOKING VOUCHER' ? 'Booking Voucher' : 'Tax Invoice'}</span>
+                    <span>Print {voucherType === 'BOOKING INVOICE' ? 'Booking Invoice' : 'Tax Invoice'}</span>
                   </button>
                 </div>
               </div>
 
-              {/* Booking Voucher & Invoice Preview */}
+              {/* Booking Invoice & Tax Invoice Preview */}
               <div className="border border-slate-300 rounded-2xl overflow-hidden shadow-sm bg-white">
                 <BookingVoucher
                   room={room}

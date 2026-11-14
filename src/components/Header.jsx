@@ -224,7 +224,7 @@ export default function Header() {
                     className="w-full px-3.5 py-2 text-left hover:bg-indigo-50 hover:text-indigo-900 flex items-center space-x-2.5 transition"
                   >
                     <Receipt className="w-4 h-4 text-rose-600" />
-                    <span>Customer Receipt & Voucher</span>
+                    <span>Customer Receipt & Invoice</span>
                   </button>
                 </div>
               </div>

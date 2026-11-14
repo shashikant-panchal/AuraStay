@@ -830,21 +830,24 @@ export default function DetailedReportView({
       )}
 
       {/* ========================================================================= */}
-      {/* 4. MODAL: BOOKING VOUCHER (WHEN CLICKING RESERVATION NUMBER) */}
+      {/* 4. MODAL: BOOKING INVOICE (WHEN CLICKING RESERVATION NUMBER) */}
       {/* ========================================================================= */}
       {selectedVoucherData && (
         <BookingVoucher
+          voucherType="BOOKING INVOICE"
           reservation={{
             id: selectedVoucherData.reservationNo,
+            guest: selectedVoucherData.guestName,
             guestName: selectedVoucherData.guestName,
+            room_number: selectedVoucherData.room,
             roomNumber: selectedVoucherData.room,
             phone: selectedVoucherData.phone,
             email: selectedVoucherData.email,
-            status: 'IN-HOUSE',
+            status: 'CHECKED_IN',
             checkIn: selectedVoucherData.date,
-            checkOut: 'Next Day',
-            totalPrice: 2500,
-            advancePaid: 2500,
+            checkOut: selectedVoucherData.date,
+            amount: Number(selectedVoucherData.amount) || 2500,
+            paid: Number(selectedVoucherData.amount) || 2500,
             ratePlan: 'EP (European Plan)'
           }}
           onClose={() => setSelectedVoucherData(null)}

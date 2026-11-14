@@ -31,7 +31,8 @@ import {
   DollarSign,
   Utensils,
   Trash2,
-  FileText
+  FileText,
+  UserCheck
 } from 'lucide-react';
 
 import ShiftRoomModal from '../modals/ShiftRoomModal';
@@ -43,10 +44,12 @@ import NightAuditModal from '../modals/NightAuditModal';
 import BlockRoomModal from '../modals/BlockRoomModal';
 import FrontDeskTasksDrawer from '../modals/FrontDeskTasksDrawer';
 import RoomActionsModal from '../modals/RoomActionsModal';
+import CheckInModal from '../modals/CheckInModal';
 import TodayGlanceRevenueCard from '../dashboard/TodayGlanceRevenueCard';
 
 export default function DashboardView() {
   const {
+    currentHotel,
     rooms = [],
     reservations = [],
     workingDate,
@@ -63,7 +66,7 @@ export default function DashboardView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFloor, setSelectedFloor] = useState('ALL');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | OCCUPIED | VACANT | DIRTY | BLOCKED
+  const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | RESERVED | OCCUPIED | VACANT | DIRTY | BLOCKED
   const [viewDensity, setViewDensity] = useState('3D'); // '3D' | 'COMPACT'
 
   // Accordion collapsed state
@@ -82,9 +85,28 @@ export default function DashboardView() {
   const [isQuickBalanceOpen, setIsQuickBalanceOpen] = useState(false);
   const [isGuest360Open, setIsGuest360Open] = useState(false);
   const [isFolioModalOpen, setIsFolioModalOpen] = useState(false);
+  const [folioInitialTab, setFolioInitialTab] = useState('charges');
+  const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
   const [isNightAuditOpen, setIsNightAuditOpen] = useState(false);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const [isTasksDrawerOpen, setIsTasksDrawerOpen] = useState(false);
+
+  const nowLocal = new Date();
+  const todayStr = new Date(nowLocal.getTime() - nowLocal.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+
+  const formatRoomTimestamp = (ts) => {
+    if (!ts) return '';
+    try {
+      const normalized = String(ts).includes(' ') && !String(ts).includes('T')
+        ? String(ts).replace(' ', 'T')
+        : String(ts);
+      const d = new Date(normalized);
+      if (Number.isNaN(d.getTime())) return String(ts);
+      return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch {
+      return String(ts);
+    }
+  };
 
 
 
@@ -101,22 +123,34 @@ export default function DashboardView() {
     });
   };
 
-  // Enriched rooms list
+  // Enriched rooms list (distinguishes RESERVED awaiting check-in vs OCCUPIED in-house)
   const enrichedRooms = useMemo(() => {
     return rooms.map(r => {
       const activeRes = getActiveReservation(r);
-      const isOccupied = r.status === 'OCCUPIED' || r.status === 'Occupied' || !!activeRes;
-      const isBlocked = r.status === 'MAINTENANCE' || r.status === 'Blocked';
-      const isDirty = r.status === 'DIRTY' || r.housekeeping === 'Dirty';
+      const stUpper = String(r.status || 'VACANT_READY').toUpperCase();
+      const resStatusUpper = String(activeRes?.status || '').toUpperCase();
+      const resCheckInDate = String(activeRes?.check_in || activeRes?.checkIn || '').slice(0, 10);
+
+      const isBlocked = ['MAINTENANCE', 'OUT_OF_ORDER', 'BLOCKED'].includes(stUpper);
+      const isCheckedInRes = ['CHECKED_IN', 'CHECKEDIN', 'OCCUPIED'].includes(resStatusUpper);
+      const isReservedRes = ['CONFIRMED', 'PENDING', 'RESERVED'].includes(resStatusUpper);
+
+      const isOccupied = !isBlocked && (stUpper === 'OCCUPIED' || isCheckedInRes);
+      const isReserved = !isBlocked && !isOccupied && (stUpper === 'RESERVED' || (isReservedRes && (!resCheckInDate || resCheckInDate <= todayStr)));
+      const upcomingReservation = !isBlocked && !isOccupied && !isReserved && isReservedRes && resCheckInDate > todayStr ? activeRes : null;
+      const isDirty = !isBlocked && !isOccupied && !isReserved && (stUpper === 'DIRTY' || r.housekeeping === 'Dirty');
 
       let effectiveStatus = 'VACANT';
-      if (isOccupied) effectiveStatus = 'OCCUPIED';
-      else if (isBlocked) effectiveStatus = 'BLOCKED';
+      if (isBlocked) effectiveStatus = 'BLOCKED';
+      else if (isOccupied) effectiveStatus = 'OCCUPIED';
+      else if (isReserved) effectiveStatus = 'RESERVED';
       else if (isDirty) effectiveStatus = 'DIRTY';
 
       const roomNum = String(r.room_number || r.roomNumber || r.id);
       const floor = r.floor ? (String(r.floor).startsWith('Floor') ? r.floor : `Floor ${r.floor}`) : 'Floor 1';
       const category = r.type || r.category || 'Standard Room';
+      const totalResAmt = Number(activeRes?.amount) || Number(r.price || r.tariff) || 2500;
+      const paidResAmt = Number(activeRes?.paid) || 0;
 
       return {
         ...r,
@@ -125,13 +159,21 @@ export default function DashboardView() {
         floor,
         effectiveStatus,
         activeReservation: activeRes,
-        guestName: activeRes?.guest || activeRes?.name || r.guest || (isOccupied ? 'In-House Guest' : null),
-        stayDates: activeRes ? `${activeRes.check_in || 'Today'} → ${activeRes.check_out || 'Tomorrow'}` : null,
+        upcomingReservation,
+        actualCheckInTime: activeRes?.actualCheckInTime || activeRes?.actual_check_in_time || '',
+        actualCheckOutTime: activeRes?.actualCheckOutTime || activeRes?.actual_check_out_time || '',
+        bookingSource: activeRes?.source || r.otaChannel || r.ota_channel || 'Direct',
+        guestName: (isOccupied || isReserved)
+          ? (activeRes?.guest || activeRes?.name || r.guest || (isReserved ? 'Reserved Guest' : 'In-House Guest'))
+          : null,
+        stayDates: (activeRes && (isOccupied || isReserved))
+          ? `${activeRes.check_in || activeRes.checkIn || 'Today'} → ${activeRes.check_out || activeRes.checkOut || 'Tomorrow'}`
+          : (upcomingReservation ? `${upcomingReservation.check_in || upcomingReservation.checkIn} → ${upcomingReservation.check_out || upcomingReservation.checkOut}` : null),
         tariff: Number(r.price || r.tariff || activeRes?.price || 2500),
-        balanceDue: activeRes ? Math.max(0, (Number(activeRes.amount) || 4500) - (Number(activeRes.paid) || 0)) : 0
+        balanceDue: (activeRes && (isOccupied || isReserved)) ? Math.max(0, totalResAmt - paidResAmt) : 0
       };
     });
-  }, [rooms, reservations]);
+  }, [rooms, reservations, todayStr]);
 
   // Dynamic filter options
   const uniqueFloors = useMemo(() => {
@@ -182,14 +224,15 @@ export default function DashboardView() {
 
   // Top KPI calculations
   const totalCount = enrichedRooms.length;
+  const reservedCount = enrichedRooms.filter(r => r.effectiveStatus === 'RESERVED').length;
   const occupiedCount = enrichedRooms.filter(r => r.effectiveStatus === 'OCCUPIED').length;
   const vacantCount = enrichedRooms.filter(r => r.effectiveStatus === 'VACANT').length;
   const blockedCount = enrichedRooms.filter(r => r.effectiveStatus === 'BLOCKED').length;
   const dirtyCount = enrichedRooms.filter(r => r.effectiveStatus === 'DIRTY').length;
 
-  const occupancyRate = totalCount > 0 ? Math.round((occupiedCount / totalCount) * 100) : 0;
+  const occupancyRate = totalCount > 0 ? Math.round(((occupiedCount + reservedCount) / totalCount) * 100) : 0;
   const totalRevenue = enrichedRooms
-    .filter(r => r.effectiveStatus === 'OCCUPIED')
+    .filter(r => r.effectiveStatus === 'OCCUPIED' || r.effectiveStatus === 'RESERVED')
     .reduce((sum, r) => sum + r.tariff, 0);
 
   const pendingTasksCount = frontDeskTasks.filter(t => !t.completed).length;
@@ -203,9 +246,21 @@ export default function DashboardView() {
   const handleRoomAction = (room, action) => {
     setActionModalRoom(null);
     setModalRoom(room);
-    setModalRes(room.activeReservation || null);
+    setModalRes(room.activeReservation || room.upcomingReservation || null);
 
     switch (action) {
+      case 'checkin':
+        setModalRes(room.activeReservation || room.upcomingReservation || {
+          id: room.booking_id || room.bookingId || `RES-${room.roomNumber}`,
+          guest: room.guestName || 'Arriving Guest',
+          room: `Room ${room.roomNumber}`,
+          room_number: room.roomNumber,
+          room_type: room.category,
+          amount: room.tariff,
+          paid: 0
+        });
+        setIsCheckInModalOpen(true);
+        break;
       case 'shift':
         setIsShiftModalOpen(true);
         break;
@@ -218,7 +273,12 @@ export default function DashboardView() {
       case 'guest360':
         setIsGuest360Open(true);
         break;
+      case 'invoice':
+        setFolioInitialTab('invoice');
+        setIsFolioModalOpen(true);
+        break;
       case 'folio':
+        setFolioInitialTab('charges');
         setIsFolioModalOpen(true);
         break;
       case 'block':
@@ -261,7 +321,7 @@ export default function DashboardView() {
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            DEMO HOTEL Operational PMS • Real-time room status, reservation synchronization, and guest billing ledger
+            {currentHotel?.name || 'Hotel'} Operational PMS • Real-time room status, reservation synchronization, and guest billing ledger
           </p>
         </div>
 
@@ -301,7 +361,7 @@ export default function DashboardView() {
       </div>
 
       {/* 2. Top KPI Stat Counters (Modern Light 3D Theme Cards) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
 
         {/* Total Rooms */}
         <div
@@ -315,14 +375,31 @@ export default function DashboardView() {
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-black text-slate-900 font-mono">{totalCount}</span>
-            <span className="text-[11px] font-bold text-slate-500">{occupancyRate}% Occ.</span>
+            <span className="text-[11px] font-bold text-slate-500">{occupancyRate}% Booked</span>
           </div>
           <div className="mt-2 w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
             <div className="bg-indigo-600 h-full rounded-full" style={{ width: `${occupancyRate}%` }}></div>
           </div>
         </div>
 
-        {/* Occupied Rooms (Soft Indigo Glow) */}
+        {/* Reserved Rooms (Awaiting Check-In) */}
+        <div
+          onClick={() => setStatusFilter('RESERVED')}
+          className={`cursor-pointer bg-white rounded-3xl p-4 border transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(139,92,246,0.08)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-8px_rgba(139,92,246,0.15)] ${statusFilter === 'RESERVED' ? 'ring-2 ring-violet-600 border-violet-600' : 'border-violet-100 hover:border-violet-300'
+            }`}
+        >
+          <div className="flex items-center justify-between text-violet-600">
+            <span className="text-[10px] font-black uppercase tracking-wider">Reserved</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-violet-500 shadow-sm shadow-violet-500/50"></span>
+          </div>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-violet-950 font-mono">{reservedCount}</span>
+            <span className="text-[11px] font-bold text-violet-700">Arrival Due</span>
+          </div>
+          <p className="text-[10px] font-semibold text-slate-400 mt-2">Booked • Pending Check-In</p>
+        </div>
+
+        {/* Occupied Rooms (Checked-In / In-House) */}
         <div
           onClick={() => setStatusFilter('OCCUPIED')}
           className={`cursor-pointer bg-white rounded-3xl p-4 border transition-all duration-300 shadow-[0_10px_25px_-5px_rgba(99,102,241,0.08)] hover:-translate-y-1 hover:shadow-[0_15px_30px_-8px_rgba(99,102,241,0.15)] ${statusFilter === 'OCCUPIED' ? 'ring-2 ring-indigo-600 border-indigo-600' : 'border-indigo-100 hover:border-indigo-300'
@@ -522,6 +599,7 @@ export default function DashboardView() {
           Object.entries(groupedRooms).map(([category, roomsList]) => {
             const isCollapsed = collapsedCategories[category];
             const catOccupied = roomsList.filter(r => r.effectiveStatus === 'OCCUPIED').length;
+            const catReserved = roomsList.filter(r => r.effectiveStatus === 'RESERVED').length;
             const catTotal = roomsList.length;
 
             return (
@@ -538,7 +616,7 @@ export default function DashboardView() {
                       ({catTotal} Room{catTotal > 1 ? 's' : ''})
                     </span>
                     <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-                      {catOccupied} Occupied • {catTotal - catOccupied} Available
+                      {catReserved > 0 ? `${catReserved} Reserved • ` : ''}{catOccupied} Occupied • {Math.max(0, catTotal - catOccupied - catReserved)} Available
                     </span>
                   </div>
 
@@ -557,6 +635,7 @@ export default function DashboardView() {
                   }>
                     {roomsList.map(room => {
                       const isOccupied = room.effectiveStatus === 'OCCUPIED';
+                      const isReserved = room.effectiveStatus === 'RESERVED';
                       const isVacant = room.effectiveStatus === 'VACANT';
                       const isDirty = room.effectiveStatus === 'DIRTY';
                       const isBlocked = room.effectiveStatus === 'BLOCKED';
@@ -567,18 +646,20 @@ export default function DashboardView() {
                           <div
                             key={room.roomNumber}
                             onClick={() => setActionModalRoom(room)}
-                            className={`cursor-pointer rounded-2xl p-3 border transition-all text-center relative overflow-hidden group shadow-xs hover:shadow-md hover:-translate-y-0.5 ${isOccupied
-                              ? 'bg-indigo-50/60 border-indigo-200 text-indigo-950'
-                              : isVacant
-                                ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
-                                : isDirty
-                                  ? 'bg-amber-50/60 border-amber-200 text-amber-950'
-                                  : 'bg-rose-50/60 border-rose-200 text-rose-950'
+                            className={`cursor-pointer rounded-2xl p-3 border transition-all text-center relative overflow-hidden group shadow-xs hover:shadow-md hover:-translate-y-0.5 ${isReserved
+                              ? 'bg-violet-50/70 border-violet-200 text-violet-950'
+                              : isOccupied
+                                ? 'bg-indigo-50/60 border-indigo-200 text-indigo-950'
+                                : isVacant
+                                  ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
+                                  : isDirty
+                                    ? 'bg-amber-50/60 border-amber-200 text-amber-950'
+                                    : 'bg-rose-50/60 border-rose-200 text-rose-950'
                               }`}
                           >
                             <p className="font-black text-lg font-mono">#{room.roomNumber}</p>
                             <p className="text-[10px] font-bold uppercase truncate mt-0.5">
-                              {isOccupied ? room.guestName || 'Occupied' : isVacant ? 'Available' : isDirty ? 'Dirty' : 'Blocked'}
+                              {isReserved ? `Res: ${room.guestName || 'Guest'}` : isOccupied ? room.guestName || 'Occupied' : isVacant ? 'Available' : isDirty ? 'Dirty' : 'Blocked'}
                             </p>
                           </div>
                         );
@@ -588,23 +669,27 @@ export default function DashboardView() {
                       return (
                         <div
                           key={room.roomNumber}
-                          className={`group relative bg-white rounded-3xl border transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.06),0_8px_10px_-6px_rgba(0,0,0,0.04)] hover:-translate-y-1.5 hover:shadow-[0_20px_35px_-8px_rgba(0,0,0,0.12),0_10px_10px_-5px_rgba(0,0,0,0.04)] ${isOccupied
-                            ? 'border-indigo-100 hover:border-indigo-300'
-                            : isVacant
-                              ? 'border-emerald-100 hover:border-emerald-300'
-                              : isDirty
-                                ? 'border-amber-100 hover:border-amber-300'
-                                : 'border-rose-100 hover:border-rose-300'
+                          className={`group relative bg-white rounded-3xl border transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.06),0_8px_10px_-6px_rgba(0,0,0,0.04)] hover:-translate-y-1.5 hover:shadow-[0_20px_35px_-8px_rgba(0,0,0,0.12),0_10px_10px_-5px_rgba(0,0,0,0.04)] ${isReserved
+                            ? 'border-violet-200 hover:border-violet-400'
+                            : isOccupied
+                              ? 'border-indigo-100 hover:border-indigo-300'
+                              : isVacant
+                                ? 'border-emerald-100 hover:border-emerald-300'
+                                : isDirty
+                                  ? 'border-amber-100 hover:border-amber-300'
+                                  : 'border-rose-100 hover:border-rose-300'
                             }`}
                         >
                           {/* Top 3D Embossed Bar */}
-                          <div className={`p-4 border-b flex items-center justify-between ${isOccupied
-                            ? 'bg-gradient-to-r from-indigo-50/90 to-purple-50/50 border-indigo-100/70'
-                            : isVacant
-                              ? 'bg-gradient-to-r from-emerald-50/90 to-teal-50/50 border-emerald-100/70'
-                              : isDirty
-                                ? 'bg-gradient-to-r from-amber-50/90 to-orange-50/50 border-amber-100/70'
-                                : 'bg-gradient-to-r from-rose-50/90 to-red-50/50 border-rose-100/70'
+                          <div className={`p-4 border-b flex items-center justify-between ${isReserved
+                            ? 'bg-gradient-to-r from-violet-50/95 to-purple-50/70 border-violet-200/70'
+                            : isOccupied
+                              ? 'bg-gradient-to-r from-indigo-50/90 to-purple-50/50 border-indigo-100/70'
+                              : isVacant
+                                ? 'bg-gradient-to-r from-emerald-50/90 to-teal-50/50 border-emerald-100/70'
+                                : isDirty
+                                  ? 'bg-gradient-to-r from-amber-50/90 to-orange-50/50 border-amber-100/70'
+                                  : 'bg-gradient-to-r from-rose-50/90 to-red-50/50 border-rose-100/70'
                             }`}>
                             <div className="flex items-center space-x-2">
                               {/* 3D Room Number Badge */}
@@ -615,15 +700,17 @@ export default function DashboardView() {
                                 <span className="text-[10px] font-bold text-slate-400 block uppercase leading-none">
                                   {room.floor}
                                 </span>
-                                <span className={`text-[10px] font-black uppercase tracking-wider mt-0.5 inline-block px-1.5 py-0.2 rounded-md ${isOccupied
-                                  ? 'text-indigo-800 bg-indigo-100/70'
-                                  : isVacant
-                                    ? 'text-emerald-800 bg-emerald-100/70'
-                                    : isDirty
-                                      ? 'text-amber-800 bg-amber-100/70'
-                                      : 'text-rose-800 bg-rose-100/70'
+                                <span className={`text-[10px] font-black uppercase tracking-wider mt-0.5 inline-block px-1.5 py-0.2 rounded-md ${isReserved
+                                  ? 'text-violet-800 bg-violet-100/90'
+                                  : isOccupied
+                                    ? 'text-indigo-800 bg-indigo-100/70'
+                                    : isVacant
+                                      ? 'text-emerald-800 bg-emerald-100/70'
+                                      : isDirty
+                                        ? 'text-amber-800 bg-amber-100/70'
+                                        : 'text-rose-800 bg-rose-100/70'
                                   }`}>
-                                  {isOccupied ? 'Occupied' : isVacant ? 'Ready' : isDirty ? 'Dirty' : 'Blocked'}
+                                  {isReserved ? 'Reserved' : isOccupied ? 'Occupied' : isVacant ? 'Ready' : isDirty ? 'Dirty' : 'Blocked'}
                                 </span>
                               </div>
                             </div>
@@ -643,7 +730,34 @@ export default function DashboardView() {
 
                           {/* Middle Card Details */}
                           <div className="p-4 space-y-3 flex-1">
-                            {isOccupied ? (
+                            {isReserved ? (
+                              <div className="space-y-2">
+                                <div>
+                                  <p className="text-xs font-black text-violet-950 leading-snug truncate max-w-[175px]">
+                                    {room.guestName}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500 flex items-center space-x-1 mt-0.5">
+                                    <Calendar className="w-3 h-3 text-violet-500 shrink-0" />
+                                    <span>{room.stayDates || 'Booked Stay'}</span>
+                                  </p>
+                                  <p className="text-[10px] font-bold text-violet-700 mt-1 truncate">
+                                    Awaiting Check-In • {room.bookingSource}
+                                  </p>
+                                </div>
+
+                                <div className="pt-1 flex items-center justify-between text-xs">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase">Tariff:</span>
+                                  <span className="font-mono font-bold text-slate-800">₹{room.tariff.toLocaleString('en-IN')}/n</span>
+                                </div>
+
+                                <div className="flex items-center justify-between text-xs bg-violet-50/80 p-2 rounded-xl border border-violet-100">
+                                  <span className="text-[10px] font-bold text-violet-700 uppercase">Balance:</span>
+                                  <span className={`font-mono font-black text-[11px] ${room.balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                    {room.balanceDue > 0 ? `Due ₹${room.balanceDue.toLocaleString('en-IN')}` : 'Prepaid ✓'}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : isOccupied ? (
                               <div className="space-y-2">
                                 <div className="flex items-start justify-between">
                                   <div>
@@ -654,6 +768,12 @@ export default function DashboardView() {
                                       <Calendar className="w-3 h-3 text-slate-400" />
                                       <span>{room.stayDates || 'In-House'}</span>
                                     </p>
+                                    {room.actualCheckInTime && (
+                                      <p className="text-[10px] font-semibold text-emerald-700 flex items-center space-x-1 mt-1">
+                                        <Clock className="w-3 h-3 text-emerald-600 shrink-0" />
+                                        <span>In: {formatRoomTimestamp(room.actualCheckInTime)}</span>
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
 
@@ -674,7 +794,11 @@ export default function DashboardView() {
                               <div className="space-y-2 py-1">
                                 <div>
                                   <p className="text-xs font-bold text-emerald-800">Vacant & Inspected</p>
-                                  <p className="text-[11px] text-slate-500">Ready for check-in</p>
+                                  <p className="text-[11px] text-slate-500">
+                                    {room.upcomingReservation
+                                      ? `Upcoming: ${room.upcomingReservation.guest} (${room.upcomingReservation.check_in || room.upcomingReservation.checkIn})`
+                                      : 'Ready for check-in'}
+                                  </p>
                                 </div>
                                 <div className="bg-emerald-50/70 border border-emerald-100 p-2.5 rounded-xl">
                                   <span className="text-[10px] font-bold text-emerald-800 uppercase block">Daily Tariff</span>
@@ -714,14 +838,32 @@ export default function DashboardView() {
 
                           {/* Bottom Action Footer Button */}
                           <div className="p-3 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
-                            {isOccupied ? (
+                            {isReserved ? (
                               <div className="w-full flex space-x-1.5">
                                 <button
-                                  onClick={() => handleRoomAction(room, 'folio')}
+                                  onClick={() => handleRoomAction(room, 'checkin')}
+                                  className="flex-1 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-700 hover:to-indigo-800 text-white text-[11px] font-bold transition-all shadow-xs flex items-center justify-center space-x-1"
+                                >
+                                  <UserCheck className="w-3.5 h-3.5" />
+                                  <span>Check In</span>
+                                </button>
+                                <button
+                                  onClick={() => handleRoomAction(room, 'invoice')}
+                                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-bold transition-all flex items-center space-x-1"
+                                  title="Open Booking Invoice"
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  <span>Invoice</span>
+                                </button>
+                              </div>
+                            ) : isOccupied ? (
+                              <div className="w-full flex space-x-1.5">
+                                <button
+                                  onClick={() => handleRoomAction(room, 'invoice')}
                                   className="flex-1 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-indigo-50 hover:text-indigo-900 text-slate-700 text-[11px] font-bold transition-all shadow-xs flex items-center justify-center space-x-1"
                                 >
                                   <Receipt className="w-3 h-3 text-indigo-600" />
-                                  <span>Folio</span>
+                                  <span>Folio / Invoice</span>
                                 </button>
                                 <button
                                   onClick={() => handleRoomAction(room, 'checkout')}
@@ -815,6 +957,13 @@ export default function DashboardView() {
         isOpen={isFolioModalOpen}
         onClose={() => setIsFolioModalOpen(false)}
         room={modalRoom}
+        reservation={modalRes}
+        initialTab={folioInitialTab}
+      />
+
+      <CheckInModal
+        isOpen={isCheckInModalOpen}
+        onClose={() => setIsCheckInModalOpen(false)}
         reservation={modalRes}
       />
 

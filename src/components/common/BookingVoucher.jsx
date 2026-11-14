@@ -20,8 +20,9 @@ export function HotelVoucherLogo({ className = "w-16 h-16", logoUrl, hotelName }
 }
 
 /**
- * Complete, Un-clipped Booking Voucher & Tax Invoice matching Image 3
- * with all detailed amounts: Tariff, Discounts, Additional Charges, Taxes, Paid & Balance Due.
+ * Complete, Un-clipped Booking Invoice & Tax Invoice
+ * with detailed tariff, discounts, additional charges, taxes, paid, balance due,
+ * and exact captured Check-In / Check-Out timestamps.
  */
 export default function BookingVoucher({
   room,
@@ -30,7 +31,7 @@ export default function BookingVoucher({
   paymentEntries = [],
   discountPercent = 0,
   currentHotel = {},
-  voucherType = 'BOOKING VOUCHER',
+  voucherType = 'BOOKING INVOICE',
   voucherNo,
   voucherDate,
   onClose
@@ -40,18 +41,22 @@ export default function BookingVoucher({
     currentHotel?.currencySymbol || '₹'
   );
 
-  const roomNum = String(room?.room_number || room?.roomNumber || room?.number || '101');
-  const roomCategory = String(room?.category || room?.type || 'DELUXE ROOM').toUpperCase();
-  const guestName = reservation?.guest || reservation?.name || room?.guest || 'Valued Guest';
-  const phone = reservation?.phone || reservation?.guestPhone || '';
-  const email = reservation?.email || '';
-  const address = reservation?.address || currentHotel?.city || 'Bengaluru';
-  const organisation = reservation?.organisation || reservation?.company || 'Direct Guest';
-  const gstin = reservation?.gstin || reservation?.gst || '29AAACH7409R1ZZ';
+  const displayDocType = String(voucherType || 'BOOKING INVOICE').replace(/BOOKING VOUCHER/i, 'BOOKING INVOICE');
 
-  // Dates & Times
+  const roomNum = String(room?.room_number || room?.roomNumber || room?.number || reservation?.room_number || String(reservation?.room || '').replace(/\D/g, '') || '101');
+  const roomCategory = String(room?.category || room?.type || reservation?.room_type || 'DELUXE ROOM').toUpperCase();
+  const guestName = reservation?.guest || reservation?.name || room?.guest || 'Valued Guest';
+  const phone = reservation?.phone || reservation?.guestPhone || reservation?.guest_phone || '';
+  const email = reservation?.email || reservation?.guestEmail || reservation?.guest_email || '';
+  const address = reservation?.address || reservation?.idCity || currentHotel?.city || 'Bengaluru';
+  const organisation = reservation?.organisation || reservation?.company || 'Direct Guest';
+  const gstin = reservation?.gstin || reservation?.gst || 'Unregistered / Direct';
+
+  // Dates & Captured Check-In / Check-Out Timestamps
   const checkInRaw = reservation?.check_in || reservation?.checkIn || new Date().toISOString().split('T')[0];
   const checkOutRaw = reservation?.check_out || reservation?.checkOut || new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const actualCheckInRaw = reservation?.actualCheckInTime || reservation?.actual_check_in_time || '';
+  const actualCheckOutRaw = reservation?.actualCheckOutTime || reservation?.actual_check_out_time || '';
 
   // Calculate nights
   const calculateNights = (start, end) => {
@@ -84,20 +89,61 @@ export default function BookingVoucher({
   // Format date with time
   const formatDateTime = (dateInput, defaultTime = '12:00 PM') => {
     try {
-      const d = dateInput ? new Date(dateInput) : new Date();
+      const rawStr = dateInput ? String(dateInput).trim() : '';
+      const hasExplicitTime = rawStr.includes('T') || /\d{2}:\d{2}/.test(rawStr);
+      const normalized = rawStr.includes(' ') && !rawStr.includes('T') ? rawStr.replace(' ', 'T') : rawStr;
+      const d = normalized ? new Date(normalized) : new Date();
       if (isNaN(d.getTime())) return `${formatDateDDMMMYYYY(new Date())} ${defaultTime}`;
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const month = months[d.getMonth()];
       const day = String(d.getDate()).padStart(2, '0');
       const year = d.getFullYear();
-      return `${month} ${day}, ${year} ${defaultTime}`;
+      if (hasExplicitTime) {
+        const timeFormatted = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+        return `${month} ${day}, ${year} • ${timeFormatted}`;
+      }
+      return `${month} ${day}, ${year} (${defaultTime})`;
     } catch {
       return `${formatDateDDMMMYYYY(new Date())} ${defaultTime}`;
     }
   };
 
+  const formatCapturedTimestamp = (ts) => {
+    if (!ts) return '';
+    try {
+      const normalized = String(ts).trim().includes(' ') && !String(ts).includes('T')
+        ? String(ts).trim().replace(' ', 'T')
+        : String(ts).trim();
+      const d = new Date(normalized);
+      if (isNaN(d.getTime())) return String(ts);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      const timeStr = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+      return `${day}-${month}-${year}, ${timeStr}`;
+    } catch {
+      return String(ts);
+    }
+  };
+
+  const upperStatus = String(reservation?.status || 'CONFIRMED').toUpperCase();
+  const displayBookingStatus =
+    upperStatus === 'CHECKED_IN' || upperStatus === 'CHECKEDIN' || upperStatus === 'OCCUPIED'
+      ? 'Checked-In (Occupied)'
+      : upperStatus === 'CHECKED_OUT' || upperStatus === 'CHECKEDOUT'
+        ? 'Checked-Out (Completed)'
+        : upperStatus === 'CANCELLED'
+          ? 'Cancelled'
+          : 'Reserved (Confirmed — Awaiting Check-In)';
+
+  const actualCheckInDisplay = actualCheckInRaw ? formatCapturedTimestamp(actualCheckInRaw) : 'Pending Check-In';
+  const actualCheckOutDisplay = actualCheckOutRaw
+    ? formatCapturedTimestamp(actualCheckOutRaw)
+    : (upperStatus === 'CHECKED_IN' || upperStatus === 'OCCUPIED' ? 'In-House (Active Stay)' : 'Scheduled (Not Checked Out)');
+
   const displayDate = voucherDate || formatDateDDMMMYYYY(new Date());
-  const displayVoucherNo = voucherNo || reservation?.id || `VOUCH-${roomNum}`;
+  const displayVoucherNo = voucherNo || reservation?.id || `INV-${roomNum}`;
 
   // Hotel Info
   const hotelName = currentHotel?.name || 'Hotel Admin';
@@ -109,7 +155,10 @@ export default function BookingVoucher({
 
   // --- DETAILED FINANCIAL CALCULATIONS ---
   // 1. Room Tariff
-  const baseRatePerNight = Number(room?.tariff || room?.price || reservation?.price || 2500);
+  const derivedReservationRate = Number(reservation?.amount) > 0
+    ? Math.round((Number(reservation.amount) / Math.max(1, nights)) * 100) / 100
+    : 0;
+  const baseRatePerNight = Number(room?.tariff || room?.price || reservation?.price || derivedReservationRate || 2500);
   const extraChargePerNight = 0.00;
   const roomDiscountPerNight = discountPercent > 0 ? (baseRatePerNight * discountPercent) / 100 : 0.00;
   const taxableRoomRate = baseRatePerNight - roomDiscountPerNight;
@@ -141,6 +190,13 @@ export default function BookingVoucher({
 
   const grandTotal = Math.round(netTaxableAmount + totalTaxCombined);
 
+  // Print helper variables (ensure all referenced totals exist in print template)
+  const tariffRate = baseRatePerNight;
+  const subtotalCharges = combinedSubtotal;
+  const discountAmount = totalDiscountAmount;
+  const cgst = cgstAmount;
+  const sgst = sgstAmount;
+
   // 4. Advances & Payments Paid
   const fallbackPaid = Number(reservation?.paid || 0);
   const totalPaid = paymentEntries.length > 0
@@ -169,7 +225,7 @@ export default function BookingVoucher({
       <!DOCTYPE html>
       <html>
       <head>
-        <title>${voucherType} - ${displayVoucherNo}</title>
+        <title>${displayDocType} - ${displayVoucherNo}</title>
         <style>
           @page { size: A4; margin: 12mm; }
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; color: #1e293b; line-height: 1.45; font-size: 12px; }
@@ -210,9 +266,10 @@ export default function BookingVoucher({
             </div>
           </div>
           <div class="voucher-title">
-            <h2>${voucherType}</h2>
+            <h2>${displayDocType}</h2>
             <div class="meta-badge">${displayVoucherNo}</div>
-            <p style="margin:4px 0 0; color:#64748b; font-size:11px;">Date: ${displayDate}</p>
+            <p style="margin:4px 0 0; color:#64748b; font-size:11px;">Invoice Date: ${displayDate}</p>
+            <p style="margin:2px 0 0; color:#034a7f; font-size:10.5px; font-weight:700;">Status: ${displayBookingStatus}</p>
           </div>
         </div>
 
@@ -227,12 +284,13 @@ export default function BookingVoucher({
           </div>
 
           <div class="box">
-            <div class="box-title">Stay & Room Details</div>
+            <div class="box-title">Stay, Check-In & Check-Out Timings</div>
             <div class="row"><span class="label">Room Allocated:</span><span class="val">Room #${roomNum} (${roomCategory})</span></div>
-            <div class="row"><span class="label">Check-In Date:</span><span class="val">${formatDateDDMMMYYYY(checkInRaw)} (12:00 PM)</span></div>
-            <div class="row"><span class="label">Check-Out Date:</span><span class="val">${formatDateDDMMMYYYY(checkOutRaw)} (11:00 AM)</span></div>
-            <div class="row"><span class="label">Duration:</span><span class="val">${nights} Night(s)</span></div>
-            <div class="row"><span class="label">Rate Plan:</span><span class="val">${reservation?.rate_plan || 'EP - Room Only'}</span></div>
+            <div class="row"><span class="label">Scheduled Check-In:</span><span class="val">${formatDateDDMMMYYYY(checkInRaw)} (12:00 PM)</span></div>
+            <div class="row"><span class="label">Actual Check-In Time:</span><span class="val" style="color:${actualCheckInRaw ? '#047857' : '#d97706'};">${actualCheckInDisplay}</span></div>
+            <div class="row"><span class="label">Scheduled Check-Out:</span><span class="val">${formatDateDDMMMYYYY(checkOutRaw)} (11:00 AM)</span></div>
+            <div class="row"><span class="label">Actual Check-Out Time:</span><span class="val" style="color:${actualCheckOutRaw ? '#034a7f' : '#64748b'};">${actualCheckOutDisplay}</span></div>
+            <div class="row"><span class="label">Duration & Plan:</span><span class="val">${nights} Night(s) • ${reservation?.ratePlan || reservation?.rate_plan || 'EP - Room Only'}</span></div>
           </div>
         </div>
 
@@ -251,14 +309,25 @@ export default function BookingVoucher({
               <td><strong>Room #${roomNum} — ${roomCategory}</strong><br/><small style="color:#64748b;">Accommodation for ${nights} night(s) from ${formatDateDDMMMYYYY(checkInRaw)} to ${formatDateDDMMMYYYY(checkOutRaw)}</small></td>
               <td style="text-align:center;">${nights}</td>
               <td style="text-align:right;">${selectedCurrency} ${fmt(tariffRate)}</td>
-              <td style="text-align:right; font-weight:700;">${selectedCurrency} ${fmt(subtotalCharges)}</td>
+              <td style="text-align:right; font-weight:700;">${selectedCurrency} ${fmt(totalBaseTariffAllNights)}</td>
             </tr>
+            ${additionalItems.map((item) => {
+              const iRate = Number(item.rate || item.amount) || 0;
+              return `
+                <tr>
+                  <td><strong>${item.description || 'Additional Charge'}</strong><br/><small style="color:#64748b;">${item.category || 'Incidentals'}</small></td>
+                  <td style="text-align:center;">1</td>
+                  <td style="text-align:right;">${selectedCurrency} ${fmt(iRate)}</td>
+                  <td style="text-align:right; font-weight:700;">${selectedCurrency} ${fmt(iRate)}</td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
 
         <table class="totals-table">
           <tr>
-            <td style="color:#64748b;">Subtotal Tariff:</td>
+            <td style="color:#64748b;">Subtotal Tariff & Charges:</td>
             <td style="text-align:right; font-weight:600;">${selectedCurrency} ${fmt(subtotalCharges)}</td>
           </tr>
           ${discountAmount > 0 ? `
@@ -267,11 +336,11 @@ export default function BookingVoucher({
             <td style="text-align:right; font-weight:600; color:#d97706;">-${selectedCurrency} ${fmt(discountAmount)}</td>
           </tr>` : ''}
           <tr>
-            <td style="color:#64748b;">CGST (6%):</td>
+            <td style="color:#64748b;">CGST (Tax Split):</td>
             <td style="text-align:right;">${selectedCurrency} ${fmt(cgst)}</td>
           </tr>
           <tr>
-            <td style="color:#64748b;">SGST (6%):</td>
+            <td style="color:#64748b;">SGST (Tax Split):</td>
             <td style="text-align:right;">${selectedCurrency} ${fmt(sgst)}</td>
           </tr>
           <tr class="total-row">
@@ -330,7 +399,7 @@ export default function BookingVoucher({
             className="px-3.5 py-1.5 bg-[#034a7f] hover:bg-[#023861] text-white rounded-xl font-bold text-xs flex items-center space-x-1.5 transition shadow-xs cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Print {voucherType === 'BOOKING VOUCHER' ? 'Booking Voucher' : 'Tax Invoice'}</span>
+            <span>Print {displayDocType.toLowerCase().includes('tax') ? 'Tax Invoice' : 'Booking Invoice'}</span>
           </button>
         </div>
 
@@ -385,14 +454,14 @@ export default function BookingVoucher({
           </div>
         </div>
 
-        {/* Right: Booking Voucher Title & Metadata */}
+        {/* Right: Booking Invoice Title & Metadata */}
         <div className="text-right shrink-0">
           <h2 className="text-xl sm:text-2xl font-black text-[#034a7f] tracking-wide uppercase">
-            {voucherType}
+            {displayDocType}
           </h2>
           <div className="mt-1 space-y-0.5 text-xs text-slate-800">
             <p>
-              <span className="text-slate-500">Reservation No.:</span>{' '}
+              <span className="text-slate-500">Invoice / Reservation No.:</span>{' '}
               <strong className="font-mono font-black text-slate-900">{displayVoucherNo}</strong>
             </p>
             <p>
@@ -437,32 +506,44 @@ export default function BookingVoucher({
         {/* Right Box: Stay Information */}
         <div className="p-3 space-y-1">
           <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-            STAY INFORMATION
+            STAY & CHECK-IN / CHECK-OUT INFORMATION
           </h3>
           <p className="text-slate-700">
             <span className="text-slate-500">Booking Status:</span>{' '}
             <strong className="font-black text-slate-900">
-              {reservation?.status === 'CHECKED_IN' || reservation?.status === 'OCCUPIED'
-                ? 'Arrived'
-                : reservation?.status || 'Arrived'}
+              {displayBookingStatus}
             </strong>
           </p>
           <p className="text-slate-700">
             <span className="text-slate-500">Booked On:</span>{' '}
             <strong className="font-semibold text-slate-800">
-              {formatDateTime(reservation?.created_at || '2026-10-01', '04:31 PM')}
+              {(reservation?.created_at || reservation?.createdAt)
+                ? formatCapturedTimestamp(reservation?.created_at || reservation?.createdAt)
+                : formatDateDDMMMYYYY(checkInRaw)}
             </strong>
           </p>
           <p className="text-slate-700">
-            <span className="text-slate-500">Arrival Date:</span>{' '}
+            <span className="text-slate-500">Scheduled Arrival:</span>{' '}
             <strong className="font-semibold text-slate-800">
               {formatDateTime(checkInRaw, '12:00 PM')}
             </strong>
           </p>
           <p className="text-slate-700">
-            <span className="text-slate-500">Departure Date:</span>{' '}
+            <span className="text-slate-500">Actual Check-In Time:</span>{' '}
+            <strong className={`font-bold ${actualCheckInRaw ? 'text-emerald-700' : 'text-amber-600'}`}>
+              {actualCheckInDisplay}
+            </strong>
+          </p>
+          <p className="text-slate-700">
+            <span className="text-slate-500">Scheduled Departure:</span>{' '}
             <strong className="font-semibold text-slate-800">
               {formatDateTime(checkOutRaw, '11:00 AM')}
+            </strong>
+          </p>
+          <p className="text-slate-700">
+            <span className="text-slate-500">Actual Check-Out Time:</span>{' '}
+            <strong className={`font-bold ${actualCheckOutRaw ? 'text-[#034a7f]' : 'text-slate-600'}`}>
+              {actualCheckOutDisplay}
             </strong>
           </p>
           <p className="text-slate-700">
@@ -471,15 +552,9 @@ export default function BookingVoucher({
               {reservation?.source || 'Direct'}
             </strong>
           </p>
-          <p className="text-slate-700">
-            <span className="text-slate-500">Travel Agent:</span>{' '}
-            <strong className="font-semibold text-slate-800">
-              {reservation?.ota || reservation?.travelAgent || 'Almosafer'}
-            </strong>
-          </p>
           <div className="pt-1 flex items-center space-x-6">
             <p className="text-sm font-black text-slate-900">
-              Rooms: <span className="font-black">1</span>
+              Rooms: <span className="font-black">1 (#{roomNum})</span>
             </p>
             <p className="text-sm font-black text-slate-900">
               Nights: <span className="font-black">{nights}</span>
@@ -514,7 +589,7 @@ export default function BookingVoucher({
                   {roomCategory} x 1 Room
                 </p>
                 <p className="text-[10px] text-slate-500 mt-0.5">
-                  Plan: {reservation?.plan || 'MAP'}
+                  Plan: {reservation?.ratePlan || reservation?.rate_plan || reservation?.plan || 'EP - Room Only'}
                 </p>
                 <p className="text-[10px] text-slate-500">
                   Adult: {reservation?.adults || 1} | Child: {reservation?.children || 0}

@@ -311,6 +311,7 @@ serve(async (req: Request) => {
             remainingRooms: Math.max(0, assignedRooms - createdRooms),
             limitReached: assignedRooms > 0 && createdRooms >= assignedRooms,
             vacantRooms: rooms.filter((r: any) => r.status === "VACANT_READY" || !r.status).length,
+            reservedRooms: rooms.filter((r: any) => r.status === "RESERVED").length,
             occupiedRooms: rooms.filter((r: any) => r.status === "OCCUPIED").length,
             dirtyRooms: rooms.filter((r: any) => r.status === "DIRTY").length,
             totalBookings: reservations.length,
@@ -439,8 +440,8 @@ serve(async (req: Request) => {
           return rIn < endDate && rOut > startDate;
         });
 
-        const isOccupiedToday = st === "OCCUPIED" && startDate <= todayStr;
-        if (!isMaint && !overlapsDates && !isOccupiedToday) {
+        const isBusyToday = (st === "OCCUPIED" || st === "RESERVED") && startDate <= todayStr;
+        if (!isMaint && !overlapsDates && !isBusyToday) {
           entry.free += 1;
         }
       });

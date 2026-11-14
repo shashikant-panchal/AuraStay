@@ -24,7 +24,9 @@ import {
   DollarSign,
   Trash2,
   Receipt,
-  UserCheck
+  UserCheck,
+  LogOut,
+  Clock
 } from 'lucide-react';
 import FolioBillingModal from '../modals/FolioBillingModal';
 import CheckInModal from '../modals/CheckInModal';
@@ -36,6 +38,7 @@ export default function StayViewCalendar() {
     setIsCreateReservationModalOpen,
     deleteRoom,
     requestDeleteRoom,
+    checkOutReservation,
     rooms = [],
     reservations = []
   } = useDashboard();
@@ -181,7 +184,7 @@ export default function StayViewCalendar() {
           const endIdx = Math.min(numDays, Math.max(diffInDays + 1, diffOutDays));
           const span = Math.max(1, endIdx - startIdx);
 
-          let barColor = 'bg-[#0092d6] text-white';
+          let barColor = 'bg-violet-600 text-white';
           if (res.status === 'CHECKED_IN' || res.status === 'CHECKEDIN') {
             barColor = 'bg-emerald-600 text-white';
           } else if (res.status === 'CHECKED_OUT' || res.status === 'CHECKEDOUT') {
@@ -191,10 +194,11 @@ export default function StayViewCalendar() {
           roomBookings.push({
             id: res.id,
             guest: res.guest || 'Guest',
-            shortLabel: `${(res.status === 'CHECKED_OUT' || res.status === 'CHECKEDOUT') ? '✓ Out: ' : ''}${res.guest || 'Guest'}`,
+            shortLabel: `${(res.status === 'CHECKED_OUT' || res.status === 'CHECKEDOUT') ? '✓ Out: ' : (res.status === 'CHECKED_IN' || res.status === 'CHECKEDIN') ? 'In: ' : 'Res: '}${res.guest || 'Guest'}`,
             startIdx,
             span,
             amount: `₹ ${Number(res.amount || res.price || 0).toLocaleString('en-IN')}`,
+            rawAmount: Number(res.amount || res.price || 0),
             paid: Number(res.paid || res.advance_paid || 0),
             payment: res.payment || 'PENDING',
             status: res.status || 'CONFIRMED',
@@ -202,9 +206,11 @@ export default function StayViewCalendar() {
             roomNumber: rNum,
             checkIn: checkInStr,
             checkOut: checkOutStr,
+            actualCheckInTime: res.actualCheckInTime || res.actual_check_in_time || null,
+            actualCheckOutTime: res.actualCheckOutTime || res.actual_check_out_time || null,
             phone: res.guest_phone || res.phone || 'N/A',
             email: res.guest_email || res.email || 'N/A',
-            ratePlan: res.rate_plan || 'EP - Room Only',
+            ratePlan: res.rate_plan || res.ratePlan || 'EP - Room Only',
             color: barColor
           });
 
@@ -218,11 +224,16 @@ export default function StayViewCalendar() {
 
       const todayIdx = timelineDays.findIndex(td => td.isToday);
       const isOccupiedToday = roomBookings.some(b => b.startIdx <= todayIdx && (b.startIdx + b.span) > todayIdx && (b.status === 'CHECKED_IN' || b.status === 'CHECKEDIN'));
+      const isReservedToday = roomBookings.some(b => b.startIdx <= todayIdx && (b.startIdx + b.span) > todayIdx && ['CONFIRMED', 'PENDING', 'RESERVED'].includes(b.status));
 
       grouped[type].rooms.push({
         id: rNum,
         name: rNum,
-        statusColor: isOccupiedToday || r.status === 'OCCUPIED' ? 'bg-amber-500' : 'bg-emerald-500',
+        statusColor: (isOccupiedToday || r.status === 'OCCUPIED')
+          ? 'bg-amber-500'
+          : (isReservedToday || r.status === 'RESERVED')
+            ? 'bg-violet-500'
+            : 'bg-emerald-500',
         bookings: roomBookings
       });
     });
@@ -743,6 +754,28 @@ export default function StayViewCalendar() {
                 <span className="font-semibold text-slate-800">{selectedBooking.checkIn} → {selectedBooking.checkOut} ({selectedBooking.span} Nights)</span>
               </div>
               <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium flex items-center space-x-1">
+                  <Clock className="w-3 h-3 text-slate-400" />
+                  <span>Actual Check-In:</span>
+                </span>
+                <span className={`font-semibold ${selectedBooking.actualCheckInTime ? 'text-emerald-700' : 'text-amber-600'}`}>
+                  {selectedBooking.actualCheckInTime
+                    ? new Date(selectedBooking.actualCheckInTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+                    : 'Pending Check-In'}
+                </span>
+              </div>
+              {selectedBooking.actualCheckOutTime && (
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-medium flex items-center space-x-1">
+                    <Clock className="w-3 h-3 text-slate-400" />
+                    <span>Actual Check-Out:</span>
+                  </span>
+                  <span className="font-semibold text-slate-800">
+                    {new Date(selectedBooking.actualCheckOutTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center">
                 <span className="text-slate-500 font-medium">Guest Mobile:</span>
                 <span className="font-mono font-bold text-slate-700">{selectedBooking.phone || 'Direct'}</span>
               </div>
@@ -768,14 +801,24 @@ export default function StayViewCalendar() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 font-medium">Stay Status:</span>
-                <span className="bg-sky-100 text-sky-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
-                  {selectedBooking.status}
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                  selectedBooking.status === 'CHECKED_IN' || selectedBooking.status === 'CHECKEDIN'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : selectedBooking.status === 'CHECKED_OUT' || selectedBooking.status === 'CHECKEDOUT'
+                      ? 'bg-slate-200 text-slate-700'
+                      : 'bg-violet-100 text-violet-800'
+                }`}>
+                  {selectedBooking.status === 'CHECKED_IN' || selectedBooking.status === 'CHECKEDIN'
+                    ? 'OCCUPIED (CHECKED IN)'
+                    : selectedBooking.status === 'CHECKED_OUT' || selectedBooking.status === 'CHECKEDOUT'
+                      ? 'CHECKED OUT'
+                      : 'RESERVED (NOT CHECKED IN)'}
                 </span>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2 pt-1">
-              {selectedBooking.status !== 'CHECKED_IN' && selectedBooking.status !== 'CHECKEDOUT' && selectedBooking.status !== 'CHECKED_OUT' && (
+              {selectedBooking.status !== 'CHECKED_IN' && selectedBooking.status !== 'CHECKEDIN' && selectedBooking.status !== 'CHECKEDOUT' && selectedBooking.status !== 'CHECKED_OUT' && (
                 <button
                   onClick={() => {
                     const matched = (reservations || []).find(r => r.id === selectedBooking.id);
@@ -786,6 +829,21 @@ export default function StayViewCalendar() {
                 >
                   <UserCheck className="w-3.5 h-3.5" />
                   <span>Check In</span>
+                </button>
+              )}
+
+              {(selectedBooking.status === 'CHECKED_IN' || selectedBooking.status === 'CHECKEDIN') && (
+                <button
+                  onClick={() => {
+                    if (checkOutReservation) {
+                      checkOutReservation(selectedBooking.id);
+                    }
+                    setSelectedBooking(null);
+                  }}
+                  className="flex-1 min-w-[120px] py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Check Out</span>
                 </button>
               )}
 
@@ -842,9 +900,14 @@ export default function StayViewCalendar() {
             id: folioActiveBooking.id,
             guest: folioActiveBooking.guest,
             phone: folioActiveBooking.phone,
+            email: folioActiveBooking.email,
+            room_number: folioActiveBooking.roomNumber,
+            status: folioActiveBooking.status,
             check_in: folioActiveBooking.checkIn,
             check_out: folioActiveBooking.checkOut,
-            price: Number(String(folioActiveBooking.amount || '').replace(/[^\d.]/g, '')) || 2500,
+            actual_check_in_time: folioActiveBooking.actualCheckInTime,
+            actual_check_out_time: folioActiveBooking.actualCheckOutTime,
+            price: Number(folioActiveBooking.rawAmount ?? String(folioActiveBooking.amount || '').replace(/[^\d.]/g, '')) || 2500,
             paid: Number(folioActiveBooking.paid || 0),
             payment: folioActiveBooking.payment,
             rate_plan: folioActiveBooking.ratePlan

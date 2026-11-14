@@ -3,7 +3,7 @@ import { X, CreditCard, CheckCircle2, DollarSign, Receipt, ArrowRight, ShieldChe
 import { useDashboard } from '../../context/DashboardContext';
 
 export default function QuickBalanceModal({ isOpen, onClose, room, reservation, onOpenFullFolio }) {
-  const { showNotification, updateReservation } = useDashboard();
+  const { showNotification, updateReservationPayment } = useDashboard();
 
   const [paymentMode, setPaymentMode] = useState('UPI');
   const [payAmount, setPayAmount] = useState('');
@@ -29,11 +29,13 @@ export default function QuickBalanceModal({ isOpen, onClose, room, reservation, 
     setIsSubmitting(true);
     try {
       const newPaid = advancePaid + amountToPay;
+      const newDue = Math.max(0, totalAmount - newPaid);
       const resId = reservation?.id || room.booking_id;
-      if (resId && updateReservation) {
-        await updateReservation(resId, {
+      if (resId && updateReservationPayment) {
+        await updateReservationPayment(resId, {
           paid: newPaid,
-          status: newPaid >= totalAmount ? 'CONFIRMED' : reservation?.status
+          due: newDue,
+          paymentStatus: newDue <= 0 ? 'PAID' : 'PARTIAL'
         });
       }
       showNotification(`Payment of ₹${amountToPay.toLocaleString('en-IN')} received via ${paymentMode} for Room #${roomNum}.`, 'success');

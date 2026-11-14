@@ -49,6 +49,8 @@ export default function ReservationManagementView({ isSubTab = false }) {
     setReservations,
     addReservation,
     updateReservationPayment,
+    checkOutReservation,
+    currentHotel,
     rooms = []
   } = useDashboard();
 
@@ -57,33 +59,75 @@ export default function ReservationManagementView({ isSubTab = false }) {
   const [isFolioModalOpen, setIsFolioModalOpen] = useState(false);
   const [folioActiveRsvn, setFolioActiveRsvn] = useState(null);
 
+  const fmtTimeOnly = (ts) => {
+    if (!ts) return '';
+    try {
+      const normalized = String(ts).includes(' ') && !String(ts).includes('T') ? String(ts).replace(' ', 'T') : String(ts);
+      const d = new Date(normalized);
+      if (Number.isNaN(d.getTime())) return String(ts);
+      return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch {
+      return String(ts);
+    }
+  };
+
+  const fmtDateTimeShort = (ts) => {
+    if (!ts) return '';
+    try {
+      const normalized = String(ts).includes(' ') && !String(ts).includes('T') ? String(ts).replace(' ', 'T') : String(ts);
+      const d = new Date(normalized);
+      if (Number.isNaN(d.getTime())) return String(ts);
+      return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch {
+      return String(ts);
+    }
+  };
+
   const reservations = (contextReservations || []).map(r => {
     const totalAmount = Number(r.amount) || 2000;
     const isPaid = r.payment === 'PAID';
     const paidVal = r.paid !== undefined ? Number(r.paid) : (isPaid ? totalAmount : 0);
     const dueVal = r.due !== undefined ? Number(r.due) : Math.max(0, totalAmount - paidVal);
+    const cIn = r.checkIn || r.check_in || 'Today';
+    const cOut = r.checkOut || r.check_out || 'Tomorrow';
+    const roomNum = r.room_number || (String(r.room || '').match(/\b(\d+)\b/)?.[1] || '101');
+    const createdIso = r.createdAt || r.created_at || '';
 
     return {
+      ...r,
       id: r.id,
       hash: r.hash || `AST-B-${r.id || Date.now()}`,
       guest: r.guest,
-      guestType: r.source || 'WALKIN',
-      phone: r.guestPhone || r.phone || '—',
-      createdAt: r.checkIn || 'Today',
-      createdTime: '10:00 AM',
-      stayPeriod: `${r.checkIn || 'Today'} — ${r.checkOut || 'Tomorrow'}`,
-      checkInOut: `${r.checkIn || 'Today'} — ${r.checkOut || 'Tomorrow'}`,
-      roomType: r.room || 'Standard Room',
-      ratePlan: 'EP PLAN',
-      rooms: [r.room || '101'],
-      status: r.status || 'CONFIRMED',
+      guestType: r.source || 'Direct',
+      source: r.source || 'Direct',
+      phone: r.guestPhone || r.guest_phone || r.phone || '—',
+      guestPhone: r.guestPhone || r.guest_phone || r.phone || '',
+      email: r.guestEmail || r.guest_email || r.email || '',
+      checkIn: cIn,
+      check_in: cIn,
+      checkOut: cOut,
+      check_out: cOut,
+      actualCheckInTime: r.actualCheckInTime || r.actual_check_in_time || '',
+      actual_check_in_time: r.actualCheckInTime || r.actual_check_in_time || '',
+      actualCheckOutTime: r.actualCheckOutTime || r.actual_check_out_time || '',
+      actual_check_out_time: r.actualCheckOutTime || r.actual_check_out_time || '',
+      createdAt: createdIso ? String(createdIso).slice(0, 10) : cIn,
+      createdTime: createdIso ? fmtTimeOnly(createdIso) : 'Direct Booking',
+      stayPeriod: `${cIn} — ${cOut}`,
+      checkInOut: `${cIn} → ${cOut}`,
+      roomType: r.room_type || r.room || 'Standard Room',
+      ratePlan: r.ratePlan || r.rate_plan || 'EP PLAN',
+      room_number: roomNum,
+      rooms: [r.room || roomNum],
+      status: String(r.status || 'CONFIRMED').toUpperCase(),
       payment: isPaid ? 'PAID' : (paidVal > 0 ? 'PARTIAL' : 'PENDING'),
+      amount: totalAmount,
       total: totalAmount,
       paid: paidVal,
       due: dueVal,
-      note: null,
+      note: r.notes || r.note || null,
       highlight: false,
-      invoiceNumber: null
+      invoiceNumber: r.id ? `INV-${r.id}` : null
     };
   });
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -151,18 +195,19 @@ export default function ReservationManagementView({ isSubTab = false }) {
     return reservations.filter(r => {
       // Filter tab
       const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-      const todayIso = new Date().toISOString().split('T')[0];
+      const nowD = new Date();
+      const todayIso = new Date(nowD.getTime() - nowD.getTimezoneOffset() * 60000).toISOString().split('T')[0];
       if (filterCategory === "Today's Arrival") {
         const matches = (r.checkIn && r.checkIn === todayIso) || (r.stayPeriod && r.stayPeriod.includes(todayStr));
         if (!matches) return false;
       }
-      if (filterCategory === "In House" && r.status !== 'CHECKED_IN' && r.status !== 'CHECKEDIN') return false;
+      if (filterCategory === "In House" && !['CHECKED_IN', 'CHECKEDIN', 'OCCUPIED'].includes(r.status)) return false;
       if (filterCategory === "Today's Departure") {
         const matches = (r.checkOut && r.checkOut === todayIso) || (r.stayPeriod && r.stayPeriod.includes(todayStr));
         if (!matches) return false;
       }
       if (filterCategory === "Future") {
-        const isFuture = (r.checkIn && r.checkIn > todayIso) || r.status === 'CONFIRMED';
+        const isFuture = (r.checkIn && r.checkIn > todayIso) || ['CONFIRMED', 'PENDING', 'RESERVED'].includes(r.status);
         if (!isFuture) return false;
       }
       if (filterCategory === "Maintenance") return false;
@@ -556,9 +601,25 @@ export default function ReservationManagementView({ isSubTab = false }) {
                       <span className="font-semibold text-slate-700">{res.stayPeriod}</span>
                     </td>
 
-                    {/* 5. CHECK-IN/OUT */}
+                    {/* 5. CHECK-IN/OUT TIMINGS */}
                     <td className="py-3.5 px-4 align-top whitespace-nowrap text-[11px] text-slate-600">
-                      <div className="font-medium">{res.checkInOut}</div>
+                      <div className="space-y-0.5">
+                        <div className="font-semibold text-slate-800">{res.checkInOut}</div>
+                        {res.actualCheckInTime ? (
+                          <div className="text-[10px] font-bold text-emerald-700">
+                            In: {fmtDateTimeShort(res.actualCheckInTime)}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] font-medium text-violet-600">
+                            In: Pending Check-In
+                          </div>
+                        )}
+                        {res.actualCheckOutTime && (
+                          <div className="text-[10px] font-bold text-sky-700">
+                            Out: {fmtDateTimeShort(res.actualCheckOutTime)}
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     {/* 6. DETAILS */}
@@ -585,16 +646,16 @@ export default function ReservationManagementView({ isSubTab = false }) {
                     {/* 7. STATUS */}
                     <td className="py-3.5 px-4 align-top whitespace-nowrap">
                       <div>
-                        {res.status === 'CHECKEDIN' && (
-                          <span className="inline-flex items-center space-x-1 bg-emerald-100 text-emerald-800 font-black px-2.5 py-0.5 rounded-full text-[10px] tracking-wide">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                            <span>CHECKEDIN</span>
+                        {(res.status === 'CHECKED_IN' || res.status === 'CHECKEDIN' || res.status === 'OCCUPIED') && (
+                          <span className="inline-flex items-center space-x-1 bg-indigo-100 text-indigo-800 font-black px-2.5 py-0.5 rounded-full text-[10px] tracking-wide">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                            <span>OCCUPIED</span>
                           </span>
                         )}
-                        {res.status === 'CONFIRMED' && (
-                          <span className="inline-flex items-center space-x-1 bg-sky-100 text-sky-800 font-black px-2.5 py-0.5 rounded-full text-[10px] tracking-wide">
-                            <span className="w-1.5 h-1.5 rounded-full bg-sky-600" />
-                            <span>CONFIRMED</span>
+                        {(res.status === 'CONFIRMED' || res.status === 'PENDING' || res.status === 'RESERVED') && (
+                          <span className="inline-flex items-center space-x-1 bg-violet-100 text-violet-800 font-black px-2.5 py-0.5 rounded-full text-[10px] tracking-wide">
+                            <span className="w-1.5 h-1.5 rounded-full bg-violet-600" />
+                            <span>RESERVED</span>
                           </span>
                         )}
                         {res.status === 'CHECKOUT DUE' && (
@@ -603,14 +664,20 @@ export default function ReservationManagementView({ isSubTab = false }) {
                             <span>CHECKOUT DUE</span>
                           </span>
                         )}
-                        {res.status === 'CHECKEDOUT' && (
+                        {(res.status === 'CHECKED_OUT' || res.status === 'CHECKEDOUT') && (
                           <span className="inline-flex items-center space-x-1 bg-slate-200 text-slate-700 font-black px-2.5 py-0.5 rounded-full text-[10px] tracking-wide">
                             <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                            <span>CHECKEDOUT</span>
+                            <span>CHECKED OUT</span>
+                          </span>
+                        )}
+                        {res.status === 'CANCELLED' && (
+                          <span className="inline-flex items-center space-x-1 bg-rose-100 text-rose-700 font-black px-2.5 py-0.5 rounded-full text-[10px] tracking-wide">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                            <span>CANCELLED</span>
                           </span>
                         )}
 
-                        {/* Invoice Link for AST-B-001 */}
+                        {/* Booking Invoice link */}
                         {res.invoiceNumber && (
                           <div
                             onClick={() => setInvoiceModalData(res)}
@@ -647,30 +714,40 @@ export default function ReservationManagementView({ isSubTab = false }) {
                       )}
                     </td>
 
-                    {/* 10. FRONT DESK ACTIONS (Check-In & Payment Collection) */}
+                    {/* 10. FRONT DESK ACTIONS (Check-In, Check-Out, Folio & Booking Invoice) */}
                     <td className="py-3.5 px-4 align-top whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        {(res.status === 'CONFIRMED' || res.status === 'PENDING') && (
+                        {(['CONFIRMED', 'PENDING', 'RESERVED'].includes(res.status)) && (
                           <button
                             onClick={() => setCheckInModalRes(res)}
-                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10.5px] font-bold flex items-center space-x-1 transition shadow-xs cursor-pointer"
-                            title="Check In Guest with Room & Time"
+                            className="px-2.5 py-1 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-[10.5px] font-bold flex items-center space-x-1 transition shadow-xs cursor-pointer"
+                            title="Check In Guest with Room & Time (Marks Room Occupied)"
                           >
                             <UserCheck className="w-3 h-3" />
                             <span>Check In</span>
                           </button>
                         )}
-                        {(res.status === 'CHECKEDIN' || res.status === 'CHECKED_IN') && (
-                          <button
-                            onClick={() => {
-                              setFolioActiveRsvn(res);
-                              setIsFolioModalOpen(true);
-                            }}
-                            className="px-2.5 py-1 bg-sky-700 hover:bg-sky-800 text-white rounded-lg text-[10.5px] font-bold flex items-center space-x-1 transition shadow-xs cursor-pointer"
-                            title="Open Room Folio & Billing"
-                          >
-                            <span>Folio</span>
-                          </button>
+                        {(['CHECKEDIN', 'CHECKED_IN', 'OCCUPIED'].includes(res.status)) && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setFolioActiveRsvn(res);
+                                setIsFolioModalOpen(true);
+                              }}
+                              className="px-2.5 py-1 bg-sky-700 hover:bg-sky-800 text-white rounded-lg text-[10.5px] font-bold flex items-center space-x-1 transition shadow-xs cursor-pointer"
+                              title="Open Room Folio & Billing"
+                            >
+                              <span>Folio</span>
+                            </button>
+                            <button
+                              onClick={() => checkOutReservation && checkOutReservation(res.id)}
+                              className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10.5px] font-bold flex items-center space-x-1 transition shadow-xs cursor-pointer"
+                              title="Check Out Guest & Capture Departure Time"
+                            >
+                              <LogOut className="w-3 h-3" />
+                              <span>Check Out</span>
+                            </button>
+                          </>
                         )}
 
                         <button
@@ -685,10 +762,10 @@ export default function ReservationManagementView({ isSubTab = false }) {
                         <button
                           onClick={() => setInvoiceModalData(res)}
                           className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10.5px] font-bold flex items-center space-x-1 transition border border-slate-300 cursor-pointer"
-                          title="View & Print Official Voucher / Invoice"
+                          title="View & Print Official Booking Invoice"
                         >
                           <Printer className="w-3 h-3 text-slate-600" />
-                          <span>Voucher</span>
+                          <span>Booking Invoice</span>
                         </button>
                       </div>
                     </td>
@@ -835,15 +912,16 @@ export default function ReservationManagementView({ isSubTab = false }) {
         </div>
       )}
 
-      {/* OFFICIAL AAVASA BOOKING VOUCHER & TAX INVOICE MODAL */}
+      {/* OFFICIAL BOOKING INVOICE MODAL */}
       {invoiceModalData && (
         <BookingVoucher
+          currentHotel={currentHotel}
           reservation={invoiceModalData}
           room={{
-            room_number: (invoiceModalData.rooms && invoiceModalData.rooms[0]) || invoiceModalData.room || invoiceModalData.room_number || '101',
+            room_number: invoiceModalData.room_number || (invoiceModalData.rooms && invoiceModalData.rooms[0]) || invoiceModalData.room || '101',
             category: invoiceModalData.roomType || invoiceModalData.room_type || 'Standard Room'
           }}
-          voucherType="TAX INVOICE & BOOKING VOUCHER"
+          voucherType="BOOKING INVOICE"
           onClose={() => setInvoiceModalData(null)}
         />
       )}
@@ -856,16 +934,21 @@ export default function ReservationManagementView({ isSubTab = false }) {
             setIsFolioModalOpen(false);
             setFolioActiveRsvn(null);
           }}
-          room={rooms.find(r => (folioActiveRsvn.rooms && folioActiveRsvn.rooms.includes(r.roomNumber)) || String(r.roomNumber) === String(folioActiveRsvn.rooms?.[0])) || {
-            room_number: folioActiveRsvn.rooms?.[0] || '101',
+          room={rooms.find(r => String(r.roomNumber || r.room_number) === String(folioActiveRsvn.room_number) || (folioActiveRsvn.rooms && folioActiveRsvn.rooms.includes(r.roomNumber))) || {
+            room_number: folioActiveRsvn.room_number || folioActiveRsvn.rooms?.[0] || '101',
             price: Number(folioActiveRsvn.total) || 2500,
             guest: folioActiveRsvn.guest
           }}
           reservation={{
+            ...folioActiveRsvn,
+            id: folioActiveRsvn.id,
             guest: folioActiveRsvn.guest,
             phone: folioActiveRsvn.phone,
+            email: folioActiveRsvn.email,
             check_in: folioActiveRsvn.checkIn || 'Today',
             check_out: folioActiveRsvn.checkOut || 'Upcoming',
+            actualCheckInTime: folioActiveRsvn.actualCheckInTime,
+            actualCheckOutTime: folioActiveRsvn.actualCheckOutTime,
             price: Number(folioActiveRsvn.total) || 2500,
             paid: Number(folioActiveRsvn.paid) || 0,
             payment: folioActiveRsvn.due <= 0 ? 'PAID' : 'PENDING',

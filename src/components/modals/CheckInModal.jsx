@@ -19,31 +19,33 @@ import {
 export default function CheckInModal({ isOpen, onClose, reservation }) {
   const { rooms = [], checkInReservation, showNotification } = useDashboard();
 
-  if (!isOpen || !reservation) return null;
+  const getLocalTodayStr = () => {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  };
+  const getCurrentTimeStr = () => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
 
-  // Defaults
-  const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
-  const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  const checkOutDefault = String(reservation.check_out || reservation.checkOut || todayStr).slice(0, 10);
+  const todayStr = getLocalTodayStr();
+  const rawRoom = String(reservation?.room_number || reservation?.room || '').replace(/\D/g, '');
+  const checkOutDefault = String(reservation?.check_out || reservation?.checkOut || todayStr).slice(0, 10);
 
-  // Initial room selection
-  const rawRoom = String(reservation.room_number || reservation.room || '').replace(/\D/g, '');
-  
   const [assignedRoom, setAssignedRoom] = useState(rawRoom || (rooms[0]?.roomNumber || '101'));
   const [checkInDate, setCheckInDate] = useState(todayStr);
-  const [checkInTime, setCheckInTime] = useState(currentTimeStr);
+  const [checkInTime, setCheckInTime] = useState(getCurrentTimeStr());
   const [checkOutDate, setCheckOutDate] = useState(checkOutDefault);
   const [checkOutTime, setCheckOutTime] = useState('11:00');
 
   // KYC
-  const [idType, setIdType] = useState('Aadhaar Card');
-  const [idNumber, setIdNumber] = useState('');
-  const [idCity, setIdCity] = useState(reservation.city || 'Bengaluru');
+  const [idType, setIdType] = useState(reservation?.idType || reservation?.guest_id_type || 'Aadhaar Card');
+  const [idNumber, setIdNumber] = useState(reservation?.idNumber || reservation?.guest_id_number || '');
+  const [idCity, setIdCity] = useState(reservation?.idCity || reservation?.city || 'Bengaluru');
 
   // Payment
-  const totalTariff = Number(reservation.amount || reservation.price || 0);
-  const alreadyPaid = Number(reservation.paid || 0);
+  const totalTariff = Number(reservation?.amount || reservation?.price || 0);
+  const alreadyPaid = Number(reservation?.paid || 0);
   const remainingDue = Math.max(0, totalTariff - alreadyPaid);
 
   const [collectNow, setCollectNow] = useState(remainingDue > 0);
@@ -52,8 +54,33 @@ export default function CheckInModal({ isOpen, onClose, reservation }) {
   const [paymentRef, setPaymentRef] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Available rooms for this room type or any vacant rooms
-  const vacantRooms = rooms.filter(r => r.status !== 'OCCUPIED' && r.status !== 'OUT_OF_ORDER');
+  React.useEffect(() => {
+    if (!isOpen || !reservation) return;
+    const tToday = getLocalTodayStr();
+    const rRoom = String(reservation.room_number || reservation.room || '').replace(/\D/g, '');
+    const tTotal = Number(reservation.amount || reservation.price || 0);
+    const tPaid = Number(reservation.paid || 0);
+    const tDue = Math.max(0, tTotal - tPaid);
+
+    setAssignedRoom(rRoom || (rooms[0]?.roomNumber || '101'));
+    setCheckInDate(tToday);
+    setCheckInTime(getCurrentTimeStr());
+    setCheckOutDate(String(reservation.check_out || reservation.checkOut || tToday).slice(0, 10));
+    setCheckOutTime('11:00');
+    setIdType(reservation.idType || reservation.guest_id_type || 'Aadhaar Card');
+    setIdNumber(reservation.idNumber || reservation.guest_id_number || '');
+    setIdCity(reservation.idCity || reservation.city || 'Bengaluru');
+    setCollectNow(tDue > 0);
+    setPaymentAmount(tDue > 0 ? String(tDue) : '0');
+    setPaymentRef('');
+  }, [isOpen, reservation?.id]);
+
+  if (!isOpen || !reservation) return null;
+
+  // Available rooms for check-in (exclude OCCUPIED/BLOCKED, allow RESERVED room assigned to this booking)
+  const vacantRooms = rooms.filter(
+    r => !['OCCUPIED', 'OUT_OF_ORDER', 'MAINTENANCE', 'BLOCKED'].includes(String(r.status || '').toUpperCase())
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -64,7 +91,10 @@ export default function CheckInModal({ isOpen, onClose, reservation }) {
 
     setIsSubmitting(true);
     try {
-      const fullCheckInTimestamp = `${checkInDate} ${checkInTime}:00`;
+      const parsedCheckIn = new Date(`${checkInDate}T${checkInTime}:00`);
+      const fullCheckInTimestamp = Number.isNaN(parsedCheckIn.getTime())
+        ? new Date().toISOString()
+        : parsedCheckIn.toISOString();
       const fullCheckOutTimestamp = `${checkOutDate} ${checkOutTime}:00`;
 
       await checkInReservation(reservation.id, {
@@ -153,10 +183,11 @@ export default function CheckInModal({ isOpen, onClose, reservation }) {
               <option value="">-- Choose Physical Room Number --</option>
               {rooms.map(r => {
                 const num = r.roomNumber || r.room_number || r.number;
-                const isOcc = r.status === 'OCCUPIED' && String(num) !== String(rawRoom);
+                const st = String(r.status || 'VACANT_READY').toUpperCase();
+                const isOcc = (st === 'OCCUPIED' || st === 'RESERVED') && String(num) !== String(rawRoom);
                 return (
                   <option key={num} value={num} disabled={isOcc}>
-                    Room {num} ({r.type || 'Standard'}) — {r.status} {isOcc ? '(Already Occupied)' : '✓'}
+                    Room {num} ({r.type || 'Standard'}) — {r.status} {isOcc ? `(${st === 'RESERVED' ? 'Reserved' : 'Already Occupied'})` : '✓'}
                   </option>
                 );
               })}

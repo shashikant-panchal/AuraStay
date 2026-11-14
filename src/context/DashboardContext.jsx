@@ -308,7 +308,10 @@ export function DashboardProvider({ children }) {
           housekeeping: r.housekeeping || (r.status === 'DIRTY' ? 'Dirty' : 'Clean'),
           keyCardNo: r.key_card_no,
           isSmoking: !!r.is_smoking,
-          phoneExtension: r.phone_extension
+          phoneExtension: r.phone_extension,
+          isOtaLocked: !!r.is_ota_locked,
+          is_ota_locked: !!r.is_ota_locked,
+          otaChannel: r.ota_channel || ''
         })));
         tablesFound = true;
       }
@@ -330,6 +333,15 @@ export function DashboardProvider({ children }) {
           check_in: r.check_in,
           checkOut: r.check_out,
           check_out: r.check_out,
+          actualCheckInTime: r.actual_check_in_time || '',
+          actual_check_in_time: r.actual_check_in_time || '',
+          actualCheckOutTime: r.actual_check_out_time || '',
+          actual_check_out_time: r.actual_check_out_time || '',
+          expectedCheckOutTime: r.expected_check_out_time || '',
+          expected_check_out_time: r.expected_check_out_time || '',
+          idType: r.guest_id_type || '',
+          idNumber: r.guest_id_number || '',
+          idCity: r.guest_id_city || '',
           source: r.source || 'Direct',
           amount: Number(r.amount) || 0,
           paid: Number(r.paid) || (r.payment === 'PAID' ? Number(r.amount) || 0 : 0),
@@ -1515,39 +1527,48 @@ export function DashboardProvider({ children }) {
       paymentRef = ''
     } = checkInData;
 
+    const normalizeIsoTimestamp = (val) => {
+      if (!val) return new Date().toISOString();
+      const raw = String(val).trim();
+      const normalized = raw.includes(' ') && !raw.includes('T') ? raw.replace(' ', 'T') : raw;
+      const parsed = new Date(normalized);
+      return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+    };
+
+    const checkInIso = normalizeIsoTimestamp(actualCheckInTime);
+    const currentRes = reservations.find(r => r.id === reservationId);
     let updatedRes = null;
 
-    setReservations(prev => prev.map(r => {
-      if (r.id === reservationId) {
-        const totalAmount = Number(r.amount || r.price || 0);
-        const existingPaid = Number(r.paid || 0);
-        const newPaid = existingPaid + Number(collectedAmount);
-        const newDue = Math.max(0, totalAmount - newPaid);
-        const newPaymentStatus = newDue <= 0 ? 'PAID' : (newPaid > 0 ? 'PARTIAL' : 'PENDING');
+    if (currentRes) {
+      const totalAmount = Number(currentRes.amount || currentRes.price || 0);
+      const existingPaid = Number(currentRes.paid || 0);
+      const newPaid = existingPaid + Number(collectedAmount);
+      const newDue = Math.max(0, totalAmount - newPaid);
+      const newPaymentStatus = newDue <= 0 ? 'PAID' : (newPaid > 0 ? 'PARTIAL' : 'PENDING');
 
-        updatedRes = {
-          ...r,
-          status: 'CHECKED_IN',
-          room: roomNumber ? `Room ${roomNumber}` : r.room,
-          room_number: roomNumber || r.room_number,
-          actualCheckInTime: actualCheckInTime || new Date().toISOString(),
-          actual_check_in_time: actualCheckInTime || new Date().toISOString(),
-          expectedCheckOutTime: expectedCheckOutTime || r.checkOut || r.check_out,
-          idType,
-          idNumber,
-          idCity,
-          paid: newPaid,
-          due: newDue,
-          payment: newPaymentStatus,
-          paymentMode,
-          paymentRef
-        };
-        return updatedRes;
-      }
-      return r;
-    }));
+      updatedRes = {
+        ...currentRes,
+        status: 'CHECKED_IN',
+        room: roomNumber ? `Room ${roomNumber}` : currentRes.room,
+        room_number: roomNumber || currentRes.room_number,
+        actualCheckInTime: checkInIso,
+        actual_check_in_time: checkInIso,
+        expectedCheckOutTime: expectedCheckOutTime || currentRes.checkOut || currentRes.check_out,
+        expected_check_out_time: expectedCheckOutTime || currentRes.checkOut || currentRes.check_out,
+        idType,
+        idNumber,
+        idCity,
+        paid: newPaid,
+        due: newDue,
+        payment: newPaymentStatus,
+        paymentMode,
+        paymentRef
+      };
+    }
 
-    // Update physical room status to OCCUPIED
+    setReservations(prev => prev.map(r => (r.id === reservationId && updatedRes ? updatedRes : r)));
+
+    // Update physical room status from RESERVED/VACANT -> OCCUPIED
     if (roomNumber) {
       const cleanNum = String(roomNumber).replace(/\D/g, '') || String(roomNumber);
       setRooms(prev => prev.map(rm => {
@@ -1557,7 +1578,8 @@ export function DashboardProvider({ children }) {
             ...rm,
             status: 'OCCUPIED',
             guest: updatedRes?.guest || rm.guest,
-            bookingId: reservationId
+            bookingId: reservationId,
+            booking_id: reservationId
           };
         }
         return rm;
@@ -1568,7 +1590,8 @@ export function DashboardProvider({ children }) {
           await supabase.from('rooms').update({
             status: 'OCCUPIED',
             guest: updatedRes?.guest || 'Checked-in Guest',
-            booking_id: reservationId
+            booking_id: reservationId,
+            updated_at: new Date().toISOString()
           }).eq('hotel_id', currentHotel.id).eq('room_number', cleanNum);
         } catch (err) {
           console.warn('Supabase room check-in update error:', err);
@@ -1582,9 +1605,11 @@ export function DashboardProvider({ children }) {
           status: 'CHECKED_IN',
           room: roomNumber ? `Room ${roomNumber}` : undefined,
           room_number: roomNumber || undefined,
-          actual_check_in_time: actualCheckInTime || new Date().toISOString(),
+          actual_check_in_time: checkInIso,
+          expected_check_out_time: expectedCheckOutTime || undefined,
           guest_id_type: idType,
           guest_id_number: idNumber,
+          guest_id_city: idCity || undefined,
           paid: updatedRes?.paid,
           payment: updatedRes?.payment,
           payment_mode: paymentMode,
@@ -1630,15 +1655,19 @@ export function DashboardProvider({ children }) {
 
   // Admin Check-Out Action
   const checkOutReservation = async (reservationId) => {
-    let targetRoom = null;
+    const checkoutIso = new Date().toISOString();
+    const matchedRes = reservations.find(r => r.id === reservationId);
+    const targetRoom = matchedRes
+      ? (matchedRes.room_number || String(matchedRes.room || '').replace(/\D/g, ''))
+      : null;
+
     setReservations(prev => prev.map(r => {
       if (r.id === reservationId) {
-        targetRoom = r.room_number || String(r.room || '').replace(/\D/g, '');
         return {
           ...r,
           status: 'CHECKED_OUT',
-          actualCheckOutTime: new Date().toISOString(),
-          actual_check_out_time: new Date().toISOString()
+          actualCheckOutTime: checkoutIso,
+          actual_check_out_time: checkoutIso
         };
       }
       return r;
@@ -1652,7 +1681,13 @@ export function DashboardProvider({ children }) {
             ...rm,
             status: 'DIRTY',
             guest: null,
-            bookingId: null
+            bookingId: null,
+            booking_id: null,
+            checkOut: null,
+            check_out: null,
+            isOtaLocked: false,
+            is_ota_locked: false,
+            otaChannel: ''
           };
         }
         return rm;
@@ -1664,7 +1699,10 @@ export function DashboardProvider({ children }) {
             status: 'DIRTY',
             guest: null,
             booking_id: null,
-            updated_at: new Date().toISOString()
+            check_out: null,
+            is_ota_locked: false,
+            ota_channel: null,
+            updated_at: checkoutIso
           }).eq('hotel_id', currentHotel.id).eq('room_number', String(targetRoom));
         } catch (err) { }
 
@@ -1688,8 +1726,8 @@ export function DashboardProvider({ children }) {
       try {
         await supabase.from('reservations').update({
           status: 'CHECKED_OUT',
-          actual_check_out_time: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          actual_check_out_time: checkoutIso,
+          updated_at: checkoutIso
         }).eq('id', reservationId).eq('hotel_id', currentHotel.id);
         await broadcastCrossDeviceSync({ action: 'checkout', hotelId: currentHotel.id, bookingId: reservationId, roomNumber: targetRoom });
         pushHotelInventoryViaBackend({
@@ -1817,16 +1855,22 @@ export function DashboardProvider({ children }) {
     showNotification(`Reservation ${resId} confirmed for ${reservation.guest}`);
     setIsCreateReservationModalOpen(false);
 
-    // If check-in is today or ongoing, mark room status as OCCUPIED
-    const todayStr = new Date().toISOString().split('T')[0];
+    // If check-in is today or ongoing, mark physical room status as RESERVED (until checked in -> OCCUPIED)
+    const nowLocal = new Date();
+    const todayStr = new Date(nowLocal.getTime() - nowLocal.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+    const targetRoomStatus = reservation.status === 'CHECKED_IN' ? 'OCCUPIED' : 'RESERVED';
+    const checkInTimeIfCheckedIn = reservation.status === 'CHECKED_IN' ? new Date().toISOString() : null;
+
     if (cleanRoomNum && reservation.check_in <= todayStr && reservation.check_out >= todayStr) {
       setRooms(prev => prev.map(r => {
         if (String(r.room_number || r.roomNumber) === cleanRoomNum) {
           return {
             ...r,
-            status: 'OCCUPIED',
+            status: targetRoomStatus,
             guest: reservation.guest,
+            bookingId: resId,
             booking_id: resId,
+            checkOut: reservation.check_out,
             check_out: reservation.check_out
           };
         }
@@ -1851,6 +1895,7 @@ export function DashboardProvider({ children }) {
           room_type: reservation.room_type,
           check_in: reservation.check_in,
           check_out: reservation.check_out,
+          actual_check_in_time: checkInTimeIfCheckedIn,
           nights: reservation.nights,
           adults: reservation.adults,
           children: reservation.children,
@@ -1888,7 +1933,7 @@ export function DashboardProvider({ children }) {
 
         if (cleanRoomNum && currentHotel?.id && reservation.check_in <= todayStr && reservation.check_out >= todayStr) {
           await supabase.from('rooms').update({
-            status: 'OCCUPIED',
+            status: targetRoomStatus,
             guest: reservation.guest,
             booking_id: resId,
             check_out: reservation.check_out
@@ -2050,19 +2095,49 @@ export function DashboardProvider({ children }) {
   // 3. Checkout Room
   const checkoutRoom = async (roomNumber, reservationId) => {
     const num = String(roomNumber).trim();
+    const cleanNum = num.replace(/\D/g, '') || num;
+    const checkoutIso = new Date().toISOString();
 
-    if (reservationId) {
+    const matchedRes = reservationId
+      ? reservations.find(r => r.id === reservationId)
+      : reservations.find(r => {
+          const rNum = String(r.room_number || r.room || '').replace(/\D/g, '');
+          const st = String(r.status || '').toUpperCase();
+          return (
+            (rNum === cleanNum || String(r.room || '').includes(`Room ${num}`)) &&
+            !['CHECKED_OUT', 'CANCELLED', 'NO_SHOW'].includes(st)
+          );
+        });
+    const resolvedResId = reservationId || matchedRes?.id;
+
+    if (resolvedResId) {
       setReservations(prev => prev.map(r => {
-        if (r.id === reservationId) {
-          return { ...r, status: 'CHECKED_OUT' };
+        if (r.id === resolvedResId) {
+          return {
+            ...r,
+            status: 'CHECKED_OUT',
+            actualCheckOutTime: checkoutIso,
+            actual_check_out_time: checkoutIso
+          };
         }
         return r;
       }));
     }
 
     setRooms(prev => prev.map(r => {
-      if (String(r.room_number || r.roomNumber) === num) {
-        return { ...r, status: 'DIRTY', guest: null, booking_id: null, check_out: null };
+      if (String(r.room_number || r.roomNumber) === num || String(r.room_number || r.roomNumber).replace(/\D/g, '') === cleanNum) {
+        return {
+          ...r,
+          status: 'DIRTY',
+          guest: null,
+          bookingId: null,
+          booking_id: null,
+          checkOut: null,
+          check_out: null,
+          isOtaLocked: false,
+          is_ota_locked: false,
+          otaChannel: ''
+        };
       }
       return r;
     }));
@@ -2075,15 +2150,18 @@ export function DashboardProvider({ children }) {
           status: 'DIRTY',
           guest: null,
           booking_id: null,
-          updated_at: new Date().toISOString()
+          check_out: null,
+          is_ota_locked: false,
+          ota_channel: null,
+          updated_at: checkoutIso
         }).eq('hotel_id', currentHotel.id).eq('room_number', num);
 
-        if (reservationId) {
+        if (resolvedResId) {
           await supabase.from('reservations').update({
             status: 'CHECKED_OUT',
-            actual_check_out_time: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }).eq('hotel_id', currentHotel.id).eq('id', reservationId);
+            actual_check_out_time: checkoutIso,
+            updated_at: checkoutIso
+          }).eq('hotel_id', currentHotel.id).eq('id', resolvedResId);
         }
 
         // Automatically create turnover task in housekeeping_tasks table
@@ -2097,6 +2175,17 @@ export function DashboardProvider({ children }) {
           status: 'PENDING',
           notes: `Checkout turnover clean for room #${num}.`
         }]);
+
+        await broadcastCrossDeviceSync({
+          action: 'checkout',
+          hotelId: currentHotel.id,
+          bookingId: resolvedResId,
+          roomNumber: num
+        });
+        pushHotelInventoryViaBackend({
+          hotelId: currentHotel.id,
+          hotelCode: currentHotel.aiosellHotelCode || currentHotel.slug
+        }).catch(() => null);
       } catch (err) {
         console.warn('Supabase checkout room sync:', err);
       }

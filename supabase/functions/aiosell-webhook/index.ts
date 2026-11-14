@@ -302,8 +302,8 @@ serve(async (req: Request) => {
       });
       if (hasOverlap) return false;
 
-      // If physically OCCUPIED right now without a matching reservation row or overlapping today
-      if (status === "OCCUPIED" && String(roomRow.booking_id || "") !== bookingId) {
+      // If physically OCCUPIED or RESERVED right now without a matching reservation row or overlapping today
+      if ((status === "OCCUPIED" || status === "RESERVED") && String(roomRow.booking_id || "") !== bookingId) {
         if (roomRow.check_out) {
           if (datesOverlap(checkIn, checkOut, todayStr, String(roomRow.check_out).slice(0, 10))) {
             return false;
@@ -360,12 +360,14 @@ serve(async (req: Request) => {
       );
     }
 
-    // Lock room row immediately only when active stay covers today; future bookings remain locked by date range
-    if (coversToday) {
+    const isAlreadyCheckedIn = existingRes?.status === "CHECKED_IN";
+
+    // Lock room as RESERVED when booking arrives (or keep OCCUPIED if already checked in)
+    if (coversToday || isAlreadyCheckedIn) {
       await supabase
         .from("rooms")
         .update({
-          status: "OCCUPIED",
+          status: isAlreadyCheckedIn ? "OCCUPIED" : "RESERVED",
           guest: guestName,
           booking_id: bookingId,
           check_out: checkOut,
@@ -399,9 +401,9 @@ serve(async (req: Request) => {
       advance_paid: paidAmount,
       payment_mode: isPayAtHotel ? "Pay at Hotel (Cash/Card/UPI)" : "Prepaid (OTA Virtual Card)",
       payment: isPayAtHotel ? "PENDING" : "PAID",
-      status: "CONFIRMED",
+      status: isAlreadyCheckedIn ? "CHECKED_IN" : "CONFIRMED",
       special_requests: specialRequests,
-      notes: `OTA Booking ${bookingId} via ${channel} (${checkIn} -> ${checkOut}). Locked Room ${allocatedRoomNumber}.`
+      notes: `OTA Booking ${bookingId} via ${channel} (${checkIn} -> ${checkOut}). Reserved Room ${allocatedRoomNumber}.`
     };
 
     const { error: upsertErr } = await supabase.from("reservations").upsert(reservationPayload);

@@ -40,6 +40,7 @@ export default function DayViewOperations() {
     reservations = [],
     setIsCreateRoomModalOpen,
     updateRoomStatus,
+    checkoutRoom,
     deleteRoom,
     requestDeleteRoom
   } = useDashboard();
@@ -64,9 +65,27 @@ export default function DayViewOperations() {
   // Live Rooms Data mapped dynamically from context
   const dayRooms = React.useMemo(() => {
     if (!contextRooms || contextRooms.length === 0) return [];
+    const formatArrivalTs = (ts, fallbackDate) => {
+      const raw = ts || fallbackDate;
+      if (!raw) return 'Scheduled';
+      try {
+        const normalized = String(raw).includes(' ') && !String(raw).includes('T') ? String(raw).replace(' ', 'T') : String(raw);
+        const d = new Date(normalized);
+        if (Number.isNaN(d.getTime())) return String(raw);
+        if (!ts) return String(raw);
+        return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
+      } catch {
+        return String(raw);
+      }
+    };
+
     return contextRooms.map(r => {
       const isOccupied = r.status === 'OCCUPIED';
-      const booking = reservations.find(b => b.room === r.roomNumber || b.room === `Room ${r.roomNumber}`);
+      const isReserved = r.status === 'RESERVED';
+      const booking = reservations.find(b =>
+        !['CANCELLED', 'CHECKED_OUT', 'NO_SHOW'].includes(String(b.status || '').toUpperCase()) &&
+        (String(b.room_number) === String(r.roomNumber) || b.room === r.roomNumber || String(b.room || '').includes(`Room ${r.roomNumber}`))
+      );
       return {
         id: `R-${r.roomNumber}`,
         roomNumber: String(r.roomNumber),
@@ -74,28 +93,31 @@ export default function DayViewOperations() {
         floor: r.floor || '1st Floor',
         floorVal: '1',
         status: r.status || 'VACANT_READY',
-        statusLabel: (r.status || 'VACANT_READY').replace('_', ' '),
-        statusColor: isOccupied ? 'red' : 'green',
-        readyTag: 'Room Ready',
+        statusLabel: (r.status || 'VACANT_READY').replace(/_/g, ' '),
+        statusColor: isOccupied ? 'red' : isReserved ? 'violet' : 'green',
+        readyTag: isReserved ? 'Awaiting Check-In' : 'Room Ready',
         occupied: isOccupied,
+        reserved: isReserved,
         bookingId: booking?.id ? `AST-B-${booking.id}` : null,
-        guest: booking?.guest || null,
-        checkInTime: booking?.checkIn || null,
-        stayDuration: '1 night',
-        adults: 1,
-        children: 0,
+        guest: booking?.guest || r.guest || null,
+        checkInTime: formatArrivalTs(booking?.actualCheckInTime || booking?.actual_check_in_time, booking?.checkIn || booking?.check_in),
+        stayDuration: `${booking?.nights || 1} night(s)`,
+        adults: booking?.adults || 1,
+        children: booking?.children || 0,
         amenities: { electricity: true, wifi: true, ac: true }
       };
     });
   }, [contextRooms, reservations]);
 
-  // Handle Checkout of R-302
+  // Handle Checkout using full reservation & timestamp capture
   const handleCheckoutGuest = (roomId) => {
     const roomNumber = roomId.replace('R-', '');
-    if (updateRoomStatus) {
-      updateRoomStatus(roomNumber, 'CLEANING');
+    if (checkoutRoom) {
+      checkoutRoom(roomNumber);
+    } else if (updateRoomStatus) {
+      updateRoomStatus(roomNumber, 'DIRTY');
+      showNotification(`Guest checked out of Room ${roomNumber}. Room marked for Housekeeping!`);
     }
-    showNotification(`Guest checked out of Room ${roomNumber}. Room marked for Housekeeping!`);
   };
 
   // Filter Rooms
@@ -147,7 +169,7 @@ export default function DayViewOperations() {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-black text-slate-900">{contextRooms.length}</div>
-            <div className="text-[11px] font-medium text-slate-500 mt-0.5">{contextRooms.filter(r => r.status === 'OCCUPIED').length} Booked</div>
+            <div className="text-[11px] font-medium text-slate-500 mt-0.5">{contextRooms.filter(r => r.status === 'OCCUPIED' || r.status === 'RESERVED').length} Booked ({contextRooms.filter(r => r.status === 'RESERVED').length} Res)</div>
           </div>
         </div>
 
@@ -188,8 +210,8 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">CHECK-IN</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">{reservations.filter(r => r.status === 'CONFIRMED' || r.status === 'CHECKED_IN').length}</div>
-            <div className="text-[11px] font-medium text-slate-500 mt-0.5">0 Pending</div>
+            <div className="text-2xl font-black text-slate-900">{reservations.filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKEDIN').length}</div>
+            <div className="text-[11px] font-medium text-slate-500 mt-0.5">{reservations.filter(r => ['CONFIRMED', 'RESERVED', 'PENDING'].includes(r.status)).length} Reserved</div>
           </div>
         </div>
 
@@ -202,8 +224,8 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">CHECK-OUT</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">{reservations.filter(r => r.status === 'CHECKED_OUT').length}</div>
-            <div className="text-[11px] font-medium text-slate-500 mt-0.5">0 Pending</div>
+            <div className="text-2xl font-black text-slate-900">{reservations.filter(r => r.status === 'CHECKED_OUT' || r.status === 'CHECKEDOUT').length}</div>
+            <div className="text-[11px] font-medium text-slate-500 mt-0.5">Completed Stays</div>
           </div>
         </div>
 
@@ -217,7 +239,7 @@ export default function DayViewOperations() {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-black text-slate-900">{contextRooms.filter(r => r.status === 'OCCUPIED').length}</div>
-            <div className="text-[11px] font-medium text-slate-500 mt-0.5">Active Stays</div>
+            <div className="text-[11px] font-medium text-slate-500 mt-0.5">{contextRooms.filter(r => r.status === 'RESERVED').length} Reserved · Stays</div>
           </div>
         </div>
 
@@ -387,9 +409,11 @@ export default function DayViewOperations() {
           >
             <option value="ALL">Room Status</option>
             <option value="VACANT_READY">Vacant Ready</option>
+            <option value="RESERVED">Reserved (Not Checked In)</option>
             <option value="OCCUPIED">Occupied</option>
             <option value="CHECKING_OUT">Checking Out</option>
             <option value="NOT_READY">Not Ready</option>
+            <option value="DIRTY">Dirty</option>
             <option value="CLEANING">Cleaning</option>
           </select>
 
@@ -466,7 +490,8 @@ export default function DayViewOperations() {
                 {/* Status Badge */}
                 <div className="mt-2">
                   <span className={`inline-block font-bold text-xs px-2.5 py-1 rounded-md ${
-                    room.status === 'NOT_READY' ? 'bg-amber-400 text-amber-950' :
+                    room.status === 'NOT_READY' || room.status === 'DIRTY' ? 'bg-amber-400 text-amber-950' :
+                    room.status === 'RESERVED' ? 'bg-violet-600 text-white' :
                     room.status === 'OCCUPIED' ? 'bg-[#f87171] text-white' :
                     room.status === 'CHECKING_OUT' ? 'bg-[#7c63b4] text-white' :
                     'bg-[#2e7d32] text-white'
@@ -474,6 +499,19 @@ export default function DayViewOperations() {
                     {room.statusLabel}
                   </span>
                 </div>
+
+                {/* RESERVED SPECIFIC CONTENT */}
+                {room.status === 'RESERVED' && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-violet-900 flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5 text-violet-500" /> {room.guest || 'Reserved Guest'}
+                      </span>
+                      <span className="text-violet-600 font-semibold">Arrival: {room.checkInTime}</span>
+                    </div>
+                    <div className="text-[11px] text-amber-700 font-semibold">Booked • Not checked in yet</div>
+                  </div>
+                )}
 
                 {/* OCCUPIED SPECIFIC CONTENT (e.g. R-102) */}
                 {room.status === 'OCCUPIED' && (
@@ -523,6 +561,16 @@ export default function DayViewOperations() {
 
               {/* Bottom Actions */}
               <div className="space-y-2 pt-1 border-t border-slate-100">
+                {room.status === 'OCCUPIED' && (
+                  <button
+                    onClick={() => handleCheckoutGuest(room.id)}
+                    className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg flex items-center justify-center space-x-1.5 border border-rose-200 transition shadow-2xs"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Check Out Room</span>
+                  </button>
+                )}
+
                 {/* Available Action Button if Vacant Ready */}
                 {room.status === 'VACANT_READY' && (
                   <button
