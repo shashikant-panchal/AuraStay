@@ -23,16 +23,14 @@ const DEFAULT_HOTEL = {
   currencySymbol: '₹'
 };
 
-function belongsToCurrentHotel(recordHotelId, activeHotel, totalHotelsCount = 1) {
-  if (!recordHotelId) return true;
-  const recId = String(recordHotelId).trim().toLowerCase();
+function belongsToCurrentHotel(recordHotelId, activeHotel) {
   const curId = String(activeHotel?.id || '').trim().toLowerCase();
   const curSlug = String(activeHotel?.slug || '').trim().toLowerCase();
+  if (!curId && !curSlug) return false;
+  if (!recordHotelId) return false;
+  const recId = String(recordHotelId).trim().toLowerCase();
   if (curId && recId === curId) return true;
   if (curSlug && recId === curSlug) return true;
-  if (totalHotelsCount <= 1 && (recId === 'hotel_aurastay_01' || recId === 'shivanandi')) {
-    return true;
-  }
   return false;
 }
 
@@ -72,15 +70,21 @@ const VALID_VIEWS = new Set([
 const defaultMockRoomTypes = [];
 
 export function DashboardProvider({ children }) {
-  // Multi-tenant Hotel Authentication State (Session token in localStorage only)
+  // Multi-tenant Hotel Authentication State (Strictly SuperAdmin-provisioned credentials)
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return localStorage.getItem('aurastay_hotel_auth') === 'true';
+    try {
+      const authFlag = localStorage.getItem('aavasa_admin_auth_v3') === 'true';
+      const savedSession = JSON.parse(localStorage.getItem('aavasa_admin_session_v3') || 'null');
+      return Boolean(authFlag && savedSession && savedSession.id && savedSession.email && savedSession.password);
+    } catch (e) {
+      return false;
+    }
   });
 
   const [currentHotel, setCurrentHotel] = useState(() => {
     try {
-      const saved = localStorage.getItem('aurastay_hotel_session');
-      if (saved) return JSON.parse(saved);
+      const saved = JSON.parse(localStorage.getItem('aavasa_admin_session_v3') || 'null');
+      if (saved && saved.id && saved.email && saved.password) return saved;
     } catch (e) { }
     return DEFAULT_HOTEL;
   });
@@ -88,9 +92,13 @@ export function DashboardProvider({ children }) {
   // Static mock fallbacks for initial render (never dumped to localStorage)
   const [data, setData] = useState(initialMockData);
 
-  // Clean up legacy localStorage keys on startup so stale client data is discarded
+  // Clean up legacy localStorage keys and old admin sessions on startup
   useEffect(() => {
     const legacyKeys = [
+      'aurastay_hotel_auth',
+      'aurastay_hotel_session',
+      'aurastay_hotel_auth_v2',
+      'aurastay_hotel_session_v2',
       'aurastay_suite_data',
       'aurastay_room_types',
       'aavasa_cab_bookings',
@@ -210,13 +218,55 @@ export function DashboardProvider({ children }) {
         fetchLiveStateViaEdgeFunction(currentHotel?.id).catch(() => null)
       ]);
 
-      const allHotels = Array.isArray(hotelsRes?.data) ? hotelsRes.data : [];
+      const allHotels = Array.isArray(hotelsRes?.data)
+        ? hotelsRes.data.filter(
+            h =>
+              String(h.id || '').toLowerCase() !== 'hotel_aurastay_01' &&
+              String(h.email || '').toLowerCase() !== 'admin@aurastay.com'
+          )
+        : [];
       const totalHotelsCount = allHotels.length;
+      const activeHotelIds = new Set(
+        allHotels.flatMap(h => [
+          String(h.id || '').trim().toLowerCase(),
+          String(h.slug || '').trim().toLowerCase()
+        ]).filter(Boolean)
+      );
 
-      // Verify current session against live SuperAdmin 'hotels' table
+      // Purge any orphaned rooms, room_types, or reservations created under previous/deleted logins
+      if (!hotelsRes?.error) {
+        if (Array.isArray(roomsRes?.data)) {
+          for (const rm of roomsRes.data) {
+            if (!rm.hotel_id || !activeHotelIds.has(String(rm.hotel_id).trim().toLowerCase())) {
+              if (rm.id) {
+                await supabase.from('rooms').delete().eq('id', rm.id);
+              } else if (rm.room_number) {
+                await supabase.from('rooms').delete().eq('room_number', rm.room_number);
+              }
+            }
+          }
+        }
+        if (Array.isArray(roomTypesRes?.data)) {
+          for (const rt of roomTypesRes.data) {
+            if (!rt.hotel_id || !activeHotelIds.has(String(rt.hotel_id).trim().toLowerCase())) {
+              if (rt.id) await supabase.from('room_types').delete().eq('id', rt.id);
+            }
+          }
+        }
+        if (Array.isArray(resRes?.data)) {
+          for (const rs of resRes.data) {
+            if (!rs.hotel_id || !activeHotelIds.has(String(rs.hotel_id).trim().toLowerCase())) {
+              if (rs.id) await supabase.from('reservations').delete().eq('id', rs.id);
+            }
+          }
+        }
+      }
+
+      // Verify current session strictly against live SuperAdmin 'hotels' table (ID, Email, Password, Status)
       if (isLoggedIn && !hotelsRes?.error) {
         const curId = String(currentHotel?.id || '').trim().toLowerCase();
         const curEmail = String(currentHotel?.email || '').trim().toLowerCase();
+        const curPass = String(currentHotel?.password || '').trim();
         const matchedHotel = allHotels.find(h => {
           const hId = String(h.id || '').trim().toLowerCase();
           const hSlug = String(h.slug || '').trim().toLowerCase();
@@ -224,11 +274,16 @@ export function DashboardProvider({ children }) {
           return (curId && (hId === curId || hSlug === curId)) || (curEmail && hEmail === curEmail);
         });
 
-        if (!matchedHotel || (matchedHotel.status && matchedHotel.status !== 'ACTIVE')) {
+        if (
+          !matchedHotel ||
+          matchedHotel.status !== 'ACTIVE' ||
+          !curPass ||
+          matchedHotel.password !== curPass
+        ) {
           setIsLoggedIn(false);
           setCurrentHotel(DEFAULT_HOTEL);
-          localStorage.removeItem('aurastay_hotel_auth');
-          localStorage.removeItem('aurastay_hotel_session');
+          localStorage.removeItem('aavasa_admin_auth_v3');
+          localStorage.removeItem('aavasa_admin_session_v3');
         }
       }
 
@@ -477,55 +532,91 @@ export function DashboardProvider({ children }) {
 
   // Hotel Admin Authentication functions - Strictly SuperAdmin-Provisioned Credentials Only
   const login = async (email, password) => {
-    if (!email || !password || !isSupabaseConfigured) return false;
-    const inputIdent = email.trim().toLowerCase();
-    const inputPass = password.trim();
-    if (!inputIdent || !inputPass) return false;
+    const inputIdent = String(email || '').trim().toLowerCase();
+    const inputPass = String(password || '').trim();
+
+    if (!inputIdent || !inputPass) {
+      return { success: false, message: 'Please enter both Admin Email/Username and Password.' };
+    }
+
+    if (inputIdent.length < 3 || inputPass.length < 4) {
+      return { success: false, message: 'Invalid credential format. Please enter the exact credentials created in Super Admin.' };
+    }
+
+    if (inputIdent === 'superadmin@aavasa.com' || inputIdent === 'superadmin@aurastay.com') {
+      return {
+        success: false,
+        message: 'Super Admin credentials cannot sign in here. Please log in to Aavasa Super Admin and create a Hotel Admin credential first.'
+      };
+    }
+
+    if (inputIdent === 'admin@aurastay.com' || inputIdent === 'hotel_aurastay_01') {
+      return {
+        success: false,
+        message: 'Default credentials have been removed. Please use an Admin credential created in Aavasa Super Admin.'
+      };
+    }
+
+    if (!isSupabaseConfigured) {
+      return { success: false, message: 'Database connection is not configured.' };
+    }
 
     try {
       const { data: allHotels, error } = await supabase
         .from('hotels')
         .select('*');
 
-      if (error || !Array.isArray(allHotels) || allHotels.length === 0) {
-        return false;
+      if (error || !Array.isArray(allHotels)) {
+        return { success: false, message: 'Unable to verify credentials with Supabase. Please try again.' };
       }
 
-      const hotelData = allHotels.find(h => {
+      const validHotels = allHotels.filter(
+        h =>
+          String(h.id || '').toLowerCase() !== 'hotel_aurastay_01' &&
+          String(h.email || '').toLowerCase() !== 'admin@aurastay.com'
+      );
+
+      if (validHotels.length === 0) {
+        return {
+          success: false,
+          message: 'No Hotel Admin credentials exist yet. Log in to Aavasa Super Admin (superadmin@aavasa.com) and create Admin credentials first.'
+        };
+      }
+
+      const hotelData = validHotels.find(h => {
         const hEmail = String(h.email || '').trim().toLowerCase();
         const hSlug = String(h.slug || '').trim().toLowerCase();
         const hId = String(h.id || '').trim().toLowerCase();
-        const hShort = String(h.short_name || '').trim().toLowerCase();
-        const hName = String(h.name || '').trim().toLowerCase();
-        return (
-          hEmail === inputIdent ||
-          hSlug === inputIdent ||
-          hId === inputIdent ||
-          hShort === inputIdent ||
-          hName === inputIdent
-        );
+        return hEmail === inputIdent || hSlug === inputIdent || hId === inputIdent;
       });
 
       if (!hotelData) {
-        return false;
+        return {
+          success: false,
+          message: 'Admin credential not found. Only credentials created in Aavasa Super Admin are allowed to sign in.'
+        };
       }
 
       if (hotelData.status && hotelData.status !== 'ACTIVE') {
-        console.warn('Authentication rejected: Hotel account is not ACTIVE:', hotelData.id);
-        return false;
+        return {
+          success: false,
+          message: 'This Admin credential has been SUSPENDED by Super Admin. Please activate it in Aavasa Super Admin.'
+        };
       }
 
       // Strictly verify exact password provisioned by SuperAdmin in Supabase
       if (!hotelData.password || hotelData.password !== inputPass) {
-        console.warn('Authentication rejected: Invalid password for hotel', hotelData.id);
-        return false;
+        return {
+          success: false,
+          message: 'Incorrect password. Please enter the exact password created in Aavasa Super Admin.'
+        };
       }
 
       const hotel = {
         id: hotelData.id,
         slug: hotelData.slug || hotelData.id,
         name: hotelData.name,
-        shortName: hotelData.short_name || 'AST',
+        shortName: hotelData.short_name || 'HTL',
         logoUrl: hotelData.logo_url || DEFAULT_HOTEL.logoUrl,
         ownerName: hotelData.owner_name || 'Hotel Admin',
         ownerRole: 'Property Admin',
@@ -540,19 +631,21 @@ export function DashboardProvider({ children }) {
       };
       setCurrentHotel(hotel);
       setIsLoggedIn(true);
-      localStorage.setItem('aurastay_hotel_auth', 'true');
-      localStorage.setItem('aurastay_hotel_session', JSON.stringify(hotel));
+      localStorage.setItem('aavasa_admin_auth_v3', 'true');
+      localStorage.setItem('aavasa_admin_session_v3', JSON.stringify(hotel));
       showNotification(`Welcome to ${hotel.name} PMS Portal!`);
-      return true;
+      return { success: true, hotel };
     } catch (e) {
       console.warn('Supabase hotel login query error:', e);
-      return false;
+      return { success: false, message: 'Authentication error. Please try again.' };
     }
   };
 
   const logout = () => {
     setIsLoggedIn(false);
     setCurrentHotel(DEFAULT_HOTEL);
+    localStorage.removeItem('aavasa_admin_auth_v3');
+    localStorage.removeItem('aavasa_admin_session_v3');
     localStorage.removeItem('aurastay_hotel_auth');
     localStorage.removeItem('aurastay_hotel_session');
     showNotification('Logged out from Hotel PMS', 'info');

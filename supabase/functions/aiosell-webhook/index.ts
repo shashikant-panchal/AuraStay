@@ -189,33 +189,43 @@ serve(async (req: Request) => {
       });
     }
 
-    const { data: allHotels, error } = await supabase.from("hotels").select("*");
-    if (error || !Array.isArray(allHotels) || allHotels.length === 0) {
+    if (inputIdent === "superadmin@aavasa.com" || inputIdent === "admin@aurastay.com" || inputIdent === "hotel_aurastay_01") {
       return new Response(
         JSON.stringify({
           success: false,
-          message: "No Hotel Admin credentials exist. Create one in SuperAdmin first."
+          message: "Only Hotel Admin credentials created in Aavasa SuperAdmin can sign in."
         }),
         { headers: corsHeaders, status: 401 }
       );
     }
 
-    const matched = allHotels.find((h: any) => {
+    const { data: allHotels, error } = await supabase.from("hotels").select("*");
+    const validHotels = Array.isArray(allHotels)
+      ? allHotels.filter(
+          (h: any) =>
+            String(h.id || "").toLowerCase() !== "hotel_aurastay_01" &&
+            String(h.email || "").toLowerCase() !== "admin@aurastay.com"
+        )
+      : [];
+
+    if (error || validHotels.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "No Hotel Admin credentials exist. Create one in Aavasa SuperAdmin first."
+        }),
+        { headers: corsHeaders, status: 401 }
+      );
+    }
+
+    const matched = validHotels.find((h: any) => {
       const hEmail = String(h.email || "").trim().toLowerCase();
       const hSlug = String(h.slug || "").trim().toLowerCase();
       const hId = String(h.id || "").trim().toLowerCase();
-      const hShort = String(h.short_name || "").trim().toLowerCase();
-      const hName = String(h.name || "").trim().toLowerCase();
-      return (
-        hEmail === inputIdent ||
-        hSlug === inputIdent ||
-        hId === inputIdent ||
-        hShort === inputIdent ||
-        hName === inputIdent
-      );
+      return hEmail === inputIdent || hSlug === inputIdent || hId === inputIdent;
     });
 
-    if (!matched || (matched.status && matched.status !== "ACTIVE") || matched.password !== inputPass) {
+    if (!matched || (matched.status && matched.status !== "ACTIVE") || !matched.password || matched.password !== inputPass) {
       return new Response(
         JSON.stringify({
           success: false,

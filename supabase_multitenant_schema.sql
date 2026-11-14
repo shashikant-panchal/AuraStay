@@ -34,10 +34,10 @@ CREATE TABLE IF NOT EXISTS hotels (
 
 -- 2. Super Admins Table
 CREATE TABLE IF NOT EXISTS super_admins (
-    id TEXT PRIMARY KEY DEFAULT 'sa_01',
-    name TEXT NOT NULL DEFAULT 'Master Super Admin',
-    email TEXT UNIQUE NOT NULL DEFAULT 'superadmin@aurastay.com',
-    password TEXT NOT NULL DEFAULT 'super123',
+    id TEXT PRIMARY KEY DEFAULT 'sa_aavasa_01',
+    name TEXT NOT NULL DEFAULT 'Aavasa Super Admin',
+    email TEXT UNIQUE NOT NULL DEFAULT 'superadmin@aavasa.com',
+    password TEXT NOT NULL DEFAULT 'aavasa@18',
     role TEXT DEFAULT 'PLATFORM_OWNER',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
