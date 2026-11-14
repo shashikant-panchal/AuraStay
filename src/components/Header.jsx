@@ -16,6 +16,7 @@ import {
   Compass,
   SlidersHorizontal,
   BookOpen,
+  ChevronDown,
   ChevronRight,
   LayoutGrid,
   LogOut,
