@@ -35,6 +35,7 @@ import {
   CarTaxiFront,
   X
 } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export default function Header() {
   const {
@@ -77,37 +78,66 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const [propertiesList, setPropertiesList] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aavasa_properties_list');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return [
-      { id: 'shivanandi', name: 'Shivanandi', rooms: 45, city: 'Bengaluru' }
-    ];
-  });
+  const [propertiesList, setPropertiesList] = useState([
+    { id: 'shivanandi', name: 'Hotel Shivanandi', rooms: 20, city: 'Bengaluru' },
+    { id: 'aavasa', name: 'Aavasa Grand Hotel', rooms: 30, city: 'Bengaluru' }
+  ]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    async function loadProperties() {
+      try {
+        const { data, error } = await supabase.from('hotels').select('id, name, city, total_rooms, short_name');
+        if (!error && data && data.length > 0) {
+          setPropertiesList(data.map(h => ({
+            id: h.id,
+            name: h.name,
+            rooms: h.total_rooms || 20,
+            city: h.city || 'Bengaluru',
+            shortName: h.short_name || 'AST'
+          })));
+        }
+      } catch (err) {
+        console.warn('Failed to load hotel properties from Supabase:', err);
+      }
+    }
+    loadProperties();
+  }, []);
 
   const [isAddPropertyModalOpen, setIsAddPropertyModalOpen] = useState(false);
   const [newPropData, setNewPropData] = useState({ name: '', city: 'Bengaluru', rooms: 30 });
 
-  const handleAddProperty = (e) => {
+  const handleAddProperty = async (e) => {
     e.preventDefault();
     if (!newPropData.name.trim()) return;
+    const newId = `hotel-${Date.now().toString().slice(-4)}`;
     const newProp = {
-      id: `prop-${Date.now()}`,
+      id: newId,
       name: newPropData.name.trim(),
       city: newPropData.city.trim() || 'India',
       rooms: Number(newPropData.rooms) || 20
     };
-    const updated = [...propertiesList, newProp];
-    setPropertiesList(updated);
-    try {
-      localStorage.setItem('aavasa_properties_list', JSON.stringify(updated));
-    } catch (e) { }
+    setPropertiesList(prev => [...prev, newProp]);
     handleSwitchProperty(newProp);
     setIsAddPropertyModalOpen(false);
     setNewPropData({ name: '', city: 'Bengaluru', rooms: 30 });
     showNotification(`Property "${newProp.name}" added successfully.`);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('hotels').insert([{
+          id: newId,
+          slug: newId,
+          name: newProp.name,
+          short_name: newProp.name.slice(0, 4).toUpperCase(),
+          city: newProp.city,
+          total_rooms: newProp.rooms,
+          password: 'admin'
+        }]);
+      } catch (err) {
+        console.warn('Failed to insert hotel in Supabase:', err);
+      }
+    }
   };
 
   const handleSwitchProperty = (prop) => {

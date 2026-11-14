@@ -61,23 +61,8 @@ const MENU_ITEMS = [
 export default function RestaurantPosView() {
   const { navigateTo, showNotification, fnbOrders = [], addFnbOrder, settleFnbOrder, rooms = [] } = useDashboard();
 
-  const [tables, setTables] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_pos_tables');
-      return saved ? JSON.parse(saved) : TABLES_DATA;
-    } catch {
-      return TABLES_DATA;
-    }
-  });
-
-  const [menuItems, setMenuItems] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_pos_menu');
-      return saved ? JSON.parse(saved) : MENU_ITEMS;
-    } catch {
-      return MENU_ITEMS;
-    }
-  });
+  const [tables, setTables] = useState(TABLES_DATA);
+  const [menuItems, setMenuItems] = useState(MENU_ITEMS);
 
   const [activeArea, setActiveArea] = useState('ALL');
   const [selectedTable, setSelectedTable] = useState(tables[0] || null);
@@ -143,9 +128,6 @@ export default function RestaurantPosView() {
     };
     const updated = [...tables, created];
     setTables(updated);
-    try {
-      localStorage.setItem('aurastay_pos_tables', JSON.stringify(updated));
-    } catch {}
     setSelectedTable(created);
     setIsAddTableModalOpen(false);
     showNotification(`${created.name} added to ${created.area}!`);
@@ -179,9 +161,6 @@ export default function RestaurantPosView() {
       total: grandTotal
     } : t);
     setTables(updated);
-    try {
-      localStorage.setItem('aurastay_pos_tables', JSON.stringify(updated));
-    } catch {}
 
     // Open Kitchen Slip print window
     const printWindow = window.open('', '_blank', 'width=450,height=600');
@@ -241,9 +220,6 @@ export default function RestaurantPosView() {
     if (!selectedTable) return;
     const updated = tables.map(t => t.id === selectedTable.id ? { ...t, status: 'VACANT', guest: null, room: null, items: 0, total: 0 } : t);
     setTables(updated);
-    try {
-      localStorage.setItem('aurastay_pos_tables', JSON.stringify(updated));
-    } catch {}
 
     if (settleFnbOrder) {
       const activeOrder = fnbOrders.find(o => o.roomTable === selectedTable.name && o.status !== 'BILLED');

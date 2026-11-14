@@ -258,6 +258,18 @@ BEGIN
     END IF;
 END $$;
 
+-- 6b. Banquet Venues Master Table
+CREATE TABLE IF NOT EXISTS banquet_venues (
+    id TEXT PRIMARY KEY,
+    hotel_id TEXT NOT NULL DEFAULT 'shivanandi',
+    name TEXT NOT NULL,
+    capacity INT DEFAULT 100,
+    base_rent NUMERIC(10, 2) DEFAULT 25000.00,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 7. F&B Orders Table
 CREATE TABLE IF NOT EXISTS fnb_orders (
     id TEXT PRIMARY KEY,
@@ -481,6 +493,10 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE cab_bookings;
     EXCEPTION WHEN duplicate_object THEN NULL;
     END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE banquet_venues;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
 END $$;
 
 -- 18. Disable RLS to allow seamless sync across Admin, SuperAdmin, and Guest Portals
@@ -489,6 +505,7 @@ ALTER TABLE IF EXISTS room_types DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS rooms DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS reservations DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS banquet_bookings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS banquet_venues DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS fnb_orders DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS super_admins DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS housekeeping_tasks DISABLE ROW LEVEL SECURITY;
@@ -584,10 +601,11 @@ FOR EACH ROW EXECUTE FUNCTION trg_sync_housekeeping_to_room();
 INSERT INTO hotels (id, slug, name, short_name, owner_name, email, password, mobile, total_rooms, plan)
 VALUES 
 ('hotel_aurastay_01', 'demo-hotel-property-1', 'DEMO HOTEL Property 1', 'DEMO', 'SHIVANANDI', 'shivanandi@aurastay.com', '12345', '7978578046', 20, 'Enterprise'),
-('shivanandi', 'shivanandi', 'Hotel Shivanandi', 'SHIV', 'Shivanandi Admin', 'admin@shivanandi.com', 'admin', '7978578046', 20, 'Enterprise'),
+('shivanandi', 'shivanandi', 'Hotel Shivanandi', 'SHIV', 'Shivanandi Admin', 'admin@shivanandi.com', '12345', '7978578046', 20, 'Enterprise'),
 ('aavasa', 'aavasa', 'Aavasa Grand Hotel', 'AAVASA', 'Aavasa Management', 'admin@aavasa.com', 'admin123', '9845099999', 30, 'Enterprise')
 ON CONFLICT (id) DO UPDATE SET 
     name = EXCLUDED.name,
+    password = EXCLUDED.password,
     owner_name = EXCLUDED.owner_name;
 
 -- 21. Seed Room Types

@@ -34,7 +34,8 @@ export default function HousekeepingView() {
     showNotification,
     navigateTo,
     activeTab: contextActiveTab,
-    setActiveTab: setContextActiveTab
+    setActiveTab: setContextActiveTab,
+    currentHotel
   } = useDashboard();
 
   // Map contextActiveTab to view tabs
@@ -66,32 +67,14 @@ export default function HousekeepingView() {
     }
   };
 
-  // Housekeeper staff roster (Clean empty slate for real hotel creation)
-  const [housekeepers, setHousekeepers] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_housekeepers_v2');
-      if (saved) return JSON.parse(saved);
-    } catch(e){}
-    return [];
-  });
+  // Housekeeper staff roster - driven by Supabase staff_users
+  const [housekeepers, setHousekeepers] = useState([]);
 
-  // Housekeeping Tasks State (Clean empty slate)
-  const [tasks, setTasks] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_hk_tasks_v2');
-      if (saved) return JSON.parse(saved);
-    } catch(e){}
-    return [];
-  });
+  // Housekeeping Tasks State - driven by Supabase housekeeping_tasks
+  const [tasks, setTasks] = useState([]);
 
-  // Lost & Found Registry State (Clean empty slate)
-  const [lostFoundItems, setLostFoundItems] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_lost_found_v2');
-      if (saved) return JSON.parse(saved);
-    } catch(e){}
-    return [];
-  });
+  // Lost & Found Registry State - driven by Supabase lost_and_found_items
+  const [lostFoundItems, setLostFoundItems] = useState([]);
 
   // Modals state
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
@@ -122,36 +105,24 @@ export default function HousekeepingView() {
   const [staffPhone, setStaffPhone] = useState('');
   const [staffShift, setStaffShift] = useState('Morning (07:00 - 15:30)');
 
-  // Save state to localStorage
+  // Load live data from Supabase backend
   useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_housekeepers_v2', JSON.stringify(housekeepers));
-    } catch(e){}
-  }, [housekeepers]);
+    if (!isSupabaseConfigured) return;
+    let isMounted = true;
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_hk_tasks_v2', JSON.stringify(tasks));
-    } catch(e){}
-  }, [tasks]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_lost_found_v2', JSON.stringify(lostFoundItems));
-    } catch(e){}
-  }, [lostFoundItems]);
-
-  // Load live tasks from Supabase if configured
-  useEffect(() => {
-    async function loadTasksFromSupabase() {
-      if (!isSupabaseConfigured) return;
+    async function loadHousekeepingData() {
       try {
-        const { data, error } = await supabase
-          .from('housekeeping_tasks')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) {
-          setTasks(data.map(d => ({
+        const hotelId = currentHotel?.id || 'shivanandi';
+        const [tasksRes, lostRes, staffRes] = await Promise.all([
+          supabase.from('housekeeping_tasks').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`).order('created_at', { ascending: false }),
+          supabase.from('lost_and_found_items').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`).order('created_at', { ascending: false }),
+          supabase.from('staff_users').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`)
+        ]);
+
+        if (!isMounted) return;
+
+        if (tasksRes.data && tasksRes.data.length > 0) {
+          setTasks(tasksRes.data.map(d => ({
             id: d.id,
             room: d.room_number,
             taskType: d.task_type,
@@ -162,12 +133,45 @@ export default function HousekeepingView() {
             notes: d.notes || ''
           })));
         }
+
+        if (lostRes.data && lostRes.data.length > 0) {
+          setLostFoundItems(lostRes.data.map(item => ({
+            id: item.id,
+            itemName: item.item_name,
+            category: item.category,
+            roomNumber: item.room_number,
+            location: item.location,
+            foundBy: item.found_by,
+            foundDate: item.found_date || (item.created_at ? new Date(item.created_at).toLocaleDateString('en-GB') : ''),
+            status: item.status,
+            claimedBy: item.claimed_by || '',
+            claimantPhone: item.claimant_phone || '',
+            notes: item.notes || ''
+          })));
+        }
+
+        if (staffRes.data && staffRes.data.length > 0) {
+          const hkStaff = staffRes.data.filter(s =>
+            !s.role || s.role.toLowerCase().includes('house') || s.department?.toLowerCase().includes('house')
+          );
+          if (hkStaff.length > 0) {
+            setHousekeepers(hkStaff.map(s => ({
+              id: s.id,
+              name: s.name,
+              phone: s.phone || '+91 98000 00000',
+              shift: s.shift || 'Morning (07:00 - 15:30)',
+              assignedRooms: []
+            })));
+          }
+        }
       } catch (err) {
-        console.warn('Supabase housekeeping_tasks fetch notice:', err.message);
+        console.warn('Supabase housekeeping fetch notice:', err.message);
       }
     }
-    loadTasksFromSupabase();
-  }, []);
+
+    loadHousekeepingData();
+    return () => { isMounted = false; };
+  }, [currentHotel]);
 
   // Compute status counts for metrics
   const cleanCount = contextRooms.filter(r => r.status === 'VACANT_READY' || r.status === 'AVAILABLE' || r.housekeeping === 'CLEAN').length;
@@ -227,7 +231,7 @@ export default function HousekeepingView() {
       try {
         await supabase.from('housekeeping_tasks').insert([{
           id: newTask.id,
-          hotel_id: 'hotel_aurastay_01',
+          hotel_id: currentHotel?.id || 'shivanandi',
           room_number: taskRoom,
           task_type: taskType,
           priority: taskPriority,
@@ -265,7 +269,7 @@ export default function HousekeepingView() {
   };
 
   // Add Lost & Found Item
-  const handleCreateLostItem = (e) => {
+  const handleCreateLostItem = async (e) => {
     e.preventDefault();
     if (!lostName || !lostRoom) {
       showNotification('Please enter item name and location/room.', 'error');
@@ -287,13 +291,33 @@ export default function HousekeepingView() {
     setLostFoundItems(prev => [newItem, ...prev]);
     setIsNewLostModalOpen(false);
     showNotification(`Lost & found item "${lostName}" logged in registry.`);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('lost_and_found_items').insert([{
+          id: newItem.id,
+          hotel_id: currentHotel?.id || 'shivanandi',
+          item_name: newItem.itemName,
+          category: newItem.category,
+          room_number: newItem.roomNumber,
+          location: newItem.location,
+          found_by: newItem.foundBy,
+          found_date: newItem.foundDate,
+          status: 'UNCLAIMED',
+          notes: newItem.notes
+        }]);
+      } catch (err) {
+        console.warn('Supabase lost_and_found_items insert error:', err);
+      }
+    }
+
     setLostName('');
     setLostRoom('');
     setLostFoundBy('');
     setLostNotes('');
   };
 
-  const handleClaimItem = (e) => {
+  const handleClaimItem = async (e) => {
     e.preventDefault();
     if (!selectedLostItem || !claimantName) return;
     setLostFoundItems(prev => prev.map(item => {
@@ -308,6 +332,19 @@ export default function HousekeepingView() {
       return item;
     }));
     setIsClaimModalOpen(false);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('lost_and_found_items').update({
+          status: 'CLAIMED',
+          claimed_by: claimantName,
+          claimant_phone: claimantPhone
+        }).eq('id', selectedLostItem.id);
+      } catch (err) {
+        console.warn('Supabase lost item claim update error:', err);
+      }
+    }
+
     setSelectedLostItem(null);
     setClaimantName('');
     setClaimantPhone('');
@@ -315,7 +352,7 @@ export default function HousekeepingView() {
   };
 
   // Add Staff Member
-  const handleAddStaff = (e) => {
+  const handleAddStaff = async (e) => {
     e.preventDefault();
     if (!staffName) return;
     const newStaff = {
@@ -328,6 +365,21 @@ export default function HousekeepingView() {
     setHousekeepers(prev => [...prev, newStaff]);
     setIsNewStaffModalOpen(false);
     showNotification(`Added ${staffName} to housekeeping roster.`);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('staff_users').insert([{
+          id: newStaff.id,
+          hotel_id: currentHotel?.id || 'shivanandi',
+          name: newStaff.name,
+          phone: newStaff.phone,
+          role: 'Housekeeping',
+          shift: newStaff.shift
+        }]);
+      } catch (err) {
+        console.warn('Supabase staff insert error:', err);
+      }
+    }
     setStaffName('');
     setStaffPhone('');
   };

@@ -64,32 +64,14 @@ export default function StockManagementView() {
   const [adjustType, setAdjustType] = useState('IN');
   const [adjustQty, setAdjustQty] = useState('10');
 
-  // Stock List State (Clean empty slate for real hotel creation)
-  const [stockList, setStockList] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_inventory_items_v2');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return [];
-  });
+  // Stock List State - driven by Supabase inventory_items
+  const [stockList, setStockList] = useState([]);
 
-  // Purchase Orders State (Clean empty slate)
-  const [purchaseOrders, setPurchaseOrders] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_purchase_orders_v2');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return [];
-  });
+  // Purchase Orders State - driven by Supabase purchase_orders
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
 
-  // Department Requisitions & Transfers State (Clean empty slate)
-  const [requisitions, setRequisitions] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_dept_requisitions_v2');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return [];
-  });
+  // Department Requisitions & Transfers State - driven by Supabase material_requisitions
+  const [requisitions, setRequisitions] = useState([]);
 
   // Form State: Add Item
   const [newItemName, setNewItemName] = useState('');
@@ -112,25 +94,6 @@ export default function StockManagementView() {
   const [reqCustomItem, setReqCustomItem] = useState('');
   const [reqQty, setReqQty] = useState('10');
   const [reqNotes, setReqNotes] = useState('');
-
-  // Persist State to LocalStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_inventory_items_v2', JSON.stringify(stockList));
-    } catch (e) { }
-  }, [stockList]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_purchase_orders_v2', JSON.stringify(purchaseOrders));
-    } catch (e) { }
-  }, [purchaseOrders]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_dept_requisitions_v2', JSON.stringify(requisitions));
-    } catch (e) { }
-  }, [requisitions]);
 
   // Load from Supabase on mount / hotel change
   useEffect(() => {

@@ -69,23 +69,11 @@ export default function AccountsFinanceView() {
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [selectedInvoiceForPrint, setSelectedInvoiceForPrint] = useState(null);
 
-  // Custom Invoices & Vouchers State (Clean empty slate for real hotel creation)
-  const [customInvoices, setCustomInvoices] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_custom_invoices_v2');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return [];
-  });
+  // Custom Invoices & Vouchers State - driven by Supabase financial_invoices
+  const [customInvoices, setCustomInvoices] = useState([]);
 
-  // Hotel Expenses State (Clean empty slate)
-  const [expenses, setExpenses] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_hotel_expenses_v2');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return [];
-  });
+  // Hotel Expenses State - driven by Supabase hotel_expenses
+  const [expenses, setExpenses] = useState([]);
 
   // New Invoice Form State
   const [invClientName, setInvClientName] = useState('');
@@ -102,19 +90,6 @@ export default function AccountsFinanceView() {
   const [expAmount, setExpAmount] = useState('2500');
   const [expMode, setExpMode] = useState('UPI');
   const [expNotes, setExpNotes] = useState('');
-
-  // Persist State
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_custom_invoices_v2', JSON.stringify(customInvoices));
-    } catch (e) { }
-  }, [customInvoices]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_hotel_expenses_v2', JSON.stringify(expenses));
-    } catch (e) { }
-  }, [expenses]);
 
   // Merge Live Reservations into Invoices
   const allInvoices = useMemo(() => {

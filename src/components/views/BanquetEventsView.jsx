@@ -58,36 +58,14 @@ export default function BanquetEventsView() {
     }
   };
 
-  // Venues List (Clean empty slate for real hotel creation)
-  const [venues, setVenues] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_banquet_venues_v2');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return [];
-  });
+  // Venues List - driven by Supabase banquet_venues
+  const [venues, setVenues] = useState([]);
 
-  // Preset Catering Menus Master (Clean empty slate)
-  const [presetMenus, setPresetMenus] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_banquet_menus_v2');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return [];
-  });
-
-  // Save venues and menus to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_banquet_venues_v2', JSON.stringify(venues));
-    } catch (e) { }
-  }, [venues]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_banquet_menus_v2', JSON.stringify(presetMenus));
-    } catch (e) { }
-  }, [presetMenus]);
+  // Preset Catering Menus Master
+  const [presetMenus, setPresetMenus] = useState([
+    { id: 'm-1', name: 'Royal Wedding Feast', pricePerPax: 1200, items: 'Welcome drinks, 4 Starters, 6 Mains, Breads, 3 Desserts' },
+    { id: 'm-2', name: 'Corporate High-Tea', pricePerPax: 450, items: 'Tea/Coffee, Cookies, Sandwiches, Samosas, Spring Rolls' }
+  ]);
 
   // Live Banquet Bookings State
   const [bookings, setBookings] = useState([]);
@@ -119,20 +97,19 @@ export default function BanquetEventsView() {
   const [menuPrice, setMenuPrice] = useState('950');
   const [menuItems, setMenuItems] = useState('');
 
-  // Fetch live banquet bookings from Supabase
+  // Fetch live banquet bookings & venues from Supabase
   const fetchBookings = async () => {
     if (!isSupabaseConfigured) return;
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('banquet_bookings')
-        .select('*');
+      const hotelId = currentHotel?.id || 'shivanandi';
+      const [bRes, vRes] = await Promise.all([
+        supabase.from('banquet_bookings').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`).order('event_date', { ascending: true }),
+        supabase.from('banquet_venues').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`)
+      ]);
 
-      if (error) throw error;
-      if (data) {
-        const hotelId = currentHotel?.id || 'shivanandi';
-        const filtered = data.filter(b => !b.hotel_id || b.hotel_id === hotelId);
-        setBookings(filtered.map(b => ({
+      if (bRes.data) {
+        setBookings(bRes.data.map(b => ({
           id: b.id,
           guestName: b.guest_name || b.client_name,
           phone: b.phone || b.client_phone,
@@ -148,6 +125,17 @@ export default function BanquetEventsView() {
           notes: b.notes || ''
         })));
       }
+
+      if (vRes.data && vRes.data.length > 0) {
+        setVenues(vRes.data.map(v => ({
+          id: v.id,
+          name: v.name,
+          capacity: v.capacity || 100,
+          rate: Number(v.base_rent || 20000),
+          type: 'Indoor AC',
+          floor: 'Ground Floor'
+        })));
+      }
     } catch (err) {
       console.warn('Supabase banquet fetch notice:', err.message);
     } finally {
@@ -157,7 +145,7 @@ export default function BanquetEventsView() {
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+  }, [currentHotel]);
 
   // Compute calculated pricing for new booking modal
   const calculatedTotal = useMemo(() => {
@@ -234,7 +222,7 @@ export default function BanquetEventsView() {
   };
 
   // Add New Venue Handler
-  const handleCreateVenue = (e) => {
+  const handleCreateVenue = async (e) => {
     e.preventDefault();
     if (!venueName) return;
     const newV = {
@@ -248,6 +236,22 @@ export default function BanquetEventsView() {
     setVenues(prev => [...prev, newV]);
     setIsNewVenueModalOpen(false);
     showNotification(`New venue hall "${venueName}" created.`);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('banquet_venues').insert([{
+          id: newV.id,
+          hotel_id: currentHotel?.id || 'shivanandi',
+          name: newV.name,
+          capacity: newV.capacity,
+          base_rent: newV.rate,
+          description: `${newV.type} - ${newV.floor}`
+        }]);
+      } catch (err) {
+        console.warn('Supabase banquet_venues insert error:', err);
+      }
+    }
+
     setVenueName('');
   };
 

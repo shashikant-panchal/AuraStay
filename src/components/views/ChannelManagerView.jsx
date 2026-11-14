@@ -109,14 +109,8 @@ export default function ChannelManagerView() {
   const [isFetching, setIsFetching] = useState(false);
   const [fetchedData, setFetchedData] = useState(null);
 
-  // Webhook Simulator State
-  const [webhookLogs, setWebhookLogs] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_aiosell_webhook_logs');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return [];
-  });
+  // Webhook Simulator State (in-memory logs)
+  const [webhookLogs, setWebhookLogs] = useState([]);
   const [customWebhookPayload, setCustomWebhookPayload] = useState('');
   const [isSimulatingWebhook, setIsSimulatingWebhook] = useState(false);
 
@@ -125,13 +119,6 @@ export default function ChannelManagerView() {
   const [noShowChannel, setNoShowChannel] = useState('booking.com');
   const [isMarkingNoShow, setIsMarkingNoShow] = useState(false);
   const [noShowResponse, setNoShowResponse] = useState(null);
-
-  // Persist webhook logs
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_aiosell_webhook_logs', JSON.stringify(webhookLogs.slice(0, 50)));
-    } catch (e) {}
-  }, [webhookLogs]);
 
   // Initial check on load
   useEffect(() => {

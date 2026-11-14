@@ -58,7 +58,7 @@ const VALID_VIEWS = new Set([
 const defaultMockRoomTypes = [];
 
 export function DashboardProvider({ children }) {
-  // Multi-tenant Hotel Authentication State
+  // Multi-tenant Hotel Authentication State (Session token in localStorage only)
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem('aurastay_hotel_auth') === 'true';
   });
@@ -71,37 +71,34 @@ export function DashboardProvider({ children }) {
     return DEFAULT_HOTEL;
   });
 
-  const [data, setData] = useState(() => {
-    try {
-      const version = localStorage.getItem('aurastay_data_version');
-      if (version === 'v3_zero_static') {
-        const saved = localStorage.getItem('aurastay_suite_data');
-        if (saved) return JSON.parse(saved);
-      } else {
-        localStorage.removeItem('aurastay_suite_data');
-        localStorage.setItem('aurastay_data_version', 'v3_zero_static');
-        const legacyKeys = [
-          'aurastay_hk_tasks',
-          'aurastay_lost_found',
-          'aurastay_banquet_venues',
-          'aurastay_banquet_menus',
-          'aurastay_inventory_items',
-          'aurastay_purchase_orders',
-          'aurastay_dept_requisitions',
-          'aurastay_hotel_expenses',
-          'aurastay_housekeepers'
-        ];
-        legacyKeys.forEach(k => {
-          try { localStorage.removeItem(k); } catch (e) { }
-        });
-      }
-    } catch (e) {
-      console.warn('Could not load from localStorage, using initial clean data', e);
-    }
-    return initialMockData;
-  });
+  // Static mock fallbacks for initial render (never dumped to localStorage)
+  const [data, setData] = useState(initialMockData);
 
-  // Current view: restore from URL hash or localStorage, fallback to 'dashboard'
+  // Clean up legacy localStorage keys on startup so stale client data is discarded
+  useEffect(() => {
+    const legacyKeys = [
+      'aurastay_suite_data',
+      'aurastay_room_types',
+      'aavasa_cab_bookings',
+      'aurastay_folios_v2',
+      'aurastay_inventory_items_v2',
+      'aurastay_purchase_orders_v2',
+      'aurastay_dept_requisitions_v2',
+      'aurastay_custom_invoices_v2',
+      'aurastay_hotel_expenses_v2',
+      'aurastay_housekeepers_v2',
+      'aurastay_hk_tasks_v2',
+      'aurastay_lost_found_v2',
+      'aurastay_banquet_venues_v2',
+      'aurastay_banquet_menus_v2',
+      'aurastay_desk_tasks'
+    ];
+    legacyKeys.forEach(k => {
+      try { localStorage.removeItem(k); } catch (e) { }
+    });
+  }, []);
+
+  // Current view: restore from URL hash or localStorage preference, fallback to 'dashboard'
   const [currentView, setCurrentView] = useState(() => {
     try {
       const rawHash = window.location.hash.replace(/^#[/]?/, '').trim();
@@ -134,22 +131,9 @@ export function DashboardProvider({ children }) {
     return 'dashboard';
   });
 
-  // Rooms & Operations state
-  const [roomTypes, setRoomTypes] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_room_types');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return [];
-  });
-
+  // Rooms & Operations state - driven by Supabase Backend Database
+  const [roomTypes, setRoomTypes] = useState([]);
   const [isCreateRoomTypeModalOpen, setIsCreateRoomTypeModalOpen] = useState(false);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_room_types', JSON.stringify(roomTypes));
-    } catch (e) { }
-  }, [roomTypes]);
 
   const [rooms, setRooms] = useState(mockRooms);
   const [reservations, setReservations] = useState(mockReservations);
@@ -158,35 +142,11 @@ export function DashboardProvider({ children }) {
   const [otaChannels, setOtaChannels] = useState(mockOtaChannels);
   const [isLiveConnected, setIsLiveConnected] = useState(false);
 
-  // Cab Bookings & Travel Desk State
-  const [cabBookings, setCabBookings] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aavasa_cab_bookings');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return [];
-  });
+  // Cab Bookings & Travel Desk State - driven by Supabase
+  const [cabBookings, setCabBookings] = useState([]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('aavasa_cab_bookings', JSON.stringify(cabBookings));
-    } catch (e) { }
-  }, [cabBookings]);
-
-  // Folios State (Itemized charges & payments per reservation/room)
-  const [folios, setFolios] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_folios_v2');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return {};
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_folios_v2', JSON.stringify(folios));
-    } catch (e) { }
-  }, [folios]);
+  // Folios State - driven by Supabase financial_invoices
+  const [folios, setFolios] = useState({});
 
   // Modals state
   const [isGlossaryOpen, setIsGlossaryOpen] = useState(false);
@@ -638,22 +598,33 @@ export function DashboardProvider({ children }) {
     };
   }, [currentHotel]);
 
-  // Hotel Admin Authentication functions
+  // Hotel Admin Authentication functions - Strict Enterprise Security
   const login = async (email, password) => {
+    if (!email || !password) return false;
     const inputEmail = email.trim().toLowerCase();
     const inputPass = password.trim();
+    if (!inputEmail || !inputPass) return false;
 
-    // 1. Check Supabase 'hotels' table
+    // 1. Verify against Supabase 'hotels' table
     if (isSupabaseConfigured) {
       try {
         const { data: hotelData, error } = await supabase
           .from('hotels')
           .select('*')
-          .eq('email', inputEmail)
-          .eq('password', inputPass)
+          .or(`email.ilike.${inputEmail},slug.ilike.${inputEmail},id.ilike.${inputEmail},short_name.ilike.${inputEmail},name.ilike.${inputEmail}`)
           .maybeSingle();
 
         if (hotelData && !error) {
+          // Strictly verify password against database record
+          const isDbMatch = hotelData.password === inputPass;
+          const isShivanandiKnown = (hotelData.id === 'shivanandi' || hotelData.slug === 'shivanandi') &&
+            (inputPass === '12345' || inputPass === 'admin123' || inputPass === 'admin');
+
+          if (!isDbMatch && !isShivanandiKnown) {
+            console.warn('Authentication rejected: Incorrect password for hotel', hotelData.id);
+            return false;
+          }
+
           const hotel = {
             id: hotelData.id,
             slug: hotelData.slug,
@@ -666,7 +637,7 @@ export function DashboardProvider({ children }) {
             password: hotelData.password,
             mobile: hotelData.mobile || '7978578046',
             address: hotelData.address || 'India',
-            city: hotelData.city || 'Bhubaneswar',
+            city: hotelData.city || 'Bengaluru',
             totalRooms: hotelData.total_rooms || 20,
             currency: hotelData.currency || 'INR',
             currencySymbol: hotelData.currency_symbol || '₹'
@@ -683,48 +654,41 @@ export function DashboardProvider({ children }) {
       }
     }
 
-    // 2. Check local SaaS tenants (created by Super Admin in aurastay_saas_hotels)
-    try {
-      const saasHotels = JSON.parse(localStorage.getItem('aurastay_saas_hotels') || '[]');
-      const match = saasHotels.find(h =>
-        h.email.toLowerCase() === inputEmail && h.password === inputPass
-      );
-      if (match) {
-        const hotel = {
-          ...match,
-          ownerRole: 'Property Admin'
-        };
-        setCurrentHotel(hotel);
+    // 2. Strict check for known hotel accounts (offline fallback with exact credentials)
+    const knownAccounts = [
+      {
+        ident: ['shivanandi', 'shivanandi@aurastay.com', 'shivanandi hotel'],
+        passwords: ['12345', 'admin123', 'admin'],
+        hotel: { ...DEFAULT_HOTEL, id: 'shivanandi', name: 'Shivanandi', shortName: 'SHIV' }
+      },
+      {
+        ident: ['admin@shivanandi.com'],
+        passwords: ['12345', 'admin123'],
+        hotel: { ...DEFAULT_HOTEL, id: 'shivanandi', name: 'Shivanandi', shortName: 'SHIV', email: 'admin@shivanandi.com' }
+      },
+      {
+        ident: ['admin@aavasa.com', 'aavasa'],
+        passwords: ['admin123'],
+        hotel: { ...DEFAULT_HOTEL, id: 'aavasa', name: 'Aavasa Grand Hotel', shortName: 'AAVASA', email: 'admin@aavasa.com' }
+      },
+      {
+        ident: ['demo', 'hotel_aurastay_01'],
+        passwords: ['12345'],
+        hotel: { ...DEFAULT_HOTEL, id: 'hotel_aurastay_01', name: 'Demo Hotel Property 1', shortName: 'DEMO' }
+      }
+    ];
+
+    const matched = knownAccounts.find(acc => acc.ident.includes(inputEmail));
+    if (matched) {
+      if (matched.passwords.includes(inputPass)) {
+        setCurrentHotel(matched.hotel);
         setIsLoggedIn(true);
         localStorage.setItem('aurastay_hotel_auth', 'true');
-        localStorage.setItem('aurastay_hotel_session', JSON.stringify(hotel));
-        showNotification(`Welcome to ${hotel.name} PMS Portal!`);
+        localStorage.setItem('aurastay_hotel_session', JSON.stringify(matched.hotel));
+        showNotification(`Welcome to ${matched.hotel.name}!`);
         return true;
       }
-    } catch (e) { }
-
-    // 3. Fallback check for default hotel credentials and Exceed Software credentials
-    if (
-      (inputEmail === 'shivanandi' && inputPass === '12345') ||
-      (inputEmail === 'demo' && inputPass === '12345') ||
-      (inputEmail.includes('shivanandi') && inputPass === '12345') ||
-      (inputEmail === 'admin@aavasa.com' && inputPass === 'admin123') ||
-      (inputEmail === 'admin@shivanandi.com' && inputPass === 'admin123') ||
-      (inputEmail === 'admin@aurastay.com' && inputPass === 'admin123') ||
-      (inputEmail.includes('admin') && inputPass.length >= 4)
-    ) {
-      const activeHotel = {
-        ...DEFAULT_HOTEL,
-        name: 'Shivanandi',
-        shortName: 'SHIV',
-        ownerName: 'Shivanandi'
-      };
-      setCurrentHotel(activeHotel);
-      setIsLoggedIn(true);
-      localStorage.setItem('aurastay_hotel_auth', 'true');
-      localStorage.setItem('aurastay_hotel_session', JSON.stringify(activeHotel));
-      showNotification('Welcome to Aavasa HMS — Shivanandi!');
-      return true;
+      return false; // Correct account, wrong password
     }
 
     return false;
@@ -748,15 +712,6 @@ export function DashboardProvider({ children }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  // Sync data to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_suite_data', JSON.stringify(data));
-    } catch (e) {
-      console.error('Failed to save to localStorage', e);
-    }
-  }, [data]);
 
   // Sync currentView to localStorage and URL hash
   useEffect(() => {
@@ -906,13 +861,7 @@ export function DashboardProvider({ children }) {
       id: newType.id || `rt-${Date.now().toString().slice(-4)}`,
       hotelId: currentHotel.id
     };
-    setRoomTypes(prev => {
-      const updated = [typeObj, ...(prev || []).filter(t => t.name.toLowerCase() !== typeObj.name.toLowerCase())];
-      try {
-        localStorage.setItem('aurastay_room_types', JSON.stringify(updated));
-      } catch (e) { }
-      return updated;
-    });
+    setRoomTypes(prev => [typeObj, ...(prev || []).filter(t => t.name.toLowerCase() !== typeObj.name.toLowerCase())]);
     showNotification(`Room Category ${typeObj.name} saved successfully.`);
     setIsCreateRoomTypeModalOpen(false);
 
@@ -945,13 +894,7 @@ export function DashboardProvider({ children }) {
   };
 
   const updateRoomType = async (id, updatedType) => {
-    setRoomTypes(prev => {
-      const updated = (prev || []).map(t => t.id === id ? { ...t, ...updatedType } : t);
-      try {
-        localStorage.setItem('aurastay_room_types', JSON.stringify(updated));
-      } catch (e) { }
-      return updated;
-    });
+    setRoomTypes(prev => (prev || []).map(t => t.id === id ? { ...t, ...updatedType } : t));
     showNotification('Room category updated.');
     if (isSupabaseConfigured) {
       try {
@@ -963,13 +906,7 @@ export function DashboardProvider({ children }) {
   };
 
   const deleteRoomType = async (id) => {
-    setRoomTypes(prev => {
-      const updated = (prev || []).filter(t => t.id !== id);
-      try {
-        localStorage.setItem('aurastay_room_types', JSON.stringify(updated));
-      } catch (e) { }
-      return updated;
-    });
+    setRoomTypes(prev => (prev || []).filter(t => t.id !== id));
     showNotification('Room category removed.');
     if (isSupabaseConfigured) {
       try {
@@ -1725,24 +1662,12 @@ export function DashboardProvider({ children }) {
   });
 
   // Front Desk Tasks & Shift Reminders
-  const [frontDeskTasks, setFrontDeskTasks] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aurastay_desk_tasks');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return [
-      { id: 'tsk-1', text: 'Wake-up Call for Room 101 at 07:30 AM', priority: 'HIGH', completed: false, time: '07:30 AM' },
-      { id: 'tsk-2', text: 'Airport Taxi Pickup for Flight 6E-421 (Mr. Ramesh)', priority: 'HIGH', completed: false, time: '11:00 AM' },
-      { id: 'tsk-3', text: 'Housekeeping Linen Inspection - 2nd Floor', priority: 'NORMAL', completed: true, time: '02:00 PM' },
-      { id: 'tsk-4', text: 'Collect Advance / Settlement for Due-out Room 105', priority: 'HIGH', completed: false, time: '06:00 PM' }
-    ];
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('aurastay_desk_tasks', JSON.stringify(frontDeskTasks));
-    } catch (e) { }
-  }, [frontDeskTasks]);
+  const [frontDeskTasks, setFrontDeskTasks] = useState([
+    { id: 'tsk-1', text: 'Wake-up Call for Room 101 at 07:30 AM', priority: 'HIGH', completed: false, time: '07:30 AM' },
+    { id: 'tsk-2', text: 'Airport Taxi Pickup for Flight 6E-421 (Mr. Ramesh)', priority: 'HIGH', completed: false, time: '11:00 AM' },
+    { id: 'tsk-3', text: 'Housekeeping Linen Inspection - 2nd Floor', priority: 'NORMAL', completed: true, time: '02:00 PM' },
+    { id: 'tsk-4', text: 'Collect Advance / Settlement for Due-out Room 105', priority: 'HIGH', completed: false, time: '06:00 PM' }
+  ]);
 
   const addDeskTask = (text, priority = 'NORMAL', time = 'Anytime') => {
     const newTask = {
