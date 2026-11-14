@@ -63,8 +63,9 @@ export default function CreateRoomModal() {
 
     if (list.length === 0) {
       list.push(
-        { id: 'rt-deluxe', name: 'Deluxe Room', label: 'Room', beddingType: 'King Bed', maxAdults: 2, maxExtra: 1, maxChildren: 1, areaSqft: 350, basePrice: 2500, isBookingEngine: true },
-        { id: 'rt-standard', name: 'Standard Room', label: 'Room', beddingType: 'Queen Bed', maxAdults: 2, maxExtra: 0, maxChildren: 1, areaSqft: 280, basePrice: 1800, isBookingEngine: true }
+        { id: 'rt-standard', name: 'Standard Room', label: 'Room', beddingType: 'Queen Bed', maxAdults: 2, maxExtra: 0, maxChildren: 1, areaSqft: 280, basePrice: 2500, isBookingEngine: true },
+        { id: 'rt-deluxe', name: 'Deluxe Room', label: 'Room', beddingType: 'King Bed', maxAdults: 3, maxExtra: 1, maxChildren: 1, areaSqft: 350, basePrice: 3500, isBookingEngine: true },
+        { id: 'rt-executive', name: 'Executive Room', label: 'Room', beddingType: 'King Bed', maxAdults: 3, maxExtra: 1, maxChildren: 1, areaSqft: 420, basePrice: 4500, isBookingEngine: true }
       );
     }
 

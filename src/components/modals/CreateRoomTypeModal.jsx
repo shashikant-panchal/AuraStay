@@ -150,7 +150,7 @@ export default function CreateRoomTypeModal({ isOpen, onClose }) {
               </label>
               <input
                 type="text"
-                placeholder="e.g. Deluxe Room, Executive Suite"
+                placeholder="e.g. Standard Room, Deluxe Room, Executive Room"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required

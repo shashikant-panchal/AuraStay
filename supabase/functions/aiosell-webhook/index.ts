@@ -114,7 +114,7 @@ function normalizeCategory(rawRoomCode: string): string {
   if (code.includes("suite")) return "Executive Suite";
   if (code.includes("exec")) return "Executive Room";
   if (code.includes("std") || code.includes("standard")) return "Standard Room";
-  if (code.includes("deluxe")) return "Deluxe Room";
+  if (code.includes("delux") || code.includes("dlx")) return "Deluxe Room";
   return rawRoomCode ? String(rawRoomCode).trim() : "Standard Room";
 }
 

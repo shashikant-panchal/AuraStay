@@ -152,11 +152,36 @@ serve(async (req: Request) => {
       return jsonResponse({ success: true, hotel: sanitizeHotel(matched) }, 200);
     }
 
-    // 2. SuperAdmin Provisioning (Hotel Admin + Initial Room Categories/Rooms)
+    // 2. SuperAdmin Provisioning (Hotel Admin + Initial Room Categories/Rooms: Standard, Deluxe, Executive, etc.)
     if (action === "provision_hotel_and_rooms") {
-      const { hotel, roomCategories } = payload;
+      const { hotel, roomCategories, mode } = payload;
       if (!hotel || !hotel.id || !hotel.email || !hotel.password) {
         return jsonResponse({ success: false, message: "Hotel ID, email, and password are required." }, 400);
+      }
+
+      const normalizeCategoryName = (raw: string) => {
+        const cleaned = String(raw || "Standard Room").trim();
+        if (!cleaned) return "Standard Room";
+        if (/^standard$/i.test(cleaned)) return "Standard Room";
+        if (/^delux(e)?$/i.test(cleaned)) return "Deluxe Room";
+        if (/^executive$/i.test(cleaned)) return "Executive Room";
+        const hasSuffix = /\b(room|rooms|suite|suites|villa|villas|cottage|studio|tent|cabin|penthouse|loft)\b/i.test(cleaned);
+        return hasSuffix ? cleaned : `${cleaned} Room`;
+      };
+
+      if (mode !== "add_rooms") {
+        await Promise.all([
+          supabase.from("rooms").delete().eq("hotel_id", hotel.id),
+          supabase.from("room_types").delete().eq("hotel_id", hotel.id),
+          supabase.from("reservations").delete().eq("hotel_id", hotel.id),
+          supabase.from("fnb_orders").delete().eq("hotel_id", hotel.id),
+          supabase.from("restaurant_tables").delete().eq("hotel_id", hotel.id),
+          supabase.from("restaurant_menu_items").delete().eq("hotel_id", hotel.id),
+          supabase.from("housekeeping_tasks").delete().eq("hotel_id", hotel.id),
+          supabase.from("cab_bookings").delete().eq("hotel_id", hotel.id),
+          supabase.from("financial_invoices").delete().eq("hotel_id", hotel.id),
+          supabase.from("banquet_bookings").delete().eq("hotel_id", hotel.id)
+        ]);
       }
 
       const { error: hotelErr } = await supabase.from("hotels").upsert(hotel);
@@ -183,9 +208,8 @@ serve(async (req: Request) => {
           const bed = String(cat.bed || cat.beddingType || "King Bed").trim();
           const floor = String(cat.floor || `Floor ${idx + 1}`).trim();
           const startNum = Number(cat.startRoomNumber) || (idx + 1) * 100 + 1;
-          const hasSuffix = /\b(room|rooms|suite|suites|villa|villas|cottage|studio|tent|cabin|penthouse|loft)\b/i.test(rawName);
-          const categoryName = hasSuffix ? rawName : `${rawName} Room`;
-          const rtId = `rt-${hotel.id}-${categoryName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+          const categoryName = normalizeCategoryName(rawName);
+          const rtId = `rt-${String(hotel.id).slice(0, 8)}-${categoryName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 
           await supabase.from("room_types").upsert({
             id: rtId,
@@ -194,22 +218,41 @@ serve(async (req: Request) => {
             label: "Room",
             bedding_type: bed,
             max_adults: Number(cat.maxAdults) || 2,
-            area_sqft: Number(cat.areaSqft) || 350,
+            max_extra: 1,
+            max_children: 1,
+            area_sqft: Number(cat.areaSqft) || 320,
             base_price: price,
-            description: `Comfortable ${categoryName}.`,
+            extra_bed_price: 800,
+            child_price: 400,
+            amenities: [
+              "High-speed Optic Fiber Wi-Fi",
+              "Individual Split Air Conditioning",
+              "43-inch 4K Smart TV",
+              "Ensuite Bathroom with 24/7 Hot Water",
+              "Daily Housekeeping"
+            ],
+            description: String(cat.description || `Comfortable ${categoryName} featuring modern amenities and high-speed Wi-Fi.`).trim(),
             is_booking_engine: true
           });
 
+          const explicitNums = Array.isArray(cat.roomNumbers)
+            ? cat.roomNumbers.map((s: any) => String(s).trim()).filter(Boolean)
+            : String(cat.roomNumbers || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+
           let candidateNum = startNum;
           for (let i = 0; i < count; i++) {
-            while (usedNumbers.has(String(candidateNum))) candidateNum++;
-            const roomNumStr = String(candidateNum);
+            let roomNumStr = explicitNums[i] || "";
+            if (!roomNumStr || usedNumbers.has(roomNumStr)) {
+              while (usedNumbers.has(String(candidateNum))) candidateNum++;
+              roomNumStr = String(candidateNum);
+              candidateNum++;
+            }
             usedNumbers.add(roomNumStr);
-            candidateNum++;
 
-            await supabase.from("rooms").insert({
+            const { error: rmErr } = await supabase.from("rooms").insert({
               hotel_id: hotel.id,
               room_number: roomNumStr,
+              room_type_id: rtId,
               floor,
               type: categoryName,
               bed,
@@ -220,7 +263,7 @@ serve(async (req: Request) => {
               is_smoking: false,
               phone_extension: roomNumStr
             });
-            createdCount++;
+            if (!rmErr) createdCount++;
           }
         }
       }
