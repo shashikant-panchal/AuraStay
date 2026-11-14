@@ -70,12 +70,12 @@ const VALID_VIEWS = new Set([
 const defaultMockRoomTypes = [];
 
 export function DashboardProvider({ children }) {
-  // Multi-tenant Hotel Authentication State (Strictly SuperAdmin-provisioned credentials)
+  // Multi-tenant Hotel Authentication State (Persisted across page refreshes until explicit logout)
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     try {
       const authFlag = localStorage.getItem('aavasa_admin_auth_v3') === 'true';
       const savedSession = JSON.parse(localStorage.getItem('aavasa_admin_session_v3') || 'null');
-      return Boolean(authFlag && savedSession && savedSession.id && savedSession.email && savedSession.password);
+      return Boolean(authFlag && savedSession && (savedSession.id || savedSession.email));
     } catch (e) {
       return false;
     }
@@ -84,10 +84,20 @@ export function DashboardProvider({ children }) {
   const [currentHotel, setCurrentHotel] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('aavasa_admin_session_v3') || 'null');
-      if (saved && saved.id && saved.email && saved.password) return saved;
+      if (saved && (saved.id || saved.email)) return saved;
     } catch (e) { }
     return DEFAULT_HOTEL;
   });
+
+  // Persist Admin session in localStorage so page refresh never logs out the Admin
+  useEffect(() => {
+    try {
+      if (isLoggedIn && currentHotel && (currentHotel.id || currentHotel.email)) {
+        localStorage.setItem('aavasa_admin_auth_v3', 'true');
+        localStorage.setItem('aavasa_admin_session_v3', JSON.stringify(currentHotel));
+      }
+    } catch (e) { }
+  }, [isLoggedIn, currentHotel]);
 
   // Static mock fallbacks for initial render (never dumped to localStorage)
   const [data, setData] = useState(initialMockData);
@@ -227,14 +237,18 @@ export function DashboardProvider({ children }) {
         : [];
       const totalHotelsCount = allHotels.length;
       const activeHotelIds = new Set(
-        allHotels.flatMap(h => [
-          String(h.id || '').trim().toLowerCase(),
-          String(h.slug || '').trim().toLowerCase()
-        ]).filter(Boolean)
+        [
+          ...allHotels.flatMap(h => [
+            String(h.id || '').trim().toLowerCase(),
+            String(h.slug || '').trim().toLowerCase()
+          ]),
+          isLoggedIn ? String(currentHotel?.id || '').trim().toLowerCase() : '',
+          isLoggedIn ? String(currentHotel?.slug || '').trim().toLowerCase() : ''
+        ].filter(Boolean)
       );
 
       // Purge any orphaned rooms, room_types, or reservations created under previous/deleted logins
-      if (!hotelsRes?.error) {
+      if (!hotelsRes?.error && activeHotelIds.size > 0) {
         if (Array.isArray(roomsRes?.data)) {
           for (const rm of roomsRes.data) {
             if (!rm.hotel_id || !activeHotelIds.has(String(rm.hotel_id).trim().toLowerCase())) {
@@ -262,11 +276,10 @@ export function DashboardProvider({ children }) {
         }
       }
 
-      // Verify current session strictly against live SuperAdmin 'hotels' table (ID, Email, Password, Status)
-      if (isLoggedIn && !hotelsRes?.error) {
+      // Sync latest hotel metadata from SuperAdmin 'hotels' table while keeping Admin session active across refreshes
+      if (isLoggedIn && !hotelsRes?.error && allHotels.length > 0) {
         const curId = String(currentHotel?.id || '').trim().toLowerCase();
         const curEmail = String(currentHotel?.email || '').trim().toLowerCase();
-        const curPass = String(currentHotel?.password || '').trim();
         const matchedHotel = allHotels.find(h => {
           const hId = String(h.id || '').trim().toLowerCase();
           const hSlug = String(h.slug || '').trim().toLowerCase();
@@ -274,16 +287,35 @@ export function DashboardProvider({ children }) {
           return (curId && (hId === curId || hSlug === curId)) || (curEmail && hEmail === curEmail);
         });
 
-        if (
-          !matchedHotel ||
-          matchedHotel.status !== 'ACTIVE' ||
-          !curPass ||
-          matchedHotel.password !== curPass
-        ) {
-          setIsLoggedIn(false);
-          setCurrentHotel(DEFAULT_HOTEL);
-          localStorage.removeItem('aavasa_admin_auth_v3');
-          localStorage.removeItem('aavasa_admin_session_v3');
+        if (matchedHotel) {
+          const syncedHotel = {
+            ...currentHotel,
+            id: matchedHotel.id,
+            slug: matchedHotel.slug || matchedHotel.id,
+            name: matchedHotel.name || currentHotel.name,
+            shortName: matchedHotel.short_name || currentHotel.shortName || 'HTL',
+            logoUrl: matchedHotel.logo_url || currentHotel.logoUrl,
+            ownerName: matchedHotel.owner_name || currentHotel.ownerName || 'Hotel Admin',
+            email: matchedHotel.email || currentHotel.email,
+            password: matchedHotel.password || currentHotel.password,
+            mobile: matchedHotel.mobile || currentHotel.mobile || '',
+            address: matchedHotel.address || currentHotel.address || 'India',
+            city: matchedHotel.city || currentHotel.city || 'Bengaluru',
+            totalRooms: Number(matchedHotel.total_rooms) || currentHotel.totalRooms || 0
+          };
+          if (
+            syncedHotel.name !== currentHotel.name ||
+            syncedHotel.ownerName !== currentHotel.ownerName ||
+            syncedHotel.mobile !== currentHotel.mobile ||
+            syncedHotel.address !== currentHotel.address ||
+            syncedHotel.city !== currentHotel.city ||
+            syncedHotel.totalRooms !== currentHotel.totalRooms
+          ) {
+            setCurrentHotel(syncedHotel);
+            try {
+              localStorage.setItem('aavasa_admin_session_v3', JSON.stringify(syncedHotel));
+            } catch (e) { }
+          }
         }
       }
 

@@ -244,6 +244,96 @@ serve(async (req: Request) => {
     );
   }
 
+  // Support SuperAdmin provisioning of Hotel Admin + Room Categories + Physical Rooms
+  if (action === "provision_hotel_and_rooms") {
+    const { hotel, roomCategories } = payload;
+    if (!hotel || !hotel.id || !hotel.email || !hotel.password) {
+      return new Response(
+        JSON.stringify({ success: false, message: "Hotel ID, email, and password are required." }),
+        { headers: corsHeaders, status: 400 }
+      );
+    }
+
+    await supabase.from("hotels").upsert(hotel);
+
+    let createdCount = 0;
+    if (Array.isArray(roomCategories) && roomCategories.length > 0) {
+      const { data: existingRooms } = await supabase.from("rooms").select("room_number");
+      const usedNumbers = new Set(
+        (existingRooms || []).map((r: any) => String(r.room_number || "").trim())
+      );
+
+      for (let idx = 0; idx < roomCategories.length; idx++) {
+        const cat = roomCategories[idx];
+        const rawName = String(cat.name || cat.type || "Standard Room").trim();
+        const count = Math.max(0, Number(cat.count || cat.quantity || 0));
+        if (!rawName || count <= 0) continue;
+
+        const price = Number(cat.price || cat.basePrice || 2500);
+        const bed = String(cat.bed || cat.beddingType || "King Bed").trim();
+        const floor = String(cat.floor || `Floor ${idx + 1}`).trim();
+        const startNum = Number(cat.startRoomNumber) || (idx + 1) * 100 + 1;
+
+        const hasSuffix = /\b(room|rooms|suite|suites|villa|villas|cottage|studio|tent|cabin|penthouse|loft)\b/i.test(rawName);
+        const categoryName = hasSuffix ? rawName : `${rawName} Room`;
+        const rtId = `rt-${hotel.id}-${categoryName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
+        await supabase.from("room_types").upsert({
+          id: rtId,
+          hotel_id: hotel.id,
+          name: categoryName,
+          label: "Room",
+          bedding_type: bed,
+          max_adults: Number(cat.maxAdults) || 2,
+          area_sqft: Number(cat.areaSqft) || 350,
+          base_price: price,
+          description: `Comfortable ${categoryName} provisioned via Aavasa SuperAdmin.`,
+          is_booking_engine: true
+        });
+
+        let candidateNum = startNum;
+        for (let i = 0; i < count; i++) {
+          while (usedNumbers.has(String(candidateNum))) {
+            candidateNum++;
+          }
+          const roomNumStr = String(candidateNum);
+          usedNumbers.add(roomNumStr);
+          candidateNum++;
+
+          await supabase.from("rooms").insert({
+            hotel_id: hotel.id,
+            room_number: roomNumStr,
+            floor,
+            type: categoryName,
+            bed,
+            status: "VACANT_READY",
+            price,
+            housekeeping: "Clean",
+            key_card_no: `CARD-${roomNumStr}`,
+            is_smoking: false,
+            phone_extension: roomNumStr
+          });
+          createdCount++;
+        }
+      }
+    }
+
+    await broadcastRealtimeSync({
+      action: "superadmin_hotel_provisioned",
+      hotelId: hotel.id,
+      createdRooms: createdCount
+    });
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        hotelId: hotel.id,
+        createdRooms: createdCount
+      }),
+      { headers: corsHeaders, status: 200 }
+    );
+  }
+
   // Support generic Enterprise PMS table mutation + immediate cross-device broadcast
   if (action === "pms_mutation") {
     const { table, operation, data, match } = payload;
