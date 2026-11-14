@@ -1,20 +1,20 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import aavasaLogo from '../assets/aavasa-logo.jpg';
 import { initialMockData } from '../data/mockData';
 import { mockRooms, mockReservations, mockFnbOrders, mockStaffUsers, mockOtaChannels } from '../data/suiteData';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { broadcastCrossDeviceSync, fetchLiveStateViaEdgeFunction } from '../services/aiosellService';
+import { supabase, isSupabaseConfigured, supabaseAnonKey } from '../lib/supabase';
+import { PMS_API_URL, broadcastCrossDeviceSync, pushHotelInventoryViaBackend } from '../services/aiosellService';
 
 const DEFAULT_HOTEL = {
   id: '',
   slug: '',
+  aiosellHotelCode: '',
   name: 'AuraStay Property',
   shortName: 'AST',
   logoUrl: aavasaLogo || './aavasa-logo.jpg',
   ownerName: 'Property Admin',
   ownerRole: 'Property Admin',
   email: '',
-  password: '',
   mobile: '',
   address: 'India',
   city: 'Bengaluru',
@@ -172,12 +172,15 @@ export function DashboardProvider({ children }) {
   const [roomTypes, setRoomTypes] = useState([]);
   const [isCreateRoomTypeModalOpen, setIsCreateRoomTypeModalOpen] = useState(false);
 
-  const [rooms, setRooms] = useState(mockRooms);
-  const [reservations, setReservations] = useState(mockReservations);
-  const [fnbOrders, setFnbOrders] = useState(mockFnbOrders);
+  const [rooms, setRooms] = useState([]);
+  const [reservations, setReservations] = useState([]);
+  const [fnbOrders, setFnbOrders] = useState([]);
+  const [restaurantTables, setRestaurantTables] = useState([]);
+  const [restaurantMenuItems, setRestaurantMenuItems] = useState([]);
   const [staffUsers, setStaffUsers] = useState(mockStaffUsers);
   const [otaChannels, setOtaChannels] = useState(mockOtaChannels);
   const [isLiveConnected, setIsLiveConnected] = useState(false);
+  const syncDebounceRef = useRef(null);
 
   // Cab Bookings & Travel Desk State - driven by Supabase
   const [cabBookings, setCabBookings] = useState([]);
@@ -204,144 +207,91 @@ export function DashboardProvider({ children }) {
   const [notificationMessage, setNotificationMessage] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // 1. Fetch live data from Supabase & Edge Function (reusable across startup, realtime broadcast, and silent sync)
+  // 1. Fetch hotel-scoped live data directly from Supabase (Free-Plan Optimized, zero cross-tenant leakage)
   const loadSupabaseData = useCallback(async () => {
-    if (!isSupabaseConfigured) return;
+    const hotelId = currentHotel?.id;
+    if (!isSupabaseConfigured || !isLoggedIn || !hotelId) return;
 
     try {
       const [
-        hotelsRes,
+        hotelRes,
         roomsRes,
         resRes,
         fnbRes,
+        tablesRes,
+        menuRes,
         staffRes,
         chanRes,
         roomTypesRes,
         cabsRes,
-        invoicesRes,
-        edgeState
+        invoicesRes
       ] = await Promise.all([
-        supabase.from('hotels').select('*'),
-        supabase.from('rooms').select('*').order('room_number'),
-        supabase.from('reservations').select('*').order('created_at', { ascending: false }),
-        supabase.from('fnb_orders').select('*').order('created_at', { ascending: false }),
-        supabase.from('staff_users').select('*').order('id'),
+        supabase
+          .from('hotels')
+          .select('id, slug, name, short_name, logo_url, owner_name, email, mobile, address, city, total_rooms, status, currency, currency_symbol, aiosell_hotel_code')
+          .eq('id', hotelId)
+          .maybeSingle(),
+        supabase.from('rooms').select('*').eq('hotel_id', hotelId).order('room_number'),
+        supabase.from('reservations').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
+        supabase.from('fnb_orders').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
+        supabase.from('restaurant_tables').select('*').eq('hotel_id', hotelId).order('name'),
+        supabase.from('restaurant_menu_items').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
+        supabase.from('staff_users').select('*').eq('hotel_id', hotelId).order('id'),
         supabase.from('ota_channels').select('*').order('id'),
-        supabase.from('room_types').select('*').order('name'),
-        supabase.from('cab_bookings').select('*').order('created_at', { ascending: false }),
-        supabase.from('financial_invoices').select('*').order('created_at', { ascending: false }),
-        fetchLiveStateViaEdgeFunction(currentHotel?.id).catch(() => null)
+        supabase.from('room_types').select('*').eq('hotel_id', hotelId).order('name'),
+        supabase.from('cab_bookings').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
+        supabase.from('financial_invoices').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false })
       ]);
 
-      const allHotels = Array.isArray(hotelsRes?.data)
-        ? hotelsRes.data.filter(
-            h =>
-              String(h.id || '').toLowerCase() !== 'hotel_aurastay_01' &&
-              String(h.email || '').toLowerCase() !== 'admin@aurastay.com'
-          )
-        : [];
-      const totalHotelsCount = allHotels.length;
-      const activeHotelIds = new Set(
-        [
-          ...allHotels.flatMap(h => [
-            String(h.id || '').trim().toLowerCase(),
-            String(h.slug || '').trim().toLowerCase()
-          ]),
-          isLoggedIn ? String(currentHotel?.id || '').trim().toLowerCase() : '',
-          isLoggedIn ? String(currentHotel?.slug || '').trim().toLowerCase() : ''
-        ].filter(Boolean)
-      );
-
-      // Purge any orphaned rooms, room_types, or reservations created under previous/deleted logins
-      if (!hotelsRes?.error && activeHotelIds.size > 0) {
-        if (Array.isArray(roomsRes?.data)) {
-          for (const rm of roomsRes.data) {
-            if (!rm.hotel_id || !activeHotelIds.has(String(rm.hotel_id).trim().toLowerCase())) {
-              if (rm.id) {
-                await supabase.from('rooms').delete().eq('id', rm.id);
-              } else if (rm.room_number && rm.hotel_id) {
-                await supabase.from('rooms').delete().eq('hotel_id', rm.hotel_id).eq('room_number', rm.room_number);
-              } else if (rm.room_number) {
-                await supabase.from('rooms').delete().is('hotel_id', null).eq('room_number', rm.room_number);
-              }
-            }
-          }
-        }
-        if (Array.isArray(roomTypesRes?.data)) {
-          for (const rt of roomTypesRes.data) {
-            if (!rt.hotel_id || !activeHotelIds.has(String(rt.hotel_id).trim().toLowerCase())) {
-              if (rt.id) await supabase.from('room_types').delete().eq('id', rt.id);
-            }
-          }
-        }
-        if (Array.isArray(resRes?.data)) {
-          for (const rs of resRes.data) {
-            if (!rs.hotel_id || !activeHotelIds.has(String(rs.hotel_id).trim().toLowerCase())) {
-              if (rs.id) await supabase.from('reservations').delete().eq('id', rs.id);
-            }
-          }
-        }
-      }
-
-      // Sync latest hotel metadata from SuperAdmin 'hotels' table while keeping Admin session active across refreshes
-      if (isLoggedIn && !hotelsRes?.error && allHotels.length > 0) {
-        const curId = String(currentHotel?.id || '').trim().toLowerCase();
-        const curEmail = String(currentHotel?.email || '').trim().toLowerCase();
-        const matchedHotel = allHotels.find(h => {
-          const hId = String(h.id || '').trim().toLowerCase();
-          const hSlug = String(h.slug || '').trim().toLowerCase();
-          const hEmail = String(h.email || '').trim().toLowerCase();
-          return (curId && (hId === curId || hSlug === curId)) || (curEmail && hEmail === curEmail);
-        });
-
-        if (matchedHotel) {
+      const matchedHotel = hotelRes?.data;
+      if (matchedHotel) {
+        setCurrentHotel(prev => {
           const syncedHotel = {
-            ...currentHotel,
+            ...prev,
             id: matchedHotel.id,
             slug: matchedHotel.slug || matchedHotel.id,
-            name: matchedHotel.name || currentHotel.name,
-            shortName: matchedHotel.short_name || currentHotel.shortName || 'HTL',
+            aiosellHotelCode: matchedHotel.aiosell_hotel_code || prev.aiosellHotelCode || '',
+            name: matchedHotel.name || prev.name,
+            shortName: matchedHotel.short_name || prev.shortName || 'HTL',
             logoUrl: matchedHotel.logo_url || DEFAULT_HOTEL.logoUrl,
-            ownerName: matchedHotel.owner_name || currentHotel.ownerName || 'Hotel Admin',
-            email: matchedHotel.email || currentHotel.email,
-            password: matchedHotel.password || currentHotel.password,
-            mobile: matchedHotel.mobile || currentHotel.mobile || '',
-            address: matchedHotel.address || currentHotel.address || 'India',
-            city: matchedHotel.city || currentHotel.city || 'Bengaluru',
+            ownerName: matchedHotel.owner_name || prev.ownerName || 'Hotel Admin',
+            email: matchedHotel.email || prev.email,
+            mobile: matchedHotel.mobile || prev.mobile || '',
+            address: matchedHotel.address || prev.address || 'India',
+            city: matchedHotel.city || prev.city || 'Bengaluru',
             totalRooms:
               matchedHotel.total_rooms !== undefined && matchedHotel.total_rooms !== null
                 ? Number(matchedHotel.total_rooms)
-                : (Number(currentHotel.totalRooms) || 0)
+                : (Number(prev.totalRooms) || 0)
           };
+          delete syncedHotel.password;
           if (
-            syncedHotel.name !== currentHotel.name ||
-            syncedHotel.shortName !== currentHotel.shortName ||
-            syncedHotel.logoUrl !== currentHotel.logoUrl ||
-            syncedHotel.ownerName !== currentHotel.ownerName ||
-            syncedHotel.mobile !== currentHotel.mobile ||
-            syncedHotel.address !== currentHotel.address ||
-            syncedHotel.city !== currentHotel.city ||
-            syncedHotel.totalRooms !== currentHotel.totalRooms
+            syncedHotel.name === prev.name &&
+            syncedHotel.shortName === prev.shortName &&
+            syncedHotel.logoUrl === prev.logoUrl &&
+            syncedHotel.ownerName === prev.ownerName &&
+            syncedHotel.mobile === prev.mobile &&
+            syncedHotel.address === prev.address &&
+            syncedHotel.city === prev.city &&
+            syncedHotel.totalRooms === prev.totalRooms &&
+            syncedHotel.aiosellHotelCode === prev.aiosellHotelCode
           ) {
-            setCurrentHotel(syncedHotel);
-            try {
-              localStorage.setItem('aavasa_admin_session_v3', JSON.stringify(syncedHotel));
-            } catch (e) { }
+            return prev;
           }
-        }
+          try {
+            localStorage.setItem('aavasa_admin_session_v3', JSON.stringify(syncedHotel));
+          } catch (e) { }
+          return syncedHotel;
+        });
       }
 
       let tablesFound = false;
 
-      const sourceRooms = Array.isArray(roomsRes?.data)
-        ? roomsRes.data
-        : (Array.isArray(edgeState?.rooms) ? edgeState.rooms : null);
-
-      if (sourceRooms !== null) {
-        const hotelRooms = sourceRooms.filter(r => belongsToCurrentHotel(r.hotel_id, currentHotel, totalHotelsCount));
+      if (!roomsRes?.error && Array.isArray(roomsRes?.data)) {
+        const hotelRooms = roomsRes.data;
         setRooms(hotelRooms.map(r => ({
           id: r.id,
-          hotelId: r.hotel_id || currentHotel?.id,
+          hotelId: r.hotel_id || hotelId,
           roomNumber: r.room_number,
           room_number: r.room_number,
           floor: r.floor,
@@ -363,15 +313,11 @@ export function DashboardProvider({ children }) {
         tablesFound = true;
       }
 
-      const sourceReservations = Array.isArray(resRes?.data)
-        ? resRes.data
-        : (Array.isArray(edgeState?.reservations) ? edgeState.reservations : null);
-
-      if (sourceReservations !== null) {
-        const hotelRes = sourceReservations.filter(r => belongsToCurrentHotel(r.hotel_id, currentHotel, totalHotelsCount));
+      if (!resRes?.error && Array.isArray(resRes?.data)) {
+        const hotelRes = resRes.data;
         setReservations(hotelRes.map(r => ({
           id: r.id,
-          hotelId: r.hotel_id || currentHotel?.id,
+          hotelId: r.hotel_id || hotelId,
           guest: r.guest,
           guestEmail: r.guest_email || '',
           guest_email: r.guest_email || '',
@@ -402,9 +348,8 @@ export function DashboardProvider({ children }) {
         tablesFound = true;
       }
 
-      if (Array.isArray(fnbRes?.data)) {
-        const hotelFnb = fnbRes.data.filter(o => belongsToCurrentHotel(o.hotel_id, currentHotel, totalHotelsCount));
-        setFnbOrders(hotelFnb.map(o => ({
+      if (!fnbRes?.error && Array.isArray(fnbRes?.data)) {
+        setFnbOrders(fnbRes.data.map(o => ({
           orderId: o.id,
           roomTable: o.room_table,
           guest: o.guest,
@@ -415,12 +360,48 @@ export function DashboardProvider({ children }) {
         })));
       }
 
-      if (Array.isArray(staffRes?.data)) {
-        const hotelStaff = staffRes.data.filter(s => belongsToCurrentHotel(s.hotel_id, currentHotel));
-        setStaffUsers(hotelStaff);
+      if (!tablesRes?.error && Array.isArray(tablesRes?.data)) {
+        setRestaurantTables(tablesRes.data.map(t => ({
+          id: t.id,
+          hotelId: t.hotel_id,
+          name: t.name,
+          area: t.area || 'Main Dining',
+          seats: Number(t.seats) || 4,
+          status: t.status || 'VACANT',
+          guestName: t.guest_name || null,
+          roomNumber: t.room_number || null,
+          itemsCount: Number(t.items_count) || 0,
+          total: Number(t.current_total) || 0,
+          activeOrderId: t.active_order_id || null,
+          updatedAt: t.updated_at
+        })));
       }
 
-      if (Array.isArray(chanRes?.data) && chanRes.data.length > 0) {
+      if (!menuRes?.error && Array.isArray(menuRes?.data)) {
+        setRestaurantMenuItems(menuRes.data.map(m => ({
+          id: m.id,
+          hotelId: m.hotel_id,
+          name: m.name,
+          category: m.category || 'Main Course',
+          kitchenStation: m.kitchen_station || 'Hot Kitchen (Indian)',
+          price: Number(m.price) || 0,
+          costPrice: Number(m.cost_price) || 0,
+          taxPct: Number(m.tax_pct ?? 5),
+          unit: m.unit || 'Portion',
+          isVeg: m.is_veg !== false,
+          isVegetarian: m.is_veg !== false,
+          status: m.status || 'AVAILABLE',
+          prepTime: m.prep_time || '15 mins',
+          description: m.description || '',
+          imageUrl: m.image_url || ''
+        })));
+      }
+
+      if (!staffRes?.error && Array.isArray(staffRes?.data)) {
+        setStaffUsers(staffRes.data);
+      }
+
+      if (!chanRes?.error && Array.isArray(chanRes?.data) && chanRes.data.length > 0) {
         setOtaChannels(chanRes.data.map(c => ({
           name: c.name,
           status: c.status,
@@ -431,11 +412,10 @@ export function DashboardProvider({ children }) {
         })));
       }
 
-      if (Array.isArray(roomTypesRes?.data)) {
-        const hotelRt = roomTypesRes.data.filter(t => belongsToCurrentHotel(t.hotel_id, currentHotel, totalHotelsCount));
-        setRoomTypes(hotelRt.map(t => ({
+      if (!roomTypesRes?.error && Array.isArray(roomTypesRes?.data)) {
+        setRoomTypes(roomTypesRes.data.map(t => ({
           id: t.id,
-          hotelId: t.hotel_id || currentHotel?.id,
+          hotelId: t.hotel_id || hotelId,
           name: t.name,
           label: t.label || 'Room',
           beddingType: t.bedding_type || 'King Bed',
@@ -453,11 +433,10 @@ export function DashboardProvider({ children }) {
         })));
       }
 
-      if (Array.isArray(cabsRes?.data)) {
-        const hotelCabs = cabsRes.data.filter(c => belongsToCurrentHotel(c.hotel_id, currentHotel, totalHotelsCount));
-        setCabBookings(hotelCabs.map(c => ({
+      if (!cabsRes?.error && Array.isArray(cabsRes?.data)) {
+        setCabBookings(cabsRes.data.map(c => ({
           id: c.id,
-          hotelId: c.hotel_id || currentHotel?.id,
+          hotelId: c.hotel_id || hotelId,
           guestName: c.guest_name,
           roomNumber: c.room_number,
           phone: c.phone,
@@ -476,10 +455,9 @@ export function DashboardProvider({ children }) {
         })));
       }
 
-      if (Array.isArray(invoicesRes?.data)) {
-        const hotelInvoices = invoicesRes.data.filter(inv => belongsToCurrentHotel(inv.hotel_id, currentHotel, totalHotelsCount));
+      if (!invoicesRes?.error && Array.isArray(invoicesRes?.data)) {
         const folioMap = {};
-        hotelInvoices.forEach(inv => {
+        invoicesRes.data.forEach(inv => {
           const resId = inv.reservation_id || inv.id?.replace(/^FOL-/, '');
           if (resId) {
             let parsedNotes = {};
@@ -510,46 +488,69 @@ export function DashboardProvider({ children }) {
     } catch (err) {
       console.info('Supabase database initializing...', err);
     }
-  }, [currentHotel, isLoggedIn]);
+  }, [currentHotel?.id, isLoggedIn]);
 
-  useEffect(() => {
-    loadSupabaseData();
-    const pollTimer = setInterval(() => {
+  const scheduleRealtimeRefresh = useCallback(() => {
+    if (syncDebounceRef.current) {
+      clearTimeout(syncDebounceRef.current);
+    }
+    syncDebounceRef.current = setTimeout(() => {
       loadSupabaseData();
-    }, 4000);
-    return () => clearInterval(pollTimer);
+    }, 300);
   }, [loadSupabaseData]);
 
-  // 2. Realtime WebSocket & Cross-Device Webhook Broadcast Subscription
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
+    if (!isLoggedIn || !currentHotel?.id) return;
+    loadSupabaseData();
+    // Free-Plan optimized fallback safety sync (30s) since WebSocket Realtime pushes instant updates
+    const pollTimer = setInterval(() => {
+      loadSupabaseData();
+    }, 30000);
+    return () => {
+      clearInterval(pollTimer);
+      if (syncDebounceRef.current) clearTimeout(syncDebounceRef.current);
+    };
+  }, [isLoggedIn, currentHotel?.id, loadSupabaseData]);
 
-    const channel = supabase.channel(`aurastay-realtime-${currentHotel?.id || 'global'}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'hotels' }, () => {
-        loadSupabaseData();
+  // 2. Scoped Realtime WebSocket & Webhook Broadcast Subscription (No refresh required)
+  useEffect(() => {
+    const hotelId = currentHotel?.id;
+    if (!isSupabaseConfigured || !isLoggedIn || !hotelId) return;
+
+    const hotelFilter = `hotel_id=eq.${hotelId}`;
+
+    const channel = supabase.channel(`aurastay-realtime-${hotelId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hotels', filter: `id=eq.${hotelId}` }, () => {
+        scheduleRealtimeRefresh();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => {
-        loadSupabaseData();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: hotelFilter }, () => {
+        scheduleRealtimeRefresh();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, payload => {
-        loadSupabaseData();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations', filter: hotelFilter }, payload => {
+        scheduleRealtimeRefresh();
         if (payload.eventType === 'INSERT' && payload.new) {
-          showNotification(`🎉 New Booking #${payload.new.id} received for ${payload.new.guest || 'Guest'} (${payload.new.room || 'Room'})!`);
+          showNotification(`New Booking #${payload.new.id} received for ${payload.new.guest || 'Guest'} (${payload.new.room || 'Room'}).`);
         } else if (payload.eventType === 'UPDATE' && payload.new && payload.new.status === 'CANCELLED') {
-          showNotification(`⚠️ Reservation #${payload.new.id} for ${payload.new.guest || 'Guest'} has been CANCELLED. Room released to Vacant.`);
+          showNotification(`Reservation #${payload.new.id} for ${payload.new.guest || 'Guest'} was CANCELLED.`);
         }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'fnb_orders' }, () => {
-        loadSupabaseData();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fnb_orders', filter: hotelFilter }, () => {
+        scheduleRealtimeRefresh();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_types' }, () => {
-        loadSupabaseData();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_tables', filter: hotelFilter }, () => {
+        scheduleRealtimeRefresh();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cab_bookings' }, () => {
-        loadSupabaseData();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_menu_items', filter: hotelFilter }, () => {
+        scheduleRealtimeRefresh();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_invoices' }, () => {
-        loadSupabaseData();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_types', filter: hotelFilter }, () => {
+        scheduleRealtimeRefresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cab_bookings', filter: hotelFilter }, () => {
+        scheduleRealtimeRefresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_invoices', filter: hotelFilter }, () => {
+        scheduleRealtimeRefresh();
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -559,12 +560,13 @@ export function DashboardProvider({ children }) {
 
     const broadcastChannel = supabase.channel('aurastay_sync_broadcast')
       .on('broadcast', { event: 'webhook_update' }, (msg) => {
-        loadSupabaseData();
         const data = msg?.payload;
+        if (data?.hotelId && String(data.hotelId) !== String(hotelId)) return;
+        scheduleRealtimeRefresh();
         if (data?.bookingId && data?.action === 'book') {
-          showNotification(`⚡ Real-Time Sync: Booking #${data.bookingId} (${data.guestName || 'Guest'}) updated across all devices!`);
+          showNotification(`Real-Time Webhook Sync: Booking #${data.bookingId} (${data.guestName || 'Guest'}) locked Room ${data.allocatedRoom || ''}.`);
         } else if (data?.bookingId && data?.action === 'cancel') {
-          showNotification(`⚡ Real-Time Sync: Booking #${data.bookingId} cancelled across all devices!`);
+          showNotification(`Real-Time Webhook Sync: Booking #${data.bookingId} cancelled across all channels.`);
         }
       })
       .subscribe();
@@ -573,7 +575,7 @@ export function DashboardProvider({ children }) {
       supabase.removeChannel(channel);
       supabase.removeChannel(broadcastChannel);
     };
-  }, [currentHotel?.id, loadSupabaseData]);
+  }, [isLoggedIn, currentHotel?.id, scheduleRealtimeRefresh]);
 
   // Hotel Admin Authentication functions - Client-provisioned credentials only
   const login = async (email, password) => {
@@ -604,10 +606,75 @@ export function DashboardProvider({ children }) {
       return { success: false, message: 'Database connection is not configured.' };
     }
 
+    const buildSanitizedHotel = (hotelData) => ({
+      id: hotelData.id,
+      slug: hotelData.slug || hotelData.id,
+      aiosellHotelCode: hotelData.aiosell_hotel_code || '',
+      name: hotelData.name,
+      shortName: hotelData.short_name || 'HTL',
+      logoUrl: hotelData.logo_url || DEFAULT_HOTEL.logoUrl,
+      ownerName: hotelData.owner_name || 'Hotel Admin',
+      ownerRole: 'Property Admin',
+      email: hotelData.email,
+      mobile: hotelData.mobile || '',
+      address: hotelData.address || 'India',
+      city: hotelData.city || 'Bengaluru',
+      totalRooms: Number(hotelData.total_rooms) || 0,
+      currency: hotelData.currency || 'INR',
+      currencySymbol: hotelData.currency_symbol || '₹'
+    });
+
+    const completeLoginSession = (hotelData) => {
+      const hotel = buildSanitizedHotel(hotelData);
+      setCurrentHotel(hotel);
+      setIsLoggedIn(true);
+      localStorage.setItem('aavasa_admin_auth_v3', 'true');
+      localStorage.setItem('aavasa_admin_session_v3', JSON.stringify(hotel));
+      showNotification(`Welcome to ${hotel.name} PMS Portal!`);
+      return { success: true, hotel };
+    };
+
     try {
+      // Primary: Verify via dedicated pms-api Edge Function so browsers never fetch password hashes/values
+      let edgeOffline = false;
+      try {
+        const res = await fetch(PMS_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${supabaseAnonKey}`,
+            'x-aavasa-client': 'aurastay-pms'
+          },
+          body: JSON.stringify({
+            action: 'verify_admin_login',
+            email: inputIdent,
+            password: inputPass
+          })
+        });
+        const result = await res.json().catch(() => ({}));
+        if (res.ok && result?.success && result?.hotel) {
+          return completeLoginSession(result.hotel);
+        }
+        if (res.status === 400 || res.status === 401 || res.status === 403) {
+          return {
+            success: false,
+            message: result?.message || 'Invalid email or password. Please verify your credentials and try again.'
+          };
+        }
+        edgeOffline = true;
+      } catch {
+        edgeOffline = true;
+      }
+
+      if (!edgeOffline) {
+        return { success: false, message: 'Unable to verify credentials. Please try again.' };
+      }
+
+      // Fallback when Edge Function is unreachable during cold boot
       const { data: allHotels, error } = await supabase
         .from('hotels')
-        .select('*');
+        .select('id, slug, aiosell_hotel_code, name, short_name, logo_url, owner_name, email, mobile, address, city, total_rooms, currency, currency_symbol, status, password');
 
       if (error || !Array.isArray(allHotels)) {
         return { success: false, message: 'Unable to verify credentials. Please try again.' };
@@ -618,13 +685,6 @@ export function DashboardProvider({ children }) {
           String(h.id || '').toLowerCase() !== 'hotel_aurastay_01' &&
           String(h.email || '').toLowerCase() !== 'admin@aurastay.com'
       );
-
-      if (validHotels.length === 0) {
-        return {
-          success: false,
-          message: 'Invalid email or password. Please verify your credentials and try again.'
-        };
-      }
 
       const hotelData = validHotels.find(h => {
         const hEmail = String(h.email || '').trim().toLowerCase();
@@ -654,29 +714,7 @@ export function DashboardProvider({ children }) {
         };
       }
 
-      const hotel = {
-        id: hotelData.id,
-        slug: hotelData.slug || hotelData.id,
-        name: hotelData.name,
-        shortName: hotelData.short_name || 'HTL',
-        logoUrl: hotelData.logo_url || DEFAULT_HOTEL.logoUrl,
-        ownerName: hotelData.owner_name || 'Hotel Admin',
-        ownerRole: 'Property Admin',
-        email: hotelData.email,
-        password: hotelData.password,
-        mobile: hotelData.mobile || '',
-        address: hotelData.address || 'India',
-        city: hotelData.city || 'Bengaluru',
-        totalRooms: Number(hotelData.total_rooms) || 0,
-        currency: hotelData.currency || 'INR',
-        currencySymbol: hotelData.currency_symbol || '₹'
-      };
-      setCurrentHotel(hotel);
-      setIsLoggedIn(true);
-      localStorage.setItem('aavasa_admin_auth_v3', 'true');
-      localStorage.setItem('aavasa_admin_session_v3', JSON.stringify(hotel));
-      showNotification(`Welcome to ${hotel.name} PMS Portal!`);
-      return { success: true, hotel };
+      return completeLoginSession(hotelData);
     } catch (e) {
       console.warn('Supabase hotel login query error:', e);
       return { success: false, message: 'Authentication error. Please try again.' };
@@ -690,6 +728,8 @@ export function DashboardProvider({ children }) {
     setReservations([]);
     setRoomTypes([]);
     setFnbOrders([]);
+    setRestaurantTables([]);
+    setRestaurantMenuItems([]);
     setCabBookings([]);
     setFolios({});
     setStaffUsers([]);
@@ -994,14 +1034,146 @@ export function DashboardProvider({ children }) {
     showNotification('Room deletion is restricted to SuperAdmin. Please contact SuperAdmin.');
   };
 
+  // =========================================================================
+  // RESTAURANT POS & MENU CATALOG (100% hotel_id isolated + Realtime Synced)
+  // =========================================================================
+  const upsertRestaurantTable = async (tableInput) => {
+    if (!currentHotel?.id) return { success: false, message: 'No active hotel session.' };
+    const tableId = tableInput.id || `TBL-${currentHotel.id.slice(0, 6)}-${Date.now().toString().slice(-5)}`;
+    const normalized = {
+      id: tableId,
+      hotelId: currentHotel.id,
+      name: String(tableInput.name || '').trim(),
+      area: String(tableInput.area || 'Main Dining').trim(),
+      seats: Math.max(1, Number(tableInput.seats) || 4),
+      status: tableInput.status || 'VACANT',
+      guestName: tableInput.guestName ?? null,
+      roomNumber: tableInput.roomNumber ?? null,
+      itemsCount: Number(tableInput.itemsCount) || 0,
+      total: Number(tableInput.total) || 0,
+      activeOrderId: tableInput.activeOrderId ?? null,
+      updatedAt: new Date().toISOString()
+    };
+
+    setRestaurantTables(prev => {
+      const exists = prev.some(t => t.id === tableId);
+      if (exists) return prev.map(t => t.id === tableId ? normalized : t);
+      return [...prev, normalized];
+    });
+
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('restaurant_tables').upsert({
+        id: normalized.id,
+        hotel_id: currentHotel.id,
+        name: normalized.name,
+        area: normalized.area,
+        seats: normalized.seats,
+        status: normalized.status,
+        guest_name: normalized.guestName,
+        room_number: normalized.roomNumber,
+        items_count: normalized.itemsCount,
+        current_total: normalized.total,
+        active_order_id: normalized.activeOrderId,
+        updated_at: normalized.updatedAt
+      });
+      if (error) {
+        console.warn('Supabase restaurant_tables upsert error:', error);
+        showNotification(`Table sync warning: ${error.message}`);
+        return { success: false, error: error.message };
+      }
+    }
+    return { success: true, table: normalized };
+  };
+
+  const deleteRestaurantTable = async (tableId) => {
+    if (!currentHotel?.id || !tableId) return;
+    setRestaurantTables(prev => prev.filter(t => t.id !== tableId));
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('restaurant_tables')
+        .delete()
+        .eq('id', tableId)
+        .eq('hotel_id', currentHotel.id);
+      if (error) showNotification(`Delete table error: ${error.message}`);
+    }
+  };
+
+  const upsertRestaurantMenuItem = async (itemInput) => {
+    if (!currentHotel?.id) return { success: false, message: 'No active hotel session.' };
+    const itemId = itemInput.id || `MENU-${Date.now().toString().slice(-6)}`;
+    const isVegVal = itemInput.isVeg !== undefined ? Boolean(itemInput.isVeg) : (itemInput.isVegetarian !== undefined ? Boolean(itemInput.isVegetarian) : true);
+    const normalized = {
+      id: itemId,
+      hotelId: currentHotel.id,
+      name: String(itemInput.name || '').trim(),
+      category: String(itemInput.category || 'Main Course').trim(),
+      kitchenStation: String(itemInput.kitchenStation || 'Hot Kitchen (Indian)').trim(),
+      price: Math.max(0, Number(itemInput.price) || 0),
+      costPrice: Math.max(0, Number(itemInput.costPrice) || 0),
+      taxPct: Math.max(0, Number(itemInput.taxPct ?? 5)),
+      unit: String(itemInput.unit || 'Portion').trim(),
+      isVeg: isVegVal,
+      isVegetarian: isVegVal,
+      status: itemInput.status || 'AVAILABLE',
+      prepTime: String(itemInput.prepTime || '15 mins').trim(),
+      description: String(itemInput.description || '').trim(),
+      imageUrl: String(itemInput.imageUrl || '').trim()
+    };
+
+    setRestaurantMenuItems(prev => {
+      const exists = prev.some(m => m.id === itemId);
+      if (exists) return prev.map(m => m.id === itemId ? normalized : m);
+      return [normalized, ...prev];
+    });
+
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('restaurant_menu_items').upsert({
+        id: normalized.id,
+        hotel_id: currentHotel.id,
+        name: normalized.name,
+        category: normalized.category,
+        kitchen_station: normalized.kitchenStation,
+        price: normalized.price,
+        cost_price: normalized.costPrice,
+        tax_pct: normalized.taxPct,
+        unit: normalized.unit,
+        is_veg: normalized.isVeg,
+        status: normalized.status,
+        prep_time: normalized.prepTime,
+        description: normalized.description,
+        image_url: normalized.imageUrl || null,
+        updated_at: new Date().toISOString()
+      });
+      if (error) {
+        console.warn('Supabase restaurant_menu_items upsert error:', error);
+        showNotification(`Menu sync warning: ${error.message}`);
+        return { success: false, error: error.message };
+      }
+    }
+    return { success: true, item: normalized };
+  };
+
+  const deleteRestaurantMenuItem = async (itemId) => {
+    if (!currentHotel?.id || !itemId) return;
+    setRestaurantMenuItems(prev => prev.filter(m => m.id !== itemId));
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('restaurant_menu_items')
+        .delete()
+        .eq('id', itemId)
+        .eq('hotel_id', currentHotel.id);
+      if (error) showNotification(`Delete menu item error: ${error.message}`);
+    }
+  };
+
   const addFnbOrder = async (order) => {
     setFnbOrders(prev => [order, ...prev]);
 
-    // If billed to room, post charge directly to room folio
-    const rMatch = String(order.roomTable || '').match(/\b(?:Room\s*)?(\d{2,4})\b/i);
-    if (rMatch && order.paymentStatus === 'BILLED_TO_ROOM') {
-      const cleanRoom = rMatch[1];
-      addFolioCharge(cleanRoom, {
+    const cleanRoom = String(order.roomNumber || '').replace(/\D/g, '') ||
+      (String(order.roomTable || '').match(/\b(?:Room\s*)?(\d{2,4})\b/i)?.[1] || '');
+
+    if (cleanRoom && order.paymentStatus === 'BILLED_TO_ROOM') {
+      await addFolioCharge(cleanRoom, {
         category: 'F&B',
         description: `Restaurant Dining (${order.orderId}): ${order.items}`,
         amount: Number(order.total) || 0,
@@ -1010,7 +1182,25 @@ export function DashboardProvider({ children }) {
       });
     }
 
-    if (isSupabaseConfigured) {
+    if (order.tableId) {
+      const resetAfterRoomPost = order.paymentStatus === 'BILLED_TO_ROOM';
+      setRestaurantTables(prev => prev.map(t => {
+        if (t.id !== order.tableId) return t;
+        return resetAfterRoomPost
+          ? { ...t, status: 'VACANT', guestName: null, roomNumber: null, itemsCount: 0, total: 0, activeOrderId: null }
+          : {
+              ...t,
+              status: 'OCCUPIED',
+              guestName: order.guest || 'Walk-in Guest',
+              roomNumber: cleanRoom || null,
+              itemsCount: (Number(t.itemsCount) || 0) + (Number(order.itemsCount) || 1),
+              total: (Number(t.total) || 0) + (Number(order.total) || 0),
+              activeOrderId: order.orderId
+            };
+      }));
+    }
+
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('fnb_orders').insert({
           id: order.orderId,
@@ -1022,17 +1212,73 @@ export function DashboardProvider({ children }) {
           status: order.status || 'PREPARING',
           time: order.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         });
+
+        if (order.tableId) {
+          const targetTbl = restaurantTables.find(t => t.id === order.tableId);
+          const resetAfterRoomPost = order.paymentStatus === 'BILLED_TO_ROOM';
+          await supabase
+            .from('restaurant_tables')
+            .update(
+              resetAfterRoomPost
+                ? {
+                    status: 'VACANT',
+                    guest_name: null,
+                    room_number: null,
+                    items_count: 0,
+                    current_total: 0,
+                    active_order_id: null,
+                    updated_at: new Date().toISOString()
+                  }
+                : {
+                    status: 'OCCUPIED',
+                    guest_name: order.guest || 'Walk-in Guest',
+                    room_number: cleanRoom || null,
+                    items_count: (Number(targetTbl?.itemsCount) || 0) + (Number(order.itemsCount) || 1),
+                    current_total: (Number(targetTbl?.total) || 0) + (Number(order.total) || 0),
+                    active_order_id: order.orderId,
+                    updated_at: new Date().toISOString()
+                  }
+            )
+            .eq('id', order.tableId)
+            .eq('hotel_id', currentHotel.id);
+        }
       } catch (err) {
         console.warn('Supabase F&B insert error:', err);
       }
     }
   };
 
-  const settleFnbOrder = async (orderId, paymentMode = 'UPI') => {
-    setFnbOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, status: 'BILLED' } : o));
+  const settleFnbOrder = async (orderId, paymentMode = 'UPI', tableId = null) => {
+    if (orderId) {
+      setFnbOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, status: 'BILLED' } : o));
+    }
+    if (tableId) {
+      setRestaurantTables(prev => prev.map(t =>
+        t.id === tableId
+          ? { ...t, status: 'VACANT', guestName: null, roomNumber: null, itemsCount: 0, total: 0, activeOrderId: null }
+          : t
+      ));
+    }
     if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('fnb_orders').update({ status: 'BILLED' }).eq('id', orderId).eq('hotel_id', currentHotel.id);
+        if (orderId) {
+          await supabase.from('fnb_orders').update({ status: 'BILLED' }).eq('id', orderId).eq('hotel_id', currentHotel.id);
+        }
+        if (tableId) {
+          await supabase
+            .from('restaurant_tables')
+            .update({
+              status: 'VACANT',
+              guest_name: null,
+              room_number: null,
+              items_count: 0,
+              current_total: 0,
+              active_order_id: null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', tableId)
+            .eq('hotel_id', currentHotel.id);
+        }
       } catch (err) {
         console.warn('Supabase settle FNB order error:', err);
       }
@@ -1371,7 +1617,13 @@ export function DashboardProvider({ children }) {
       });
     }
 
-    await broadcastCrossDeviceSync({ action: 'checkin', bookingId: reservationId, roomNumber });
+    await broadcastCrossDeviceSync({ action: 'checkin', hotelId: currentHotel?.id, bookingId: reservationId, roomNumber });
+    if (currentHotel?.id) {
+      pushHotelInventoryViaBackend({
+        hotelId: currentHotel.id,
+        hotelCode: currentHotel.aiosellHotelCode || currentHotel.slug
+      }).catch(() => null);
+    }
     showNotification(`Guest successfully checked into Room ${roomNumber || ''}! Status: CHECKED IN`);
     return updatedRes;
   };
@@ -1439,7 +1691,11 @@ export function DashboardProvider({ children }) {
           actual_check_out_time: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }).eq('id', reservationId).eq('hotel_id', currentHotel.id);
-        await broadcastCrossDeviceSync({ action: 'checkout', bookingId: reservationId, roomNumber: targetRoom });
+        await broadcastCrossDeviceSync({ action: 'checkout', hotelId: currentHotel.id, bookingId: reservationId, roomNumber: targetRoom });
+        pushHotelInventoryViaBackend({
+          hotelId: currentHotel.id,
+          hotelCode: currentHotel.aiosellHotelCode || currentHotel.slug
+        }).catch(() => null);
       } catch (err) { }
     }
 
@@ -1640,10 +1896,17 @@ export function DashboardProvider({ children }) {
         }
         await broadcastCrossDeviceSync({
           action: 'book',
+          hotelId: currentHotel.id,
           bookingId: resId,
           guestName: reservation.guest,
           roomNumber: cleanRoomNum
         });
+        pushHotelInventoryViaBackend({
+          hotelId: currentHotel.id,
+          hotelCode: currentHotel.aiosellHotelCode || currentHotel.slug,
+          startDate: reservation.check_in,
+          endDate: reservation.check_out
+        }).catch(() => null);
       } catch (err) {
         console.warn('Supabase reservation insert sync:', err);
       }
@@ -1855,6 +2118,10 @@ export function DashboardProvider({ children }) {
     if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('rooms').update({ status: 'MAINTENANCE' }).eq('hotel_id', currentHotel.id).eq('room_number', num);
+        pushHotelInventoryViaBackend({
+          hotelId: currentHotel.id,
+          hotelCode: currentHotel.aiosellHotelCode || currentHotel.slug
+        }).catch(() => null);
       } catch (err) {
         console.warn('Supabase block room sync:', err);
       }
@@ -1876,6 +2143,10 @@ export function DashboardProvider({ children }) {
     if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('rooms').update({ status: 'VACANT_READY' }).eq('hotel_id', currentHotel.id).eq('room_number', num);
+        pushHotelInventoryViaBackend({
+          hotelId: currentHotel.id,
+          hotelCode: currentHotel.aiosellHotelCode || currentHotel.slug
+        }).catch(() => null);
       } catch (err) {
         console.warn('Supabase unblock room sync:', err);
       }
@@ -2058,6 +2329,14 @@ export function DashboardProvider({ children }) {
       setReservations,
       fnbOrders,
       setFnbOrders,
+      restaurantTables,
+      setRestaurantTables,
+      restaurantMenuItems,
+      setRestaurantMenuItems,
+      upsertRestaurantTable,
+      deleteRestaurantTable,
+      upsertRestaurantMenuItem,
+      deleteRestaurantMenuItem,
       addFnbOrder,
       staffUsers,
       otaChannels,

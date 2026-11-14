@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
+import { compressImageFile } from '../../utils/imageCompression';
 import {
   Archive,
   Plus,
@@ -20,18 +21,25 @@ import {
   X,
   Check,
   Download,
-  Percent
+  Percent,
+  ImagePlus
 } from 'lucide-react';
 
-const INITIAL_PRODUCTS = [];
-
 export default function ProductSetupView() {
-  const { navigateTo, showNotification } = useDashboard();
+  const {
+    navigateTo,
+    showNotification,
+    currentHotel,
+    restaurantMenuItems = [],
+    upsertRestaurantMenuItem,
+    deleteRestaurantMenuItem
+  } = useDashboard();
 
-  const [products, setProducts] = useState(INITIAL_PRODUCTS);
+  const products = restaurantMenuItems;
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingItemId, setEditingItemId] = useState(null);
 
   // Form State
   const [newItem, setNewItem] = useState({
@@ -40,68 +48,148 @@ export default function ProductSetupView() {
     kitchenStation: 'Hot Kitchen (Indian)',
     price: 350,
     costPrice: 110,
+    taxPct: 5,
     isVegetarian: true,
     prepTime: '15 mins',
-    description: ''
+    description: '',
+    imageUrl: ''
   });
 
-  const categories = ['ALL', 'Main Course', 'Starters', 'Desserts', 'Beverages', 'Italian & Continental'];
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+    return ['ALL', ...unique];
+  }, [products]);
+
+  const blendedMargin = useMemo(() => {
+    const priced = products.filter(p => Number(p.price) > 0);
+    if (priced.length === 0) return '0%';
+    const avg = priced.reduce((sum, p) => sum + ((p.price - (p.costPrice || 0)) / p.price) * 100, 0) / priced.length;
+    return `${avg.toFixed(1)}%`;
+  }, [products]);
 
   const filteredProducts = products.filter(p => {
     const matchesSearch =
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.kitchenStation.toLowerCase().includes(searchTerm.toLowerCase());
+      String(p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(p.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(p.kitchenStation || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCat = selectedCategory === 'ALL' || p.category === selectedCategory;
     return matchesSearch && matchesCat;
   });
 
-  const toggleAvailability = (id) => {
-    setProducts(prev => prev.map(p => {
-      if (p.id === id) {
-        const nextStatus = p.status === 'AVAILABLE' ? 'OUT_OF_STOCK' : 'AVAILABLE';
-        showNotification(`${p.name} marked as ${nextStatus === 'AVAILABLE' ? 'In Stock' : '86\'d (Out of Stock)'}`);
-        return { ...p, status: nextStatus };
-      }
-      return p;
-    }));
+  const toggleAvailability = async (product) => {
+    const nextStatus = product.status === 'AVAILABLE' ? 'OUT_OF_STOCK' : 'AVAILABLE';
+    await upsertRestaurantMenuItem({ ...product, status: nextStatus });
+    showNotification(`${product.name} marked as ${nextStatus === 'AVAILABLE' ? 'In Stock' : "86'd (Out of Stock)"}`);
   };
 
-  const handleAddItem = (e) => {
-    e.preventDefault();
-    if (!newItem.name) {
-      showNotification('Please enter a product name.');
-      return;
-    }
-
-    const created = {
-      id: `PRD-${100 + products.length + 1}`,
-      name: newItem.name,
-      category: newItem.category,
-      kitchenStation: newItem.kitchenStation,
-      price: parseFloat(newItem.price) || 250,
-      costPrice: parseFloat(newItem.costPrice) || 80,
-      taxPct: 5,
-      unit: 'Portion',
-      isVegetarian: newItem.isVegetarian,
-      status: 'AVAILABLE',
-      prepTime: newItem.prepTime || '15 mins',
-      description: newItem.description || 'Delicious culinary preparation crafted with fresh ingredients.'
-    };
-
-    setProducts([created, ...products]);
-    setIsAddModalOpen(false);
-    showNotification(`New item ${created.name} added to Restaurant POS menu!`);
+  const openAddModal = () => {
+    setEditingItemId(null);
     setNewItem({
       name: '',
       category: 'Main Course',
       kitchenStation: 'Hot Kitchen (Indian)',
       price: 350,
       costPrice: 110,
+      taxPct: 5,
       isVegetarian: true,
       prepTime: '15 mins',
-      description: ''
+      description: '',
+      imageUrl: ''
     });
+    setIsAddModalOpen(true);
+  };
+
+  const openEditModal = (product) => {
+    setEditingItemId(product.id);
+    setNewItem({
+      name: product.name || '',
+      category: product.category || 'Main Course',
+      kitchenStation: product.kitchenStation || 'Hot Kitchen (Indian)',
+      price: product.price || 0,
+      costPrice: product.costPrice || 0,
+      taxPct: product.taxPct ?? 5,
+      isVegetarian: product.isVeg !== false,
+      prepTime: product.prepTime || '15 mins',
+      description: product.description || '',
+      imageUrl: product.imageUrl || ''
+    });
+    setIsAddModalOpen(true);
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressImageFile(file, { maxDim: 280, maxBytes: 24 * 1024 });
+      setNewItem(prev => ({ ...prev, imageUrl: compressed }));
+      showNotification('Dish photo compressed for fast storage.');
+    } catch {
+      showNotification('Could not process image.');
+    }
+  };
+
+  const handleAddItem = async (e) => {
+    e.preventDefault();
+    if (!newItem.name.trim()) {
+      showNotification('Please enter a product name.');
+      return;
+    }
+
+    const existing = editingItemId ? products.find(p => p.id === editingItemId) : null;
+    const res = await upsertRestaurantMenuItem({
+      ...(existing || {}),
+      id: editingItemId || undefined,
+      name: newItem.name.trim(),
+      category: newItem.category.trim() || 'Main Course',
+      kitchenStation: newItem.kitchenStation,
+      price: parseFloat(newItem.price) || 0,
+      costPrice: parseFloat(newItem.costPrice) || 0,
+      taxPct: parseFloat(newItem.taxPct ?? 5),
+      unit: 'Portion',
+      isVeg: Boolean(newItem.isVegetarian),
+      status: existing?.status || 'AVAILABLE',
+      prepTime: newItem.prepTime || '15 mins',
+      description: newItem.description || '',
+      imageUrl: newItem.imageUrl || ''
+    });
+
+    if (res?.success) {
+      setIsAddModalOpen(false);
+      setEditingItemId(null);
+      showNotification(
+        editingItemId
+          ? `Updated ${newItem.name} across POS & menu catalog.`
+          : `New item ${newItem.name} added to Restaurant POS menu!`
+      );
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (products.length === 0) {
+      showNotification('Add at least one menu item before exporting.');
+      return;
+    }
+    const headers = ['ID', 'Name', 'Category', 'Kitchen Station', 'Price', 'Cost Price', 'Tax %', 'Dietary', 'Status'];
+    const rows = products.map(p => [
+      p.id,
+      `"${String(p.name || '').replace(/"/g, '""')}"`,
+      p.category,
+      p.kitchenStation,
+      p.price,
+      p.costPrice,
+      p.taxPct,
+      p.isVeg ? 'Veg' : 'Non-Veg',
+      p.status
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(currentHotel?.slug || 'hotel')}-fnb-menu.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showNotification('Menu catalog exported as CSV.');
   };
 
   return (
@@ -131,11 +219,11 @@ export default function ProductSetupView() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
         <div>
           <div className="flex items-center space-x-2 mb-1.5">
-            <span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 px-2 py-0.5 rounded tracking-wider">
-              AURASTAY PMS
+            <span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 px-2 py-0.5 rounded tracking-wider uppercase">
+              {(currentHotel?.name || 'AAVASA PMS')}
             </span>
             <span className="text-[10.5px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-wider">
-              <Trophy className="w-3.5 h-3.5 text-amber-500" /> MASTERY: 0%
+              <Utensils className="w-3.5 h-3.5 text-orange-500" /> HOTEL-SPECIFIC F&B CATALOG
             </span>
           </div>
 
@@ -150,8 +238,8 @@ export default function ProductSetupView() {
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => showNotification('Exporting complete F&B menu catalog...')}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold shadow-2xs transition"
+            onClick={handleExportCsv}
+            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold shadow-2xs transition cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export Menu</span>
@@ -159,15 +247,15 @@ export default function ProductSetupView() {
 
           <button
             onClick={() => navigateTo('restaurant-pos')}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold shadow-2xs transition"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold shadow-2xs transition cursor-pointer"
           >
             <Utensils className="w-3.5 h-3.5" />
             <span>Go to POS</span>
           </button>
 
           <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-[#ff6d00] hover:bg-[#e66200] text-white rounded-lg text-xs font-bold shadow-2xs transition"
+            onClick={openAddModal}
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-[#ff6d00] hover:bg-[#e66200] text-white rounded-lg text-xs font-bold shadow-2xs transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Menu Item</span>
@@ -193,9 +281,9 @@ export default function ProductSetupView() {
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
             MENU CATEGORIES
           </span>
-          <div className="text-2xl font-black text-slate-900 mt-1">5 Sections</div>
-          <span className="text-[11px] text-slate-500 font-medium block mt-1">
-            Indian, Tandoor, Asian, Continental
+          <div className="text-2xl font-black text-slate-900 mt-1">{Math.max(0, categories.length - 1)} Sections</div>
+          <span className="text-[11px] text-slate-500 font-medium block mt-1 truncate">
+            {categories.filter(c => c !== 'ALL').join(', ') || 'Add items to create sections'}
           </span>
         </div>
 
@@ -203,9 +291,9 @@ export default function ProductSetupView() {
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
             BLENDED FOOD MARGIN
           </span>
-          <div className="text-2xl font-black text-emerald-700 mt-1">68.2%</div>
+          <div className="text-2xl font-black text-emerald-700 mt-1">{blendedMargin}</div>
           <span className="text-[11px] text-emerald-600 font-medium block mt-1">
-            Standard 3x food cost markup
+            Live profit margin calculation
           </span>
         </div>
 
@@ -316,8 +404,8 @@ export default function ProductSetupView() {
 
                   <td className="p-3 text-center">
                     <button
-                      onClick={() => toggleAvailability(p.id)}
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition ${p.status === 'AVAILABLE'
+                      onClick={() => toggleAvailability(p)}
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition cursor-pointer ${p.status === 'AVAILABLE'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                           : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
                         }`}
@@ -326,13 +414,20 @@ export default function ProductSetupView() {
                     </button>
                   </td>
 
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right space-x-1">
                     <button
-                      onClick={() => showNotification(`Editing item ${p.name}`)}
-                      className="p-1 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded transition"
+                      onClick={() => openEditModal(p)}
+                      className="p-1 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded transition cursor-pointer"
                       title="Edit"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => deleteRestaurantMenuItem(p.id)}
+                      className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </td>
                 </tr>
@@ -342,12 +437,12 @@ export default function ProductSetupView() {
         </div>
       </div>
 
-      {/* MODAL: ADD MENU ITEM */}
+      {/* MODAL: ADD / EDIT MENU ITEM */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden">
             <div className="px-5 py-4 bg-[#ff6d00] text-white flex items-center justify-between">
-              <h3 className="font-bold text-base">Add New Menu Item</h3>
+              <h3 className="font-bold text-base">{editingItemId ? 'Edit Menu Item' : 'Add New Menu Item'}</h3>
               <button
                 onClick={() => setIsAddModalOpen(false)}
                 className="text-white/80 hover:text-white p-1"
@@ -460,6 +555,22 @@ export default function ProductSetupView() {
                   onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                   className="w-full p-2 border border-slate-300 rounded-lg text-xs text-slate-800"
                 />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  Dish Thumbnail (Compressed WebP)
+                </label>
+                <div className="flex items-center gap-3">
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer font-bold text-slate-700">
+                    <ImagePlus className="w-3.5 h-3.5" />
+                    <span>Upload Image</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  </label>
+                  {newItem.imageUrl && (
+                    <img src={newItem.imageUrl} alt="Dish preview" className="w-9 h-9 rounded-lg object-cover border" />
+                  )}
+                </div>
               </div>
 
               <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">

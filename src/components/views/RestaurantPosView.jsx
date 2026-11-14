@@ -1,236 +1,423 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
+import { compressImageFile } from '../../utils/imageCompression';
 import {
   Utensils,
   Plus,
-  Search,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  Receipt,
+  Minus,
   Printer,
-  X,
+  CheckCircle2,
+  Clock,
   CreditCard,
-  User,
+  Search,
+  ChefHat,
   Coffee,
   Pizza,
-  Wine,
-  Trophy,
-  SlidersHorizontal,
-  ChevronRight,
-  Flame,
-  Check
+  BedDouble,
+  Users,
+  Trash2,
+  Edit3,
+  Receipt,
+  Sparkles,
+  Check,
+  X,
+  ImagePlus
 } from 'lucide-react';
 
-const TABLES_DATA = [
-  { id: 'T1', name: 'Table 01', area: 'Main Dining', seats: 4, status: 'VACANT', currentOrder: null },
-  { id: 'T2', name: 'Table 02', area: 'Main Dining', seats: 4, status: 'OCCUPIED', currentOrder: { items: 2, total: 540 } },
-  { id: 'T3', name: 'Table 03', area: 'Main Dining', seats: 2, status: 'VACANT', currentOrder: null },
-  { id: 'T4', name: 'Table 04', area: 'Main Dining', seats: 6, status: 'VACANT', currentOrder: null },
-  { id: 'P1', name: 'Table P1', area: 'Poolside', seats: 4, status: 'VACANT', currentOrder: null },
-  { id: 'P2', name: 'Table P2', area: 'Poolside', seats: 4, status: 'VACANT', currentOrder: null },
-  { id: 'P3', name: 'Table P3', area: 'Poolside', seats: 2, status: 'VACANT', currentOrder: null },
-  { id: 'R1', name: 'Table R1', area: 'Rooftop', seats: 4, status: 'VACANT', currentOrder: null },
-  { id: 'R2', name: 'Table R2', area: 'Rooftop', seats: 6, status: 'VACANT', currentOrder: null },
-  { id: 'R3', name: 'Table R3', area: 'Rooftop', seats: 2, status: 'VACANT', currentOrder: null }
-];
-
-const MENU_ITEMS = [
-  { id: 'M-1', name: 'Paneer Tikka', category: 'Starters', price: 280, isVeg: true, desc: 'Chargrilled cottage cheese marinated with hung curd and spices' },
-  { id: 'M-2', name: 'Crispy Corn Salt & Pepper', category: 'Starters', price: 220, isVeg: true, desc: 'Sweet golden corn kernels tossed with wok peppers' },
-  { id: 'M-3', name: 'Chicken Tikka Angara', category: 'Starters', price: 340, isVeg: false, desc: 'Spiced tender chicken roasted in traditional clay oven' },
-  { id: 'M-4', name: 'Veg Spring Rolls (6 pcs)', category: 'Starters', price: 210, isVeg: true, desc: 'Crispy rolls stuffed with seasoned shredded vegetables' },
-  { id: 'M-5', name: 'Tandoori Chicken Wings', category: 'Starters', price: 320, isVeg: false, desc: 'Marinated roasted juicy chicken wings' },
-  { id: 'M-6', name: 'Paneer Butter Masala', category: 'Mains', price: 320, isVeg: true, desc: 'Fresh paneer cooked in creamy tomato butter gravy' },
-  { id: 'M-7', name: 'Dal Makhani Royal', category: 'Mains', price: 260, isVeg: true, desc: 'Slow simmered black lentils with cream and butter' },
-  { id: 'M-8', name: 'Murgh Makhani (Butter Chicken)', category: 'Mains', price: 380, isVeg: false, desc: 'Boneless tandoori chicken in rich silk makhani gravy' },
-  { id: 'M-9', name: 'Kadhai Paneer', category: 'Mains', price: 310, isVeg: true, desc: 'Cottage cheese with capsicum, onion and crushed spices' },
-  { id: 'M-10', name: 'Awadhi Veg Biryani', category: 'Mains', price: 280, isVeg: true, desc: 'Fragrant basmati rice dum cooked with vegetables and saffron' },
-  { id: 'M-11', name: 'Chicken Dum Biryani', category: 'Mains', price: 360, isVeg: false, desc: 'Hyderabadi style slow cooked chicken biryani with mirchi ka salan' },
-  { id: 'M-12', name: 'Butter Naan', category: 'Breads', price: 50, isVeg: true, desc: 'Refined flour bread cooked in tandoor with butter' },
-  { id: 'M-13', name: 'Garlic Naan', category: 'Breads', price: 70, isVeg: true, desc: 'Flavored with minced fresh garlic and coriander' },
-  { id: 'M-14', name: 'Tandoori Roti', category: 'Breads', price: 30, isVeg: true, desc: 'Whole wheat flatbread baked in clay oven' },
-  { id: 'M-15', name: 'Fresh Lime Soda (Sweet/Salt)', category: 'Drinks', price: 90, isVeg: true, desc: 'Chilled bubbly soda with fresh lime juice' },
-  { id: 'M-16', name: 'Masala Chai', category: 'Drinks', price: 40, isVeg: true, desc: 'Traditional Indian tea infused with cardamom and ginger' },
-  { id: 'M-17', name: 'Cold Coffee with Ice Cream', category: 'Drinks', price: 140, isVeg: true, desc: 'Creamy chilled blended espresso with vanilla scoop' },
-  { id: 'M-18', name: 'Mango Lassi', category: 'Drinks', price: 110, isVeg: true, desc: 'Rich whipped yogurt blended with Alphonso mango pulp' },
-  { id: 'M-19', name: 'Gulab Jamun (2 pcs)', category: 'Desserts', price: 110, isVeg: true, desc: 'Warm milk dumplings soaked in rose flavored saffron syrup' },
-  { id: 'M-20', name: 'Rasmalai (2 pcs)', category: 'Desserts', price: 140, isVeg: true, desc: 'Soft cottage cheese discs in thickened saffron pistachios milk' }
+const DEFAULT_AREAS = ['Main Dining', 'Garden Patio', 'Rooftop Deck', 'Bar & Lounge', 'Private Dining'];
+const DEFAULT_KITCHEN_STATIONS = [
+  'Hot Kitchen (Indian)',
+  'Tandoor Clay Oven',
+  'Pan Asian Wok',
+  'Pizza & Continental',
+  'Mocktail & Bar',
+  'Halwai / Dessert Bar'
 ];
 
 export default function RestaurantPosView() {
-  const { navigateTo, showNotification, fnbOrders = [], addFnbOrder, settleFnbOrder, rooms = [], currentHotel } = useDashboard();
+  const {
+    navigateTo,
+    showNotification,
+    fnbOrders = [],
+    restaurantTables = [],
+    restaurantMenuItems = [],
+    upsertRestaurantTable,
+    deleteRestaurantTable,
+    upsertRestaurantMenuItem,
+    deleteRestaurantMenuItem,
+    addFnbOrder,
+    settleFnbOrder,
+    addFolioCharge,
+    rooms = [],
+    currentHotel
+  } = useDashboard();
 
-  const [tables, setTables] = useState(TABLES_DATA);
-  const [menuItems, setMenuItems] = useState(MENU_ITEMS);
+  const tables = restaurantTables;
+  const menuItems = restaurantMenuItems;
+
+  const [selectedTableId, setSelectedTableId] = useState(null);
+  const selectedTable = useMemo(
+    () => tables.find(t => t.id === selectedTableId) || tables[0] || null,
+    [tables, selectedTableId]
+  );
 
   const [activeArea, setActiveArea] = useState('ALL');
-  const [selectedTable, setSelectedTable] = useState(tables[0] || null);
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [searchMenu, setSearchMenu] = useState('');
   const [cart, setCart] = useState([]);
-  const [selectedMenuCategory, setSelectedMenuCategory] = useState('ALL');
+  const [guestNameInput, setGuestNameInput] = useState('');
 
-  // Modals
+  // Modal states
   const [isAddTableModalOpen, setIsAddTableModalOpen] = useState(false);
-  const [newTable, setNewTable] = useState({
-    name: 'Table 01',
+  const [editingTableId, setEditingTableId] = useState(null);
+  const [newTableData, setNewTableData] = useState({
+    name: '',
     area: 'Main Dining',
     seats: 4
   });
 
-  const areas = ['ALL', 'Main Dining', 'Poolside', 'Rooftop'];
-  const menuCats = ['ALL', 'Starters', 'Mains', 'Breads', 'Drinks', 'Desserts'];
+  const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
+  const [editingMenuId, setEditingMenuId] = useState(null);
+  const [menuForm, setMenuForm] = useState({
+    name: '',
+    category: 'Main Course',
+    kitchenStation: 'Hot Kitchen (Indian)',
+    price: 350,
+    costPrice: 120,
+    taxPct: 5,
+    isVeg: true,
+    prepTime: '15 mins',
+    description: '',
+    imageUrl: ''
+  });
 
-  const filteredTables = activeArea === 'ALL'
-    ? tables
-    : tables.filter(t => t.area === activeArea);
+  const [isRoomFolioModalOpen, setIsRoomFolioModalOpen] = useState(false);
+  const [selectedTargetRoom, setSelectedTargetRoom] = useState('');
 
-  const filteredMenu = selectedMenuCategory === 'ALL'
-    ? menuItems
-    : menuItems.filter(m => m.category === selectedMenuCategory);
+  const areas = useMemo(() => {
+    const unique = Array.from(new Set(tables.map(t => t.area).filter(Boolean)));
+    return ['ALL', ...unique];
+  }, [tables]);
 
-  const subtotal = cart.reduce((acc, it) => acc + (it.price * it.qty), 0);
-  const gst = Math.round(subtotal * 0.05);
-  const grandTotal = subtotal + gst;
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set(menuItems.map(m => m.category).filter(Boolean)));
+    return ['ALL', ...unique];
+  }, [menuItems]);
 
+  const occupiedRooms = useMemo(() => {
+    return (rooms || []).filter(r => r.status === 'OCCUPIED');
+  }, [rooms]);
+
+  const filteredTables = tables.filter(t => activeArea === 'ALL' || t.area === activeArea);
+
+  const filteredMenu = menuItems.filter(m => {
+    const matchesSearch =
+      String(m.name || '').toLowerCase().includes(searchMenu.toLowerCase()) ||
+      String(m.category || '').toLowerCase().includes(searchMenu.toLowerCase()) ||
+      String(m.kitchenStation || '').toLowerCase().includes(searchMenu.toLowerCase());
+    const matchesCat = selectedCategory === 'ALL' || m.category === selectedCategory;
+    return matchesSearch && matchesCat;
+  });
+
+  // Table CRUD
+  const openCreateTableModal = () => {
+    setEditingTableId(null);
+    setNewTableData({
+      name: `T-${tables.length + 1}`,
+      area: activeArea !== 'ALL' ? activeArea : 'Main Dining',
+      seats: 4
+    });
+    setIsAddTableModalOpen(true);
+  };
+
+  const openEditTableModal = (table, e) => {
+    e.stopPropagation();
+    setEditingTableId(table.id);
+    setNewTableData({
+      name: table.name,
+      area: table.area,
+      seats: table.seats
+    });
+    setIsAddTableModalOpen(true);
+  };
+
+  const handleSaveTable = async (e) => {
+    e.preventDefault();
+    const cleanName = String(newTableData.name || '').trim();
+    if (!cleanName) {
+      showNotification('Please provide a table name (e.g., T-1, Patio-2).');
+      return;
+    }
+
+    const existing = editingTableId ? tables.find(t => t.id === editingTableId) : null;
+    const res = await upsertRestaurantTable({
+      ...(existing || {}),
+      id: editingTableId || undefined,
+      name: cleanName,
+      area: String(newTableData.area || 'Main Dining').trim() || 'Main Dining',
+      seats: parseInt(newTableData.seats, 10) || 4
+    });
+
+    if (res?.success) {
+      if (res.table?.id) setSelectedTableId(res.table.id);
+      setIsAddTableModalOpen(false);
+      setEditingTableId(null);
+      showNotification(
+        editingTableId
+          ? `Dining table ${cleanName} updated.`
+          : `New table ${cleanName} added to ${currentHotel?.name || 'hotel'} floor plan.`
+      );
+    }
+  };
+
+  const handleDeleteTable = async (table, e) => {
+    e.stopPropagation();
+    if (table.status === 'OCCUPIED') {
+      showNotification(`Settle active bill for ${table.name} before deleting it.`);
+      return;
+    }
+    await deleteRestaurantTable(table.id);
+    if (selectedTable?.id === table.id) {
+      setSelectedTableId(null);
+    }
+    showNotification(`Removed table ${table.name}.`);
+  };
+
+  // Menu Item CRUD inside POS (syncs directly with ProductSetupView via Supabase)
+  const openCreateMenuModal = () => {
+    setEditingMenuId(null);
+    setMenuForm({
+      name: '',
+      category: selectedCategory !== 'ALL' ? selectedCategory : 'Main Course',
+      kitchenStation: 'Hot Kitchen (Indian)',
+      price: 350,
+      costPrice: 120,
+      taxPct: 5,
+      isVeg: true,
+      prepTime: '15 mins',
+      description: '',
+      imageUrl: ''
+    });
+    setIsMenuModalOpen(true);
+  };
+
+  const openEditMenuModal = (item, e) => {
+    e.stopPropagation();
+    setEditingMenuId(item.id);
+    setMenuForm({
+      name: item.name,
+      category: item.category || 'Main Course',
+      kitchenStation: item.kitchenStation || 'Hot Kitchen (Indian)',
+      price: item.price || 0,
+      costPrice: item.costPrice || 0,
+      taxPct: item.taxPct ?? 5,
+      isVeg: item.isVeg !== false,
+      prepTime: item.prepTime || '15 mins',
+      description: item.description || '',
+      imageUrl: item.imageUrl || ''
+    });
+    setIsMenuModalOpen(true);
+  };
+
+  const handleMenuImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressImageFile(file, { maxDim: 280, maxBytes: 24 * 1024 });
+      setMenuForm(prev => ({ ...prev, imageUrl: compressed }));
+      showNotification('Dish photo compressed for fast loading.');
+    } catch {
+      showNotification('Could not process selected image.');
+    }
+  };
+
+  const handleSaveMenuItem = async (e) => {
+    e.preventDefault();
+    const cleanName = String(menuForm.name || '').trim();
+    if (!cleanName) {
+      showNotification('Please enter a menu item name.');
+      return;
+    }
+    const existing = editingMenuId ? menuItems.find(m => m.id === editingMenuId) : null;
+    const res = await upsertRestaurantMenuItem({
+      ...(existing || {}),
+      id: editingMenuId || undefined,
+      name: cleanName,
+      category: String(menuForm.category || 'Main Course').trim(),
+      kitchenStation: menuForm.kitchenStation,
+      price: Number(menuForm.price) || 0,
+      costPrice: Number(menuForm.costPrice) || 0,
+      taxPct: Number(menuForm.taxPct ?? 5),
+      isVeg: Boolean(menuForm.isVeg),
+      prepTime: menuForm.prepTime || '15 mins',
+      description: menuForm.description || '',
+      imageUrl: menuForm.imageUrl || ''
+    });
+
+    if (res?.success) {
+      setIsMenuModalOpen(false);
+      setEditingMenuId(null);
+      showNotification(
+        editingMenuId
+          ? `${cleanName} updated across POS & Product Setup.`
+          : `${cleanName} added to ${currentHotel?.name || 'hotel'} menu catalog!`
+      );
+    }
+  };
+
+  // Cart Actions
   const addToCart = (item) => {
+    if (item.status === 'OUT_OF_STOCK') {
+      showNotification(`${item.name} is currently marked 86'd (Out of Stock).`);
+      return;
+    }
     setCart(prev => {
       const existing = prev.find(i => i.id === item.id);
       if (existing) {
         return prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
       }
-      return [...prev, { id: item.id, name: item.name, price: item.price, qty: 1 }];
+      return [...prev, { ...item, qty: 1 }];
     });
   };
 
-  const updateQty = (id, delta) => {
-    setCart(prev => prev.map(i => {
-      if (i.id === id) {
-        const newQty = i.qty + delta;
-        return newQty > 0 ? { ...i, qty: newQty } : null;
-      }
-      return i;
-    }).filter(Boolean));
+  const updateCartQty = (id, delta) => {
+    setCart(prev =>
+      prev
+        .map(item => (item.id === id ? { ...item, qty: item.qty + delta } : item))
+        .filter(item => item.qty > 0)
+    );
   };
 
-  const handleAddTable = (e) => {
-    e.preventDefault();
-    const created = {
-      id: `T-${Date.now().toString().slice(-4)}`,
-      name: newTable.name,
-      area: newTable.area,
-      seats: Number(newTable.seats) || 4,
-      status: 'VACANT',
-      guest: null,
-      room: null,
-      items: 0,
-      total: 0,
-      time: null
-    };
-    const updated = [...tables, created];
-    setTables(updated);
-    setSelectedTable(created);
-    setIsAddTableModalOpen(false);
-    showNotification(`${created.name} added to ${created.area}!`);
-  };
+  const cartSubtotal = cart.reduce((acc, item) => acc + item.price * item.qty, 0);
+  const cartTax = Math.round(cartSubtotal * 0.05);
+  const cartTotal = cartSubtotal + cartTax;
 
-  const handlePrintKot = () => {
-    if (cart.length === 0) {
-      showNotification('Please add dishes to cart before sending to kitchen KOT.');
+  // Send KOT -> inserts fnb_order + locks/updates table in Supabase
+  const handlePrintKot = async () => {
+    if (!selectedTable) {
+      showNotification('Create and select a dining table first before firing a KOT.');
       return;
     }
-    const orderItemsSummary = cart.map(i => `${i.qty}x ${i.name}`).join(', ');
-    const kotId = `KOT-${Date.now().toString().slice(-4)}`;
-    const newKotOrder = {
-      orderId: kotId,
-      roomTable: selectedTable?.name || 'Table 01',
-      guest: selectedTable?.guest || 'Dine-In Guest',
-      items: orderItemsSummary,
-      total: grandTotal,
+    if (cart.length === 0) {
+      showNotification('Cart is empty. Add items before firing a KOT.');
+      return;
+    }
+
+    const itemsString = cart.map(i => `${i.qty}x ${i.name}`).join(', ');
+    const orderId = `KOT-${Date.now().toString().slice(-5)}`;
+    const guestDisplay =
+      guestNameInput.trim() ||
+      selectedTable.guestName ||
+      `Dine-In (${selectedTable.name})`;
+
+    const totalCartItems = cart.reduce((acc, i) => acc + i.qty, 0);
+
+    await addFnbOrder({
+      orderId,
+      tableId: selectedTable.id,
+      roomTable: `Table ${selectedTable.name}`,
+      guest: guestDisplay,
+      items: itemsString,
+      itemsCount: totalCartItems,
+      total: cartTotal,
       status: 'PREPARING',
-      time: 'Just now'
-    };
-
-    if (addFnbOrder) {
-      addFnbOrder(newKotOrder);
-    }
-
-    const updated = tables.map(t => t.id === selectedTable?.id ? {
-      ...t,
-      status: 'OCCUPIED',
-      items: cart.reduce((s, it) => s + it.qty, 0),
-      total: grandTotal
-    } : t);
-    setTables(updated);
-
-    // Open Kitchen Slip print window
-    const printWindow = window.open('', '_blank', 'width=450,height=600');
-    if (printWindow) {
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>KOT #${kotId}</title>
-          <style>
-            body { font-family: monospace; padding: 16px; font-size: 13px; color: #000; }
-            .center { text-align: center; }
-            .line { border-bottom: 1px dashed #000; margin: 8px 0; }
-            table { width: 100%; border-collapse: collapse; margin: 8px 0; }
-            th, td { text-align: left; padding: 5px 0; font-size: 13px; }
-            .qty { text-align: right; }
-          </style>
-        </head>
-        <body>
-          <div class="center">
-            <h2 style="margin:0 0 4px 0; font-size:16px;">KITCHEN ORDER TICKET (KOT)</h2>
-            <p style="margin:2px 0;"><strong>${currentHotel?.name || 'Hotel Dining'}</strong></p>
-            <p style="margin:2px 0;">Token: <strong>#${kotId}</strong> | ${new Date().toLocaleTimeString()}</p>
-            <p style="margin:4px 0 0; font-size: 15px;"><strong>${selectedTable?.name || 'Table'} (${selectedTable?.area || 'Dining'})</strong></p>
-          </div>
-          <div class="line"></div>
-          <table>
-            <thead>
-              <tr><th>ITEM</th><th class="qty">QTY</th></tr>
-            </thead>
-            <tbody>
-              ${cart.map(i => `<tr><td>${i.name}</td><td class="qty"><strong>x${i.qty}</strong></td></tr>`).join('')}
-            </tbody>
-          </table>
-          <div class="line"></div>
-          <div class="center" style="margin-top:12px;">
-            <p style="margin:0; font-size:11px;">* Dispatched to Chef & KDS *</p>
-          </div>
-          <script>
-            window.onload = function() {
-              setTimeout(function() {
-                window.focus();
-                window.print();
-              }, 300);
-            };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    }
-
-    showNotification(`KOT #${kotId} sent to Kitchen Display System (KDS)! Items: ${orderItemsSummary}`);
-  };
-
-  const handleSettleTable = () => {
-    if (!selectedTable) return;
-    const updated = tables.map(t => t.id === selectedTable.id ? { ...t, status: 'VACANT', guest: null, room: null, items: 0, total: 0 } : t);
-    setTables(updated);
-
-    if (settleFnbOrder) {
-      const activeOrder = fnbOrders.find(o => o.roomTable === selectedTable.name && o.status !== 'BILLED');
-      if (activeOrder) {
-        settleFnbOrder(activeOrder.orderId);
-      }
-    }
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
 
     setCart([]);
-    showNotification(`Bill ₹${grandTotal} settled via UPI/Card. ${selectedTable.name} ready for next guest.`);
+    setGuestNameInput('');
+    showNotification(`KOT ${orderId} sent to Kitchen for ${selectedTable.name} (₹${cartTotal}).`);
   };
+
+  // Settle Table Bill (Direct Payment)
+  const handleSettleTable = async () => {
+    if (!selectedTable) return;
+    if (selectedTable.status !== 'OCCUPIED' && selectedTable.total <= 0) {
+      showNotification(`Table ${selectedTable.name} currently has no active bill.`);
+      return;
+    }
+
+    const matchingOrders = fnbOrders.filter(
+      o =>
+        (o.orderId === selectedTable.activeOrderId ||
+          String(o.roomTable || '').includes(selectedTable.name)) &&
+        o.status !== 'BILLED'
+    );
+
+    if (matchingOrders.length > 0) {
+      for (let i = 0; i < matchingOrders.length; i++) {
+        await settleFnbOrder(
+          matchingOrders[i].orderId,
+          'UPI',
+          i === matchingOrders.length - 1 ? selectedTable.id : null
+        );
+      }
+    } else {
+      await settleFnbOrder(selectedTable.activeOrderId || null, 'UPI', selectedTable.id);
+    }
+
+    showNotification(`Table ${selectedTable.name} bill settled & reset to Vacant!`);
+  };
+
+  // Open Post-to-Room Folio Modal
+  const openRoomFolioModal = () => {
+    if (occupiedRooms.length === 0) {
+      showNotification('No rooms are currently Checked-In / Occupied to bill charges to.');
+      return;
+    }
+    if (cart.length === 0 && (!selectedTable || selectedTable.total <= 0)) {
+      showNotification('Add items to cart or select an occupied table with a bill first.');
+      return;
+    }
+    setSelectedTargetRoom(String(occupiedRooms[0].roomNumber || occupiedRooms[0].room_number));
+    setIsRoomFolioModalOpen(true);
+  };
+
+  const handleConfirmPostToRoom = async (e) => {
+    e.preventDefault();
+    if (!selectedTargetRoom) return;
+    const roomObj = occupiedRooms.find(
+      r => String(r.roomNumber || r.room_number) === String(selectedTargetRoom)
+    );
+    const roomGuest = roomObj?.guest || selectedTable?.guestName || 'In-House Guest';
+
+    // 1. If there is a pending cart, post it directly to the selected room folio + create billed KOT
+    if (cart.length > 0) {
+      const itemsString = cart.map(i => `${i.qty}x ${i.name}`).join(', ');
+      const orderId = `KOT-${Date.now().toString().slice(-5)}`;
+      await addFnbOrder({
+        orderId,
+        tableId: selectedTable?.id || null,
+        roomNumber: selectedTargetRoom,
+        roomTable: `Room ${selectedTargetRoom}${selectedTable ? ` (${selectedTable.name})` : ''}`,
+        guest: roomGuest,
+        items: itemsString,
+        total: cartTotal,
+        status: 'PREPARING',
+        paymentStatus: 'BILLED_TO_ROOM',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+      setCart([]);
+    }
+
+    // 2. If the selected dining table already had accumulated active bill, post remaining table bill & clear table
+    if (selectedTable && selectedTable.total > 0) {
+      await addFolioCharge(selectedTargetRoom, {
+        category: 'F&B',
+        description: `Restaurant Table ${selectedTable.name} Dining (${selectedTable.activeOrderId || 'POS'})`,
+        amount: Number(selectedTable.total) || 0,
+        rate: Number(selectedTable.total) || 0,
+        qty: 1
+      });
+      await settleFnbOrder(selectedTable.activeOrderId || null, 'BILLED_TO_ROOM', selectedTable.id);
+    }
+
+    setIsRoomFolioModalOpen(false);
+    showNotification(`Posted restaurant charges to Room ${selectedTargetRoom} Folio (${roomGuest}).`);
+  };
+
+  const occupiedCount = tables.filter(t => t.status === 'OCCUPIED').length;
+  const vacantCount = tables.filter(t => t.status === 'VACANT').length;
 
   return (
     <div className="space-y-4 pb-12 animate-in fade-in duration-200">
@@ -240,7 +427,7 @@ export default function RestaurantPosView() {
           onClick={() => navigateTo('master-service-home')}
           className="hover:text-slate-900 cursor-pointer transition flex items-center gap-1"
         >
-          🏨 Home
+          🏠 Home
         </span>
         <span>/</span>
         <span className="font-semibold text-slate-900">
@@ -252,266 +439,396 @@ export default function RestaurantPosView() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
         <div>
           <div className="flex items-center space-x-2 mb-1.5">
-            <span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 px-2 py-0.5 rounded tracking-wider">
-              AAVASA HMS
+            <span className="text-[10px] font-bold text-[#ff6d00] bg-orange-50 border border-orange-300 px-2 py-0.5 rounded tracking-wider uppercase">
+              {(currentHotel?.name || 'AAVASA PMS')} · POS
             </span>
             <span className="text-[10.5px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-wider">
-              <Trophy className="w-3.5 h-3.5 text-amber-500" /> MASTERY: 0%
+              <Utensils className="w-3.5 h-3.5 text-orange-500" /> LIVE FLOOR · {tables.length} TABLES · {menuItems.length} ITEMS
             </span>
           </div>
 
           <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            Restaurant POS & Table Management
+            Restaurant & Dining POS
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Dine-in tables, room service billing, kitchen order tickets (KOT), and folio settlements.
+            Manage your property-specific dining floor tables, menu dishes, Kitchen Order Tickets (KOT), and room folio postings in real time.
           </p>
         </div>
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
           <button
+            onClick={openCreateMenuModal}
+            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold shadow-2xs transition cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 text-orange-500" />
+            <span>Add Dish</span>
+          </button>
+
+          <button
             onClick={() => navigateTo('product-setup')}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold shadow-2xs transition"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold shadow-2xs transition cursor-pointer"
           >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Product Setup</span>
+            <Utensils className="w-3.5 h-3.5" />
+            <span>Product Catalog ({menuItems.length})</span>
           </button>
 
           <button
-            onClick={() => navigateTo('stock-management')}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold shadow-2xs transition"
-          >
-            <Receipt className="w-3.5 h-3.5" />
-            <span>Stock Inventory</span>
-          </button>
-
-          <button
-            onClick={() => setIsAddTableModalOpen(true)}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold shadow-2xs transition"
+            onClick={openCreateTableModal}
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-[#ff6d00] hover:bg-[#e66200] text-white rounded-lg text-xs font-bold shadow-2xs transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Add Dining Table</span>
+            <span>Add Table</span>
           </button>
         </div>
       </div>
 
-      {/* 3. Operational Status Pills */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white rounded-xl border border-slate-200/90 p-3 shadow-2xs text-xs">
-        <div className="flex items-center space-x-2 overflow-x-auto">
-          <span className="font-bold text-slate-700 whitespace-nowrap">Dining Area:</span>
-          {areas.map(ar => (
-            <button
-              key={ar}
-              onClick={() => setActiveArea(ar)}
-              className={`px-3 py-1 rounded-lg font-bold text-xs transition whitespace-nowrap ${activeArea === ar
-                  ? 'bg-[#0e4860] text-white shadow-2xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-            >
-              {ar}
-            </button>
-          ))}
-        </div>
+      {/* 3. Main Workspace Split View (Left Floor & Menu, Right Order Cart) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
-        <div className="flex items-center space-x-4 text-[11px] font-semibold">
-          <span className="flex items-center gap-1.5 text-emerald-700">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Vacant: {tables.filter(t => t.status === 'VACANT').length}
-          </span>
-          <span className="flex items-center gap-1.5 text-blue-700">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Occupied: {tables.filter(t => t.status === 'OCCUPIED').length}
-          </span>
-          <span className="flex items-center gap-1.5 text-amber-700">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> KOT Cooking: {fnbOrders.filter(o => o.status === 'PREPARING').length}
-          </span>
-          <span className="flex items-center gap-1.5 text-purple-700">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-500" /> Billing: {tables.filter(t => t.status === 'BILLING').length}
-          </span>
-        </div>
-      </div>
+        {/* LEFT COLUMN (7 Cols): Floor Plan Tables & Menu */}
+        <div className="lg:col-span-7 space-y-5">
 
-      {/* 4. Split Layout: Tables Grid + POS Order Terminal */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left Side: Tables Grid (7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {filteredTables.length === 0 ? (
-              <div className="col-span-full py-12 text-center bg-white rounded-xl border border-dashed border-slate-200 shadow-2xs">
-                <Utensils className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-bold text-slate-700">No Dining Tables Configured</p>
-                <p className="text-xs text-slate-400 mt-0.5">Click "Add Dining Table" to create tables for Main Dining, Poolside, or Rooftop.</p>
-                <button
-                  onClick={() => setIsAddTableModalOpen(true)}
-                  className="mt-3.5 px-3.5 py-1.5 bg-[#0e4860] hover:bg-[#135d7c] text-white text-xs font-bold rounded-lg shadow-2xs transition"
-                >
-                  + Add Dining Table
-                </button>
+          {/* Section A: Restaurant Tables Floor Grid */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <h2 className="text-sm font-black text-slate-900">Dining Floor Layout</h2>
+                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  {vacantCount} Vacant
+                </span>
+                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                  {occupiedCount} Occupied
+                </span>
               </div>
-            ) : (
-              filteredTables.map(t => {
-                const isSelected = selectedTable?.id === t.id;
 
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => setSelectedTable(t)}
-                    className={`p-3.5 rounded-xl border cursor-pointer transition select-none flex flex-col justify-between ${isSelected
-                        ? 'border-[#ff6d00] ring-2 ring-orange-400/40 bg-orange-50/40 shadow-sm'
-                        : t.status === 'VACANT'
-                          ? 'bg-white border-slate-200 hover:border-slate-300'
-                          : t.status === 'OCCUPIED'
-                            ? 'bg-blue-50/50 border-blue-200 hover:border-blue-300'
-                            : t.status === 'KOT_PENDING'
-                              ? 'bg-amber-50/50 border-amber-200 hover:border-amber-300'
-                              : 'bg-purple-50/50 border-purple-200 hover:border-purple-300'
-                      }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-black text-sm text-slate-900">{t.name}</span>
-                      <span className={`px-2 py-0.5 rounded text-[9.5px] font-bold ${t.status === 'VACANT' ? 'bg-emerald-100 text-emerald-800' :
-                          t.status === 'OCCUPIED' ? 'bg-blue-100 text-blue-800' :
-                            t.status === 'KOT_PENDING' ? 'bg-amber-100 text-amber-800' :
-                              'bg-purple-100 text-purple-800'
-                        }`}>
-                        {t.status.replace('_', ' ')}
-                      </span>
-                    </div>
-
-                    <div className="my-2 space-y-1 text-xs">
-                      <div className="text-[11px] text-slate-500">
-                        {t.seats} Seats • {t.area}
-                      </div>
-                      {t.guest && (
-                        <div className="font-bold text-slate-800 truncate">
-                          {t.guest} <span className="text-[10px] text-slate-400 font-normal">({t.room})</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
-                      <span className="font-black text-slate-900">
-                        {t.total > 0 ? `₹${t.total.toLocaleString()}` : '—'}
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        {t.time || 'Available'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Quick Menu Selection */}
-          <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-slate-800">
-                Menu Dishes {selectedTable ? <>for <strong>{selectedTable.name}</strong></> : null}
-              </span>
-
-              <div className="flex items-center space-x-1">
-                {menuCats.map(cat => (
+              {/* Area Filter Pills */}
+              <div className="flex items-center flex-wrap gap-1">
+                {areas.map(a => (
                   <button
-                    key={cat}
-                    onClick={() => setSelectedMenuCategory(cat)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition ${selectedMenuCategory === cat
-                        ? 'bg-[#ff6d00] text-white'
+                    key={a}
+                    onClick={() => setActiveArea(a)}
+                    className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition cursor-pointer ${
+                      activeArea === a
+                        ? 'bg-[#ff6d00] text-white shadow-2xs'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
+                    }`}
                   >
-                    {cat}
+                    {a === 'ALL' ? 'All Areas' : a}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {filteredMenu.length === 0 ? (
-                <div className="col-span-full py-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-xl">
-                  <Coffee className="w-6 h-6 text-slate-300 mx-auto mb-1.5" />
-                  <p className="text-xs font-bold text-slate-700">No Menu Dishes Found</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Configure items in Product Setup to take restaurant orders.</p>
-                  <button
-                    onClick={() => navigateTo('product-setup')}
-                    className="mt-2.5 px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition"
-                  >
-                    Go to Product Setup
-                  </button>
-                </div>
-              ) : (
-                filteredMenu.map(m => (
-                  <button
-                    key={m.id}
-                    onClick={() => addToCart(m)}
-                    className="p-2.5 bg-slate-50 hover:bg-orange-50/70 border border-slate-200 hover:border-orange-300 rounded-lg text-left transition flex flex-col justify-between group"
-                  >
-                    <div className="flex items-start justify-between">
-                      <span className="font-bold text-xs text-slate-800 group-hover:text-orange-950 truncate block">
-                        {m.name}
-                      </span>
-                      <span className={`w-2 h-2 rounded-full shrink-0 mt-1 ml-1 ${m.veg ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+            {filteredTables.length === 0 ? (
+              <div className="text-center py-8 bg-slate-50 border border-dashed border-slate-200 rounded-xl space-y-2">
+                <Users className="w-7 h-7 text-slate-400 mx-auto" />
+                <p className="text-xs font-bold text-slate-700">
+                  No Dining Tables Configured for {currentHotel?.name || 'This Property'} Yet
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Create your restaurant dining tables (Main Dining, Patio, Rooftop, etc.) to start taking live KOT orders.
+                </p>
+                <button
+                  onClick={openCreateTableModal}
+                  className="mt-1 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#ff6d00] hover:bg-[#e66200] text-white text-xs font-bold rounded-lg transition cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add First Dining Table
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                {filteredTables.map(t => {
+                  const isSelected = selectedTable?.id === t.id;
+                  const isOcc = t.status === 'OCCUPIED';
+
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedTableId(t.id)}
+                      className={`group relative p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between min-h-[104px] ${
+                        isSelected
+                          ? 'ring-2 ring-orange-500 border-orange-500 bg-orange-50/40 shadow-sm'
+                          : isOcc
+                          ? 'border-rose-300 bg-rose-50/40 hover:bg-rose-50/80'
+                          : 'border-emerald-200 bg-emerald-50/30 hover:bg-emerald-50/70'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between w-full">
+                        <div>
+                          <span className="text-sm font-black text-slate-900">{t.name}</span>
+                          <span className="text-[9.5px] font-semibold text-slate-500 block">{t.seats} Seats · {t.area}</span>
+                        </div>
+                        <span className={`w-2 h-2 rounded-full mt-1 shrink-0 ${isOcc ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
+                      </div>
+
+                      <div className="flex items-end justify-between mt-2">
+                        <div>
+                          {isOcc ? (
+                            <>
+                              <span className="text-[10px] font-extrabold text-rose-700 block truncate max-w-[90px]">
+                                {t.guestName || 'Seated Guest'}
+                              </span>
+                              <span className="text-xs font-black text-slate-900">
+                                ₹{(t.total || 0).toLocaleString('en-IN')}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-[10.5px] font-bold text-emerald-700">Available</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+                          <button
+                            onClick={(e) => openEditTableModal(t, e)}
+                            className="p-1 rounded hover:bg-white text-slate-500 hover:text-slate-800"
+                            title="Edit Table"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </button>
+                          {!isOcc && (
+                            <button
+                              onClick={(e) => handleDeleteTable(t, e)}
+                              className="p-1 rounded hover:bg-white text-slate-400 hover:text-rose-600"
+                              title="Delete Table"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-200/50">
-                      <span className="font-black text-xs text-slate-900">₹{m.price}</span>
-                      <span className="text-[10px] font-bold text-orange-600">+ Add</span>
-                    </div>
-                  </button>
-                ))
-              )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Section B: Menu Selection Grid */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+              <h2 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                <ChefHat className="w-4 h-4 text-[#ff6d00]" />
+                <span>Food & Beverage Menu</span>
+              </h2>
+
+              <div className="relative flex-1 sm:max-w-xs">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                <input
+                  type="text"
+                  placeholder="Search dishes..."
+                  value={searchMenu}
+                  onChange={(e) => setSearchMenu(e.target.value)}
+                  className="w-full pl-8 pr-2.5 py-1 text-xs border border-slate-200 rounded-lg outline-none focus:border-orange-500 font-medium"
+                />
+              </div>
             </div>
+
+            {/* Category Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition whitespace-nowrap cursor-pointer ${
+                    selectedCategory === cat
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {filteredMenu.length === 0 ? (
+              <div className="text-center py-8 bg-slate-50 border border-dashed border-slate-200 rounded-xl space-y-2">
+                <Utensils className="w-7 h-7 text-slate-400 mx-auto" />
+                <p className="text-xs font-bold text-slate-700">
+                  {menuItems.length === 0
+                    ? `No Menu Dishes Configured for ${currentHotel?.name || 'This Property'} Yet`
+                    : 'No dishes match your search filter.'}
+                </p>
+                {menuItems.length === 0 && (
+                  <button
+                    onClick={openCreateMenuModal}
+                    className="mt-1 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#ff6d00] hover:bg-[#e66200] text-white text-xs font-bold rounded-lg transition cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add First Menu Dish
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[360px] overflow-y-auto pr-1">
+                {filteredMenu.map(m => {
+                  const isOut = m.status === 'OUT_OF_STOCK';
+                  return (
+                    <div
+                      key={m.id}
+                      onClick={() => addToCart(m)}
+                      className={`group p-3 rounded-xl border text-left transition flex flex-col justify-between relative ${
+                        isOut
+                          ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
+                          : 'border-slate-200 hover:border-orange-300 bg-white hover:bg-orange-50/40 cursor-pointer'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        {m.imageUrl && (
+                          <img
+                            src={m.imageUrl}
+                            alt={m.name}
+                            className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-1">
+                            <span className="text-xs font-extrabold text-slate-900 leading-tight truncate">{m.name}</span>
+                            <span
+                              className={`w-2.5 h-2.5 rounded-full shrink-0 mt-0.5 ${
+                                m.isVeg ? 'bg-emerald-500' : 'bg-rose-500'
+                              }`}
+                              title={m.isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
+                            />
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-medium block mt-0.5 truncate">
+                            {m.category} {isOut ? '· 86\'d Out' : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-2.5">
+                        <span className="text-xs font-black text-slate-900">₹{m.price}</span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={(e) => openEditMenuModal(m, e)}
+                            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 opacity-0 group-hover:opacity-100 transition"
+                            title="Edit Item"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteRestaurantMenuItem(m.id);
+                            }}
+                            className="p-1 rounded bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition"
+                            title="Remove Item"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                          {!isOut && (
+                            <span className="text-[10px] font-bold text-[#ff6d00] bg-orange-50 px-2 py-0.5 rounded border border-orange-200 group-hover:bg-[#ff6d00] group-hover:text-white transition">
+                              + Add
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right Side: Active Order Cart & Folio Settle (5 cols) */}
-        <div className="lg:col-span-5 bg-white rounded-xl border border-slate-200/90 p-4 shadow-2xs flex flex-col justify-between space-y-4">
-          <div className="space-y-3">
-            {/* Table & Guest Summary Header */}
-            <div className="pb-3 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <span className="font-black text-base text-slate-900">{selectedTable ? selectedTable.name : 'No Table Selected'}</span>
-                <span className="text-xs text-slate-500 block">
-                  {selectedTable?.guest ? `${selectedTable.guest} (${selectedTable.room})` : 'Dining Session'}
-                </span>
-              </div>
-              <span className="px-2.5 py-1 bg-orange-50 border border-orange-200 text-orange-700 font-bold text-xs rounded-lg">
-                POS Terminal
+        {/* RIGHT COLUMN (5 Cols): Active Table Order Ticket & Checkout */}
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col">
+          {/* Cart Header */}
+          <div className="p-4 bg-[#1e2736] text-white flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block">
+                ACTIVE ORDER TICKET
               </span>
+              <h2 className="text-base font-black">
+                {selectedTable
+                  ? `Table ${selectedTable.name} (${selectedTable.area})`
+                  : 'No Table Selected'}
+              </h2>
+            </div>
+
+            {selectedTable && (
+              <span className={`px-2.5 py-1 rounded-full text-[10.5px] font-bold ${
+                selectedTable.status === 'OCCUPIED'
+                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+              }`}>
+                {selectedTable.status === 'OCCUPIED' ? 'Seated / Running' : 'New Order'}
+              </span>
+            )}
+          </div>
+
+          <div className="p-4 space-y-4">
+            {/* Existing Running Bill Alert */}
+            {selectedTable?.status === 'OCCUPIED' && selectedTable?.total > 0 && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs">
+                <div>
+                  <span className="font-bold text-amber-900 block">
+                    Running Bill: ₹{selectedTable.total.toLocaleString('en-IN')}
+                  </span>
+                  <span className="text-[10.5px] text-amber-700 font-medium">
+                    Guest: {selectedTable.guestName || 'Walk-in'} · {selectedTable.itemsCount} items ordered
+                  </span>
+                </div>
+                <button
+                  onClick={handleSettleTable}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-xs transition cursor-pointer"
+                >
+                  Settle Bill
+                </button>
+              </div>
+            )}
+
+            {/* Walk-in Guest Name Input */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Guest / Party Name (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Walk-in Guest / Table Party..."
+                value={guestNameInput}
+                onChange={(e) => setGuestNameInput(e.target.value)}
+                className="w-full p-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-orange-500"
+              />
             </div>
 
             {/* Cart Items List */}
-            <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+            <div className="border-t border-b border-slate-100 py-3 min-h-[160px] max-h-[260px] overflow-y-auto space-y-2">
               {cart.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs">
-                  <p className="font-semibold text-slate-600">Cart is empty</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Select a dining table and click dishes to build an order.</p>
+                <div className="text-center py-8 text-slate-400 text-xs">
+                  <Receipt className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  <p className="font-semibold text-slate-500">Cart is empty</p>
+                  <p className="text-[11px]">Click food items from the menu to add to KOT</p>
                 </div>
               ) : (
-                cart.map(it => (
-                  <div key={it.id} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between text-xs">
-                    <div className="min-w-0 pr-2">
-                      <span className="font-bold text-slate-900 block truncate">{it.name}</span>
-                      <span className="text-[10.5px] text-slate-400">₹{it.price} each</span>
+                cart.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 text-xs">
+                    <div className="flex-1 min-w-0 pr-2">
+                      <span className="font-bold text-slate-900 block truncate">{item.name}</span>
+                      <span className="text-[10.5px] text-slate-500 font-medium">₹{item.price} x {item.qty}</span>
                     </div>
 
                     <div className="flex items-center space-x-2 shrink-0">
-                      <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-lg p-0.5">
+                      <div className="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden">
                         <button
-                          onClick={() => updateQty(it.id, -1)}
-                          className="w-5 h-5 flex items-center justify-center font-bold text-slate-500 hover:bg-slate-100 rounded"
+                          onClick={() => updateCartQty(item.id, -1)}
+                          className="p-1 hover:bg-slate-100 text-slate-600 cursor-pointer"
                         >
-                          -
+                          <Minus className="w-3 h-3" />
                         </button>
-                        <span className="font-bold text-xs w-5 text-center">{it.qty}</span>
+                        <span className="px-2 font-black text-slate-800">{item.qty}</span>
                         <button
-                          onClick={() => updateQty(it.id, 1)}
-                          className="w-5 h-5 flex items-center justify-center font-bold text-slate-500 hover:bg-slate-100 rounded"
+                          onClick={() => updateCartQty(item.id, 1)}
+                          className="p-1 hover:bg-slate-100 text-slate-600 cursor-pointer"
                         >
-                          +
+                          <Plus className="w-3 h-3" />
                         </button>
                       </div>
 
-                      <span className="font-black text-slate-900 w-14 text-right">
-                        ₹{it.price * it.qty}
+                      <span className="font-black text-slate-900 w-12 text-right">
+                        ₹{item.price * item.qty}
                       </span>
                     </div>
                   </div>
@@ -519,130 +836,357 @@ export default function RestaurantPosView() {
               )}
             </div>
 
-            {/* Billing Calculation Breakdown */}
-            <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-600">
-              <div className="flex justify-between">
-                <span>Food & Beverage Subtotal:</span>
-                <span className="font-bold text-slate-800">₹{subtotal.toLocaleString()}</span>
+            {/* Subtotal & Tax Calculations */}
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between text-slate-600">
+                <span>Subtotal</span>
+                <span className="font-bold text-slate-800">₹{cartSubtotal.toLocaleString('en-IN')}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Restaurant GST (5%):</span>
-                <span className="font-bold text-slate-800">₹{gst}</span>
+              <div className="flex items-center justify-between text-slate-600">
+                <span>GST (5%)</span>
+                <span className="font-bold text-slate-800">₹{cartTax.toLocaleString('en-IN')}</span>
               </div>
-              <div className="flex justify-between pt-2 border-t border-slate-200 text-sm font-black text-slate-900">
-                <span>Total Bill Amount:</span>
-                <span className="text-emerald-700">₹{grandTotal.toLocaleString()}</span>
+              <div className="flex items-center justify-between text-sm font-black text-slate-900 pt-2 border-t border-slate-100">
+                <span>Cart Total</span>
+                <span className="text-lg text-[#ff6d00]">₹{cartTotal.toLocaleString('en-IN')}</span>
               </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-2.5 pt-2">
+              <button
+                onClick={handlePrintKot}
+                className="flex items-center justify-center space-x-1.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Send & Print KOT</span>
+              </button>
+
+              <button
+                onClick={openRoomFolioModal}
+                className="flex items-center justify-center space-x-1.5 py-2.5 bg-[#ff6d00] hover:bg-[#e66200] text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+              >
+                <BedDouble className="w-3.5 h-3.5" />
+                <span>Post to Room</span>
+              </button>
             </div>
           </div>
 
-          {/* Action Buttons: KOT Print, Room Folio, Settle */}
-          <div className="space-y-2 pt-2 border-t border-slate-100">
-            <button
-              onClick={handlePrintKot}
-              className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-2xs cursor-pointer"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Print Kitchen KOT</span>
-            </button>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => {
-                  if (cart.length === 0) {
-                    showNotification('No items in cart to post.');
-                    return;
-                  }
-                  showNotification(`₹${grandTotal} posted to Guest Room Folio.`);
-                }}
-                className="py-2 bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-800 rounded-lg text-xs font-bold transition"
-              >
-                Post to Room Folio
-              </button>
-
-              <button
-                onClick={handleSettleTable}
-                className="py-2 bg-[#ff6d00] hover:bg-[#e66200] text-white rounded-lg text-xs font-bold transition shadow-2xs"
-              >
-                Settle & Clear Table
-              </button>
+          {/* Live Recent F&B Orders Feed */}
+          <div className="border-t border-slate-200 p-4 bg-slate-50/70 space-y-2.5">
+            <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+              <span>Live F&B Orders ({fnbOrders.length})</span>
+              <span className="text-emerald-600 font-bold">Real-Time Synced</span>
+            </h3>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {fnbOrders.length === 0 ? (
+                <p className="text-[11px] text-slate-400 py-2 text-center">No recent KOT orders yet.</p>
+              ) : (
+                fnbOrders.slice(0, 6).map(o => (
+                  <div key={o.orderId} className="p-2.5 bg-white rounded-lg border border-slate-200/80 text-xs flex items-center justify-between">
+                    <div>
+                      <span className="font-extrabold text-slate-900">{o.orderId} · {o.roomTable}</span>
+                      <span className="text-[10.5px] text-slate-500 block">{o.items}</span>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-black text-slate-900 block">₹{o.total}</span>
+                      <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${
+                        o.status === 'BILLED' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                      }`}>
+                        {o.status}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Add Table Modal */}
+      {/* MODAL: ADD / EDIT DINING TABLE */}
       {isAddTableModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 bg-[#0e4860] text-white flex items-center justify-between">
-              <h3 className="font-bold text-base">Add New Dining Table</h3>
+            <div className="px-5 py-4 bg-[#1e2736] text-white flex items-center justify-between">
+              <h3 className="font-bold text-base">
+                {editingTableId ? 'Edit Dining Table' : 'Add Restaurant Table'}
+              </h3>
               <button
                 onClick={() => setIsAddTableModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTable} className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  Table Name / Number
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. T-1, Patio-2, VIP-1"
+                  value={newTableData.name}
+                  onChange={(e) => setNewTableData({ ...newTableData, name: e.target.value })}
+                  className="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-900"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  Dining Area
+                </label>
+                <input
+                  type="text"
+                  list="pos-area-suggestions"
+                  placeholder="e.g. Main Dining, Garden Patio"
+                  value={newTableData.area}
+                  onChange={(e) => setNewTableData({ ...newTableData, area: e.target.value })}
+                  className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                  required
+                />
+                <datalist id="pos-area-suggestions">
+                  {Array.from(new Set([...DEFAULT_AREAS, ...areas.filter(a => a !== 'ALL')])).map(a => (
+                    <option key={a} value={a} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  Seating Capacity
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={newTableData.seats}
+                  onChange={(e) => setNewTableData({ ...newTableData, seats: e.target.value })}
+                  className="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-900"
+                  required
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddTableModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#ff6d00] hover:bg-[#e66200] text-white font-bold rounded-lg shadow-xs transition cursor-pointer"
+                >
+                  {editingTableId ? 'Save Changes' : 'Create Table'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD / EDIT MENU DISH (WITH COMPRESSED PHOTO UPLOAD) */}
+      {isMenuModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden">
+            <div className="px-5 py-4 bg-[#ff6d00] text-white flex items-center justify-between">
+              <h3 className="font-bold text-base">
+                {editingMenuId ? 'Edit Menu Dish' : 'Add Menu Dish'}
+              </h3>
+              <button
+                onClick={() => setIsMenuModalOpen(false)}
                 className="text-white/80 hover:text-white p-1"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleAddTable} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleSaveMenuItem} className="p-5 space-y-3.5 text-xs">
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                  Table Name / Number
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  Dish Name
                 </label>
                 <input
                   type="text"
-                  value={newTable.name}
-                  onChange={(e) => setNewTable({ ...newTable, name: e.target.value })}
-                  placeholder="e.g. Table 01 or Pool Deck 01"
+                  placeholder="e.g. Paneer Butter Masala"
+                  value={menuForm.name}
+                  onChange={(e) => setMenuForm({ ...menuForm, name: e.target.value })}
                   className="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-900"
                   required
                 />
               </div>
 
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                  Dining Area
-                </label>
-                <select
-                  value={newTable.area}
-                  onChange={(e) => setNewTable({ ...newTable, area: e.target.value })}
-                  className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
-                >
-                  <option value="Main Dining">Main Dining</option>
-                  <option value="Poolside">Poolside</option>
-                  <option value="Rooftop">Rooftop</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                    Category
+                  </label>
+                  <input
+                    type="text"
+                    list="pos-menu-cat-suggestions"
+                    value={menuForm.category}
+                    onChange={(e) => setMenuForm({ ...menuForm, category: e.target.value })}
+                    className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                    required
+                  />
+                  <datalist id="pos-menu-cat-suggestions">
+                    {Array.from(new Set(['Main Course', 'Starters', 'Breads', 'Beverages', 'Desserts', 'Chinese & Asian', ...categories.filter(c => c !== 'ALL')])).map(c => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                    Dietary Type
+                  </label>
+                  <select
+                    value={menuForm.isVeg ? 'veg' : 'nonveg'}
+                    onChange={(e) => setMenuForm({ ...menuForm, isVeg: e.target.value === 'veg' })}
+                    className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                  >
+                    <option value="veg">Vegetarian (Green)</option>
+                    <option value="nonveg">Non-Vegetarian (Red)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                    Selling Price (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={menuForm.price}
+                    onChange={(e) => setMenuForm({ ...menuForm, price: e.target.value })}
+                    className="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-900"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                    Kitchen Station
+                  </label>
+                  <select
+                    value={menuForm.kitchenStation}
+                    onChange={(e) => setMenuForm({ ...menuForm, kitchenStation: e.target.value })}
+                    className="w-full p-2 border border-slate-300 rounded-lg text-xs text-slate-800"
+                  >
+                    {DEFAULT_KITCHEN_STATIONS.map(ks => (
+                      <option key={ks} value={ks}>{ks}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                  Seating Capacity
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  Dish Thumbnail (Auto-compressed WebP &lt;= 24KB)
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={newTable.seats}
-                  onChange={(e) => setNewTable({ ...newTable, seats: e.target.value })}
-                  className="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-900"
-                  required
-                />
+                <div className="flex items-center gap-3">
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer font-bold text-slate-700">
+                    <ImagePlus className="w-3.5 h-3.5" />
+                    <span>Upload Photo</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleMenuImageUpload} />
+                  </label>
+                  {menuForm.imageUrl && (
+                    <div className="flex items-center gap-2">
+                      <img src={menuForm.imageUrl} alt="Dish preview" className="w-9 h-9 rounded-lg object-cover border" />
+                      <button
+                        type="button"
+                        onClick={() => setMenuForm({ ...menuForm, imageUrl: '' })}
+                        className="text-[10.5px] font-bold text-rose-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+              <div className="pt-2 flex justify-end space-x-2">
                 <button
                   type="button"
-                  onClick={() => setIsAddTableModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50"
+                  onClick={() => setIsMenuModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#0e4860] hover:bg-[#135d7c] text-white rounded-lg text-xs font-bold shadow-2xs"
+                  className="px-5 py-2 bg-[#ff6d00] hover:bg-[#e66200] text-white font-bold rounded-lg shadow-xs transition cursor-pointer"
                 >
-                  Create Table
+                  {editingMenuId ? 'Save Dish' : 'Add to Menu'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: POST RESTAURANT BILL TO IN-HOUSE ROOM FOLIO */}
+      {isRoomFolioModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-slate-200 overflow-hidden">
+            <div className="px-5 py-4 bg-[#1e2736] text-white flex items-center justify-between">
+              <h3 className="font-bold text-base">Post Bill to Room Folio</h3>
+              <button
+                onClick={() => setIsRoomFolioModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmPostToRoom} className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  Select Occupied / In-House Room
+                </label>
+                <select
+                  value={selectedTargetRoom}
+                  onChange={(e) => setSelectedTargetRoom(e.target.value)}
+                  className="w-full p-2.5 border border-slate-300 rounded-lg text-xs font-bold text-slate-900"
+                  required
+                >
+                  {occupiedRooms.map(rm => {
+                    const num = rm.roomNumber || rm.room_number;
+                    return (
+                      <option key={num} value={num}>
+                        Room {num} — {rm.guest || 'Occupied Guest'} ({rm.type})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl text-[11px] text-orange-900">
+                Amount to charge to Room {selectedTargetRoom}:{' '}
+                <strong>
+                  ₹{((selectedTable?.total || 0) + cartTotal).toLocaleString('en-IN')}
+                </strong>
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRoomFolioModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#ff6d00] hover:bg-[#e66200] text-white font-bold rounded-lg shadow-xs transition cursor-pointer"
+                >
+                  Confirm Room Charge
                 </button>
               </div>
             </form>

@@ -50,7 +50,9 @@ import {
   parseAiosellWebhookPayload,
   allocateAndLockPhysicalRoom,
   calculateCategoryInventory,
-  dispatchWebhookToBackend
+  dispatchWebhookToBackend,
+  saveHotelAiosellCode,
+  pushHotelInventoryViaBackend
 } from '../../services/aiosellService';
 
 export default function ChannelManagerView() {
@@ -73,6 +75,12 @@ export default function ChannelManagerView() {
   const [config, setConfig] = useState(() => getAiosellConfig());
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null); // null | { ok: boolean, message: string, property?: any }
+
+  useEffect(() => {
+    if (currentHotel?.aiosellHotelCode) {
+      setConfig(prev => ({ ...prev, hotelCode: currentHotel.aiosellHotelCode }));
+    }
+  }, [currentHotel?.aiosellHotelCode]);
 
   // Connected OTAs state with channel multipliers
   const [channels, setChannels] = useState([
@@ -389,9 +397,9 @@ export default function ChannelManagerView() {
       samplePayload = {
         action: 'book',
         hotelCode: config.hotelCode,
-        channel: 'MakeMyTrip',
-        bookingId: `MMT-${Math.floor(100000 + Math.random() * 900000)}`,
-        cmBookingId: `CM-MMT-${Date.now().toString().slice(-6)}`,
+        channel: 'Goibibo',
+        bookingId: `GOI-${Math.floor(100000 + Math.random() * 900000)}`,
+        cmBookingId: `CM-GOI-${Date.now().toString().slice(-6)}`,
         bookedOn: new Date().toISOString().replace('T', ' ').slice(0, 19),
         checkin: todayStr,
         checkout: tomorrowStr,
@@ -416,8 +424,8 @@ export default function ChannelManagerView() {
         },
         rooms: [
           {
-            roomCode: 'executive',
-            rateplanCode: 'executive-s-ep',
+            roomCode: 'standard',
+            rateplanCode: 'standard-s-ep',
             guestName: 'Ananya Sharma',
             occupancy: { adults: 1, children: 0 },
             prices: [{ date: todayStr, sellRate: 2800 }]
@@ -484,6 +492,26 @@ export default function ChannelManagerView() {
       const parsed = parseAiosellWebhookPayload(samplePayload);
       const result = await dispatchWebhookToBackend(samplePayload, currentHotel?.id);
 
+      if (!result?.success) {
+        setSessionWebhookLogs(prev => [
+          {
+            id: `wh-${Date.now()}`,
+            time: new Date().toLocaleTimeString(),
+            action: parsed.action,
+            channel: samplePayload.channel || 'OTA',
+            bookingId: parsed.action === 'cancel' ? parsed.bookingId : parsed.reservation.id,
+            guest: parsed.action === 'cancel' ? 'N/A' : parsed.reservation.guest,
+            amount: parsed.action === 'cancel' ? 'N/A' : `₹${parsed.reservation.amount}`,
+            pah: parsed.action === 'cancel' ? 'N/A' : (parsed.reservation.pah ? 'Pay At Hotel (PAH)' : 'Prepaid'),
+            status: result?.status === 409 ? 'BLOCKED_NO_INVENTORY' : 'REJECTED'
+          },
+          ...prev
+        ]);
+        showNotification(`Webhook Rejected: ${result?.error || 'Could not process OTA booking.'}`);
+        setIsSimulatingWebhook(false);
+        return;
+      }
+
       const logEntry = {
         id: `wh-${Date.now()}`,
         time: new Date().toLocaleTimeString(),
@@ -496,7 +524,7 @@ export default function ChannelManagerView() {
         status: 'PROCESSED_SUCCESS'
       };
 
-      setWebhookLogs(prev => [logEntry, ...prev]);
+      setSessionWebhookLogs(prev => [logEntry, ...prev]);
 
       if (refreshData) {
         await refreshData();
@@ -505,14 +533,14 @@ export default function ChannelManagerView() {
       if (parsed.action === 'book') {
         const allocatedRoomNumber = result?.allocatedRoomNumber;
         if (allocatedRoomNumber) {
-          showNotification(`[BOOK LOCKED]: Reservation ${parsed.reservation.id} saved to Supabase! Room ${allocatedRoomNumber} is LOCKED across all devices.`);
+          showNotification(`[BOOK LOCKED]: Reservation ${parsed.reservation.id} saved & Room ${allocatedRoomNumber} LOCKED across Admin + Guest Website.`);
         } else {
-          showNotification(`[BOOK]: Reservation ${parsed.reservation.id} saved to Supabase from ${parsed.reservation.channel}!`);
+          showNotification(`[BOOK]: Reservation ${parsed.reservation.id} saved from ${parsed.reservation.channel}.`);
         }
       } else if (parsed.action === 'modify') {
-        showNotification(`Webhook [MODIFY]: Reservation ${parsed.reservation.id} updated in Supabase across all devices!`);
+        showNotification(`Webhook [MODIFY]: Reservation ${parsed.reservation.id} updated across all devices!`);
       } else if (parsed.action === 'cancel') {
-        showNotification(`Webhook [CANCEL]: Booking ${parsed.bookingId} cancelled in Supabase and physical room UNLOCKED across all devices!`);
+        showNotification(`Webhook [CANCEL]: Booking ${parsed.bookingId} cancelled and physical room UNLOCKED across all devices!`);
       }
     } catch (err) {
       showNotification(`Webhook processing error: ${err.message}`);
@@ -547,10 +575,13 @@ export default function ChannelManagerView() {
     }
   };
 
-  // 7. Save Credentials
-  const handleSaveConfig = () => {
+  // 7. Save Credentials & Persist Per-Hotel Aiosell hotelCode Mapping
+  const handleSaveConfig = async () => {
     saveAiosellConfig(config);
-    showNotification('Aiosell credentials & partner settings saved.');
+    if (currentHotel?.id && config.hotelCode) {
+      await saveHotelAiosellCode(currentHotel.id, config.hotelCode);
+    }
+    showNotification('Aiosell credentials & property hotelCode mapping saved.');
     handleTestConnection(true);
   };
 
@@ -1347,11 +1378,11 @@ export default function ChannelManagerView() {
                   className="p-3 bg-rose-50/70 hover:bg-rose-100/80 border border-rose-200 rounded-xl text-left transition cursor-pointer space-y-1"
                 >
                   <div className="text-xs font-bold text-rose-900 flex items-center justify-between">
-                    <span>2. MakeMyTrip (PAH)</span>
+                    <span>2. Goibibo / MMT (PAH)</span>
                     <span className="text-[10px] font-mono px-1.5 py-0.5 bg-rose-200 text-rose-800 rounded">book</span>
                   </div>
                   <p className="text-[11px] text-rose-700">
-                    Executive, ₹2,800, pah=true (Pay at Hotel), masked email
+                    Standard Room, ₹2,800, pah=true — locks physical room immediately
                   </p>
                 </button>
 
@@ -1683,8 +1714,29 @@ export default function ChannelManagerView() {
 
               <div className="flex items-center space-x-2">
                 <button
+                  onClick={async () => {
+                    const syncRes = await pushHotelInventoryViaBackend({
+                      hotelId: currentHotel?.id,
+                      hotelCode: config.hotelCode,
+                      partnerId: config.partnerId,
+                      username: config.username,
+                      password: config.password,
+                      startDate: pushStartDate,
+                      endDate: pushEndDate
+                    });
+                    if (syncRes?.success) {
+                      showNotification('Live room availability & Stop-Sell flags synced to Aiosell via secured pms-api!');
+                    } else {
+                      showNotification(`Aiosell inventory push: ${syncRes?.error || syncRes?.message || 'Completed with notice.'}`);
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                >
+                  <Send className="w-3.5 h-3.5" /> Sync Live Inventory to Aiosell
+                </button>
+                <button
                   onClick={() => {
-                    navigator.clipboard.writeText('supabase functions deploy aiosell-webhook --no-verify-jwt');
+                    navigator.clipboard.writeText('supabase functions deploy aiosell-webhook --no-verify-jwt && supabase functions deploy pms-api --no-verify-jwt');
                     showNotification('Copied Supabase CLI deploy command!');
                   }}
                   className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
@@ -1694,17 +1746,23 @@ export default function ChannelManagerView() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
               <div className="p-3 bg-slate-900 text-white rounded-xl space-y-1">
-                <span className="text-sky-400 font-bold block">1. Supabase Edge Function</span>
-                <span className="text-slate-300 block text-[11px]">supabase/functions/aiosell-webhook/index.ts</span>
-                <span className="text-slate-500 text-[10px] block">Handles POST webhook, validates basic auth, executes room lock in DB, and returns {`{ success: true }`}</span>
+                <span className="text-sky-400 font-bold block">1. Inbound OTA Webhook Only</span>
+                <span className="text-slate-300 block text-[11px]">POST /functions/v1/aiosell-webhook</span>
+                <span className="text-slate-400 text-[10px] block">Requires HTTP Basic Auth. Accepts only book/modify/cancel from Aiosell & locks physical rooms per hotel_id without leaking tenant data.</span>
               </div>
 
               <div className="p-3 bg-slate-900 text-white rounded-xl space-y-1">
-                <span className="text-emerald-400 font-bold block">2. PostgreSQL Atomic Trigger & View</span>
-                <span className="text-slate-300 block text-[11px]">supabase_aiosell_integration.sql</span>
-                <span className="text-slate-500 text-[10px] block">Auto-locks physical room on reservation insert and auto-unlocks on cancellation</span>
+                <span className="text-indigo-400 font-bold block">2. Secured PMS & Push API</span>
+                <span className="text-slate-300 block text-[11px]">POST /functions/v1/pms-api</span>
+                <span className="text-slate-400 text-[10px] block">Pushes only (hotelCode, startDate, endDate, roomCode, available, stopSell) to Aiosell with zero guest PII.</span>
+              </div>
+
+              <div className="p-3 bg-slate-900 text-white rounded-xl space-y-1">
+                <span className="text-emerald-400 font-bold block">3. Date-Overlap Room Lock</span>
+                <span className="text-slate-300 block text-[11px]">20261114123000_pos_and_secure_ota_sync.sql</span>
+                <span className="text-slate-400 text-[10px] block">Multi-tenant PostgreSQL trigger preventing double-booking across Goibibo, Admin & Guest Website in realtime.</span>
               </div>
             </div>
           </div>
