@@ -1568,6 +1568,39 @@ export function DashboardProvider({ children }) {
 
     setReservations(prev => prev.map(r => (r.id === reservationId && updatedRes ? updatedRes : r)));
 
+    // Persist reservation check-in FIRST so DB triggers sync atomically before room update
+    if (isSupabaseConfigured && currentHotel?.id) {
+      try {
+        const cleanRoomNum = roomNumber ? (String(roomNumber).replace(/\D/g, '') || String(roomNumber)) : undefined;
+        const { error: resCheckInError } = await supabase.from('reservations').update({
+          status: 'CHECKED_IN',
+          room: roomNumber ? `Room ${cleanRoomNum || roomNumber}` : undefined,
+          room_number: cleanRoomNum || undefined,
+          actual_check_in_time: checkInIso,
+          expected_check_out_time: expectedCheckOutTime || undefined,
+          guest_id_type: idType,
+          guest_id_number: idNumber,
+          guest_id_city: idCity || undefined,
+          paid: updatedRes?.paid,
+          payment: updatedRes?.payment,
+          payment_mode: paymentMode,
+          updated_at: new Date().toISOString()
+        }).eq('id', reservationId).eq('hotel_id', currentHotel.id);
+
+        if (resCheckInError) {
+          console.error('Supabase reservation check-in update error:', resCheckInError);
+          showNotification?.(`Check-in failed to save: ${resCheckInError.message}`, 'error');
+          scheduleRealtimeRefresh?.();
+          return;
+        }
+      } catch (err) {
+        console.warn('Supabase reservation check-in update error:', err);
+        showNotification?.(`Check-in failed to save: ${err?.message || 'Unknown error'}`, 'error');
+        scheduleRealtimeRefresh?.();
+        return;
+      }
+    }
+
     // Update physical room status from RESERVED/VACANT -> OCCUPIED
     if (roomNumber) {
       const cleanNum = String(roomNumber).replace(/\D/g, '') || String(roomNumber);
@@ -1587,36 +1620,20 @@ export function DashboardProvider({ children }) {
 
       if (isSupabaseConfigured && currentHotel?.id) {
         try {
-          await supabase.from('rooms').update({
+          const { error: roomCheckInError } = await supabase.from('rooms').update({
             status: 'OCCUPIED',
             guest: updatedRes?.guest || 'Checked-in Guest',
             booking_id: reservationId,
             updated_at: new Date().toISOString()
           }).eq('hotel_id', currentHotel.id).eq('room_number', cleanNum);
+
+          if (roomCheckInError) {
+            console.warn('Supabase room check-in update error:', roomCheckInError);
+            showNotification?.(`Room ${cleanNum} status sync warning: ${roomCheckInError.message}`, 'warning');
+          }
         } catch (err) {
           console.warn('Supabase room check-in update error:', err);
         }
-      }
-    }
-
-    if (isSupabaseConfigured && currentHotel?.id) {
-      try {
-        await supabase.from('reservations').update({
-          status: 'CHECKED_IN',
-          room: roomNumber ? `Room ${roomNumber}` : undefined,
-          room_number: roomNumber || undefined,
-          actual_check_in_time: checkInIso,
-          expected_check_out_time: expectedCheckOutTime || undefined,
-          guest_id_type: idType,
-          guest_id_number: idNumber,
-          guest_id_city: idCity || undefined,
-          paid: updatedRes?.paid,
-          payment: updatedRes?.payment,
-          payment_mode: paymentMode,
-          updated_at: new Date().toISOString()
-        }).eq('id', reservationId).eq('hotel_id', currentHotel.id);
-      } catch (err) {
-        console.warn('Supabase reservation check-in update error:', err);
       }
     }
 
@@ -1657,9 +1674,32 @@ export function DashboardProvider({ children }) {
   const checkOutReservation = async (reservationId) => {
     const checkoutIso = new Date().toISOString();
     const matchedRes = reservations.find(r => r.id === reservationId);
-    const targetRoom = matchedRes
+    const rawTargetRoom = matchedRes
       ? (matchedRes.room_number || String(matchedRes.room || '').replace(/\D/g, ''))
       : null;
+    const targetRoom = rawTargetRoom ? (String(rawTargetRoom).replace(/\D/g, '') || String(rawTargetRoom)) : null;
+
+    if (isSupabaseConfigured && currentHotel?.id) {
+      try {
+        const { error: resCheckOutError } = await supabase.from('reservations').update({
+          status: 'CHECKED_OUT',
+          actual_check_out_time: checkoutIso,
+          updated_at: checkoutIso
+        }).eq('id', reservationId).eq('hotel_id', currentHotel.id);
+
+        if (resCheckOutError) {
+          console.error('Supabase reservation check-out update error:', resCheckOutError);
+          showNotification?.(`Check-out failed to save: ${resCheckOutError.message}`, 'error');
+          scheduleRealtimeRefresh?.();
+          return;
+        }
+      } catch (err) {
+        console.warn('Supabase reservation check-out update error:', err);
+        showNotification?.(`Check-out failed to save: ${err?.message || 'Unknown error'}`, 'error');
+        scheduleRealtimeRefresh?.();
+        return;
+      }
+    }
 
     setReservations(prev => prev.map(r => {
       if (r.id === reservationId) {
@@ -1695,7 +1735,14 @@ export function DashboardProvider({ children }) {
 
       if (isSupabaseConfigured && currentHotel?.id) {
         try {
-          await supabase.from('rooms').update({
+          // Ensure any other lingering CHECKED_IN reservations for this room are also closed
+          await supabase.from('reservations').update({
+            status: 'CHECKED_OUT',
+            actual_check_out_time: checkoutIso,
+            updated_at: checkoutIso
+          }).eq('hotel_id', currentHotel.id).eq('room_number', String(targetRoom)).in('status', ['CHECKED_IN', 'CHECKEDIN']);
+
+          const { error: roomCheckOutError } = await supabase.from('rooms').update({
             status: 'DIRTY',
             guest: null,
             booking_id: null,
@@ -1704,31 +1751,44 @@ export function DashboardProvider({ children }) {
             ota_channel: null,
             updated_at: checkoutIso
           }).eq('hotel_id', currentHotel.id).eq('room_number', String(targetRoom));
-        } catch (err) { }
 
-        // Automatically create turnover task in housekeeping_tasks table
+          if (roomCheckOutError) {
+            console.warn('Supabase room check-out update error:', roomCheckOutError);
+            showNotification?.(`Room ${targetRoom} dirty-state sync warning: ${roomCheckOutError.message}`, 'warning');
+          }
+        } catch (err) {
+          console.warn('Supabase room check-out update error:', err);
+        }
+
+        // Only insert client HK turnover task if the DB trigger didn't already create one
         try {
-          await supabase.from('housekeeping_tasks').insert([{
-            id: `HK-${Date.now().toString().slice(-4)}`,
-            hotel_id: currentHotel.id,
-            room_number: String(targetRoom),
-            task_type: 'Checkout Turnover & Deep Clean',
-            priority: 'High',
-            assigned_to: 'Turnover Staff',
-            status: 'PENDING',
-            notes: `Auto turnover task created upon checkout of reservation #${reservationId}.`
-          }]);
+          const { data: existingHk } = await supabase
+            .from('housekeeping_tasks')
+            .select('id')
+            .eq('hotel_id', currentHotel.id)
+            .eq('room_number', String(targetRoom))
+            .eq('status', 'PENDING')
+            .limit(1);
+
+          if (!existingHk || existingHk.length === 0) {
+            await supabase.from('housekeeping_tasks').insert([{
+              id: `HK-${Date.now().toString().slice(-4)}`,
+              hotel_id: currentHotel.id,
+              room_number: String(targetRoom),
+              task_type: 'Checkout Turnover & Deep Clean',
+              priority: 'High',
+              assigned_to: 'Turnover Staff',
+              status: 'PENDING',
+              notes: `Auto turnover task created upon checkout of reservation #${reservationId}.`
+            }]);
+          }
         } catch (e) { }
       }
     }
 
     if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('reservations').update({
-          status: 'CHECKED_OUT',
-          actual_check_out_time: checkoutIso,
-          updated_at: checkoutIso
-        }).eq('id', reservationId).eq('hotel_id', currentHotel.id);
+        scheduleRealtimeRefresh?.();
         await broadcastCrossDeviceSync({ action: 'checkout', hotelId: currentHotel.id, bookingId: reservationId, roomNumber: targetRoom });
         pushHotelInventoryViaBackend({
           hotelId: currentHotel.id,
@@ -2098,16 +2158,27 @@ export function DashboardProvider({ children }) {
     const cleanNum = num.replace(/\D/g, '') || num;
     const checkoutIso = new Date().toISOString();
 
+    const targetRoomObj = rooms.find(rm => {
+      const rmNum = String(rm.roomNumber || rm.room_number || rm.number || '').trim();
+      const rmClean = rmNum.replace(/\D/g, '') || rmNum;
+      return rmClean === cleanNum;
+    });
+    const roomBookingId = targetRoomObj?.bookingId || targetRoomObj?.booking_id || null;
+
+    const activeForRoom = reservations.filter(r => {
+      const rNum = String(r.room_number || r.room || '').replace(/\D/g, '');
+      const st = String(r.status || '').toUpperCase();
+      if (['CHECKED_OUT', 'CHECKEDOUT', 'CANCELLED', 'NO_SHOW'].includes(st)) return false;
+      return (roomBookingId && String(r.id) === String(roomBookingId)) || rNum === cleanNum || String(r.room || '').includes(`Room ${cleanNum}`);
+    });
+
     const matchedRes = reservationId
       ? reservations.find(r => r.id === reservationId)
-      : reservations.find(r => {
-          const rNum = String(r.room_number || r.room || '').replace(/\D/g, '');
-          const st = String(r.status || '').toUpperCase();
-          return (
-            (rNum === cleanNum || String(r.room || '').includes(`Room ${num}`)) &&
-            !['CHECKED_OUT', 'CANCELLED', 'NO_SHOW'].includes(st)
-          );
-        });
+      : (
+          activeForRoom.find(r => roomBookingId && String(r.id) === String(roomBookingId)) ||
+          activeForRoom.find(r => ['CHECKED_IN', 'CHECKEDIN', 'OCCUPIED'].includes(String(r.status || '').toUpperCase())) ||
+          activeForRoom[0]
+        );
     const resolvedResId = reservationId || matchedRes?.id;
 
     if (resolvedResId) {
@@ -2146,7 +2217,34 @@ export function DashboardProvider({ children }) {
 
     if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('rooms').update({
+        // Persist reservation checkout FIRST so triggers & DB state stay consistent before updating room
+        if (resolvedResId) {
+          const { error: resCheckOutError } = await supabase.from('reservations').update({
+            status: 'CHECKED_OUT',
+            actual_check_out_time: checkoutIso,
+            updated_at: checkoutIso
+          }).eq('hotel_id', currentHotel.id).eq('id', resolvedResId);
+
+          if (resCheckOutError) {
+            console.error('Supabase reservation checkoutRoom error:', resCheckOutError);
+            showNotification?.(`Check-out failed to save: ${resCheckOutError.message}`, 'error');
+            scheduleRealtimeRefresh?.();
+            return;
+          }
+        }
+
+        // Also close any other lingering CHECKED_IN reservations on this room so it cannot revert to OCCUPIED
+        const { error: staleCheckOutError } = await supabase.from('reservations').update({
+          status: 'CHECKED_OUT',
+          actual_check_out_time: checkoutIso,
+          updated_at: checkoutIso
+        }).eq('hotel_id', currentHotel.id).eq('room_number', cleanNum).in('status', ['CHECKED_IN', 'CHECKEDIN']);
+
+        if (staleCheckOutError) {
+          console.warn('Supabase stale check-in cleanup warning:', staleCheckOutError);
+        }
+
+        const { error: roomCheckOutError } = await supabase.from('rooms').update({
           status: 'DIRTY',
           guest: null,
           booking_id: null,
@@ -2154,14 +2252,11 @@ export function DashboardProvider({ children }) {
           is_ota_locked: false,
           ota_channel: null,
           updated_at: checkoutIso
-        }).eq('hotel_id', currentHotel.id).eq('room_number', num);
+        }).eq('hotel_id', currentHotel.id).eq('room_number', cleanNum);
 
-        if (resolvedResId) {
-          await supabase.from('reservations').update({
-            status: 'CHECKED_OUT',
-            actual_check_out_time: checkoutIso,
-            updated_at: checkoutIso
-          }).eq('hotel_id', currentHotel.id).eq('id', resolvedResId);
+        if (roomCheckOutError) {
+          console.error('Supabase room checkout update error:', roomCheckOutError);
+          showNotification?.(`Room ${cleanNum} dirty-state sync warning: ${roomCheckOutError.message}`, 'warning');
         }
 
         // Automatically create turnover task in housekeeping_tasks table

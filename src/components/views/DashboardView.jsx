@@ -110,17 +110,37 @@ export default function DashboardView() {
 
 
 
-  // Helper to find active reservation for a room
+  // Helper to find active reservation for a room (prioritizes linked booking_id, then CHECKED_IN, then today's CONFIRMED)
   const getActiveReservation = (room) => {
-    const rNum = String(room.room_number || room.roomNumber || room.number || room.id);
-    return reservations.find(r => {
-      if (r.status === 'CANCELLED' || r.status === 'CHECKED_OUT') return false;
-      const matchNum = String(r.room).match(/\b(\d+)\b/);
+    const rNumRaw = String(room.room_number || room.roomNumber || room.number || room.id || '');
+    const rNum = rNumRaw.replace(/\D/g, '') || rNumRaw;
+    const roomBookingId = room.booking_id || room.bookingId || null;
+
+    const candidates = reservations.filter(r => {
+      const st = String(r.status || '').toUpperCase();
+      if (['CANCELLED', 'CHECKED_OUT', 'CHECKEDOUT', 'NO_SHOW'].includes(st)) return false;
+      if (roomBookingId && String(r.id) === String(roomBookingId)) return true;
+      const resNumDigits = String(r.room_number || '').replace(/\D/g, '') || String(r.room_number || '');
+      if (r.room_number && resNumDigits === rNum) return true;
+      const matchNum = String(r.room || '').match(/\b(\d+)\b/);
       if (matchNum && matchNum[1] === rNum) return true;
-      if (String(r.room_number) === rNum) return true;
-      if (room.booking_id && String(r.id) === String(room.booking_id)) return true;
       return false;
     });
+
+    if (candidates.length === 0) return undefined;
+    if (roomBookingId) {
+      const exactLinked = candidates.find(r => String(r.id) === String(roomBookingId));
+      if (exactLinked) return exactLinked;
+    }
+    const checkedInMatch = candidates.find(r =>
+      ['CHECKED_IN', 'CHECKEDIN', 'OCCUPIED'].includes(String(r.status || '').toUpperCase())
+    );
+    if (checkedInMatch) return checkedInMatch;
+    const currentOrPastMatch = candidates.find(r => {
+      const ci = String(r.check_in || r.checkIn || '').slice(0, 10);
+      return !ci || ci <= todayStr;
+    });
+    return currentOrPastMatch || candidates[0];
   };
 
   // Enriched rooms list (distinguishes RESERVED awaiting check-in vs OCCUPIED in-house)
@@ -134,11 +154,13 @@ export default function DashboardView() {
       const isBlocked = ['MAINTENANCE', 'OUT_OF_ORDER', 'BLOCKED'].includes(stUpper);
       const isCheckedInRes = ['CHECKED_IN', 'CHECKEDIN', 'OCCUPIED'].includes(resStatusUpper);
       const isReservedRes = ['CONFIRMED', 'PENDING', 'RESERVED'].includes(resStatusUpper);
+      const rawDirty = stUpper === 'DIRTY' || r.housekeeping === 'Dirty';
+      const hasLinkedBooking = Boolean(r.booking_id || r.bookingId);
 
       const isOccupied = !isBlocked && (stUpper === 'OCCUPIED' || isCheckedInRes);
-      const isReserved = !isBlocked && !isOccupied && (stUpper === 'RESERVED' || (isReservedRes && (!resCheckInDate || resCheckInDate <= todayStr)));
+      const isReserved = !isBlocked && !isOccupied && !(rawDirty && !hasLinkedBooking) && (stUpper === 'RESERVED' || (isReservedRes && (!resCheckInDate || resCheckInDate <= todayStr)));
       const upcomingReservation = !isBlocked && !isOccupied && !isReserved && isReservedRes && resCheckInDate > todayStr ? activeRes : null;
-      const isDirty = !isBlocked && !isOccupied && !isReserved && (stUpper === 'DIRTY' || r.housekeeping === 'Dirty');
+      const isDirty = !isBlocked && !isOccupied && !isReserved && rawDirty;
 
       let effectiveStatus = 'VACANT';
       if (isBlocked) effectiveStatus = 'BLOCKED';

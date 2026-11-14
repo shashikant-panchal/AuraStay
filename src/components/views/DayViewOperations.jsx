@@ -82,10 +82,23 @@ export default function DayViewOperations() {
     return contextRooms.map(r => {
       const isOccupied = r.status === 'OCCUPIED';
       const isReserved = r.status === 'RESERVED';
-      const booking = reservations.find(b =>
-        !['CANCELLED', 'CHECKED_OUT', 'NO_SHOW'].includes(String(b.status || '').toUpperCase()) &&
-        (String(b.room_number) === String(r.roomNumber) || b.room === r.roomNumber || String(b.room || '').includes(`Room ${r.roomNumber}`))
-      );
+      const rCleanNum = String(r.roomNumber || r.room_number || '').replace(/\D/g, '') || String(r.roomNumber || r.room_number || '');
+      const roomBookingId = r.bookingId || r.booking_id || null;
+      const matchingBookings = reservations.filter(b => {
+        const st = String(b.status || '').toUpperCase();
+        if (['CANCELLED', 'CHECKED_OUT', 'CHECKEDOUT', 'NO_SHOW'].includes(st)) return false;
+        if (roomBookingId && String(b.id) === String(roomBookingId)) return true;
+        const bCleanNum = String(b.room_number || '').replace(/\D/g, '') || String(b.room_number || '');
+        return (
+          bCleanNum === rCleanNum ||
+          b.room === r.roomNumber ||
+          String(b.room || '').includes(`Room ${r.roomNumber}`)
+        );
+      });
+      const booking =
+        (roomBookingId && matchingBookings.find(b => String(b.id) === String(roomBookingId))) ||
+        matchingBookings.find(b => ['CHECKED_IN', 'CHECKEDIN', 'OCCUPIED'].includes(String(b.status || '').toUpperCase())) ||
+        matchingBookings[0];
       return {
         id: `R-${r.roomNumber}`,
         roomNumber: String(r.roomNumber),

@@ -308,7 +308,7 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
         await supabase
           .from('rooms')
           .update({
-            status: 'OCCUPIED',
+            status: 'RESERVED',
             guest: resObj.guest,
             booking_id: bookingId,
             check_out: resObj.check_out,
@@ -807,7 +807,7 @@ export function allocateAndLockPhysicalRoom(reservation, rooms = [], existingRes
       return rIn < checkOut && rOut > checkIn;
     });
     if (hasOverlap) return false;
-    if (st === 'OCCUPIED') {
+    if (['OCCUPIED', 'RESERVED'].includes(st)) {
       if (r.check_out || r.checkOut) {
         return !(checkIn < String(r.check_out || r.checkOut).slice(0, 10) && checkOut > todayStr);
       }
@@ -837,7 +837,7 @@ export function allocateAndLockPhysicalRoom(reservation, rooms = [], existingRes
     if (String(r.roomNumber || r.room_number) === allocatedRoomNumber && coversToday) {
       return {
         ...r,
-        status: 'OCCUPIED',
+        status: reservation.status === 'CHECKED_IN' ? 'OCCUPIED' : 'RESERVED',
         guest: reservation.guest,
         bookingId: reservation.id,
         booking_id: reservation.id,
