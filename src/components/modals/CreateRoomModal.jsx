@@ -109,15 +109,21 @@ export default function CreateRoomModal() {
 
   const handleCreateRoom = async (e) => {
     e.preventDefault();
-    if (!roomNumber.trim()) {
+    const roomNums = roomNumber
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    if (roomNums.length === 0) {
       setError('Room Number is required');
       return;
     }
 
-    const cleanNum = roomNumber.trim();
-    const exists = rooms.some(r => String(r.room_number || r.roomNumber) === cleanNum);
-    if (exists) {
-      setError(`Room #${cleanNum} already exists in inventory.`);
+    const duplicate = roomNums.find(num =>
+      rooms.some(r => String(r.room_number || r.roomNumber) === num)
+    );
+    if (duplicate) {
+      setError(`Room #${duplicate} already exists in inventory.`);
       return;
     }
 
@@ -127,24 +133,31 @@ export default function CreateRoomModal() {
     try {
       const matchedType = roomTypes.find(rt => rt.name === selectedType);
 
-      await addRoom({
-        roomNumber: cleanNum,
-        roomTypeId: matchedType?.id || null,
-        type: selectedType,
-        floor,
-        bed,
-        price: Number(price) || 2500,
-        keyCardNo: keyCardNo.trim() || `CARD-${cleanNum}`,
-        isSmoking,
-        phoneExtension: phoneExt.trim() || cleanNum,
-        housekeeping,
-        status: housekeeping === 'Clean' ? 'VACANT_READY' : 'DIRTY'
-      });
+      for (const cleanNum of roomNums) {
+        await addRoom({
+          roomNumber: cleanNum,
+          roomTypeId: matchedType?.id || null,
+          type: selectedType,
+          floor,
+          bed,
+          price: Number(price) || 2500,
+          keyCardNo: roomNums.length === 1 && keyCardNo.trim() ? keyCardNo.trim() : `CARD-${cleanNum}`,
+          isSmoking,
+          phoneExtension: roomNums.length === 1 && phoneExt.trim() ? phoneExt.trim() : cleanNum,
+          housekeeping,
+          status: housekeeping === 'Clean' ? 'VACANT_READY' : 'DIRTY'
+        });
+      }
 
       setRoomNumber('');
       setKeyCardNo('');
       setPhoneExt('');
-      showNotification(`Room #${cleanNum} added to ${selectedType} category!`, 'success');
+      showNotification(
+        roomNums.length > 1
+          ? `${roomNums.length} rooms (#${roomNums.join(', #')}) added to ${selectedType} category!`
+          : `Room #${roomNums[0]} added to ${selectedType} category!`,
+        'success'
+      );
       setIsCreateRoomModalOpen(false);
     } catch (err) {
       setError('Failed to save room.');
