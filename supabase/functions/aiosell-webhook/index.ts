@@ -334,6 +334,63 @@ serve(async (req: Request) => {
     );
   }
 
+  // Support complete SuperAdmin insights for a specific Hotel Admin
+  if (action === "admin_insights") {
+    const targetHotelId = String(payload.hotelId || payload.hotel_id || "").trim();
+    if (!targetHotelId) {
+      return new Response(
+        JSON.stringify({ success: false, message: "hotelId is required." }),
+        { headers: corsHeaders, status: 400 }
+      );
+    }
+
+    const [hotelRes, roomsRes, rtRes, resRes, fnbRes, cabRes, hkRes, invRes] = await Promise.all([
+      supabase.from("hotels").select("*").eq("id", targetHotelId).maybeSingle(),
+      supabase.from("rooms").select("*").eq("hotel_id", targetHotelId).order("room_number", { ascending: true }),
+      supabase.from("room_types").select("*").eq("hotel_id", targetHotelId),
+      supabase.from("reservations").select("*").eq("hotel_id", targetHotelId).order("created_at", { ascending: false }),
+      supabase.from("fnb_orders").select("*").eq("hotel_id", targetHotelId),
+      supabase.from("cab_bookings").select("*").eq("hotel_id", targetHotelId),
+      supabase.from("housekeeping_tasks").select("*").eq("hotel_id", targetHotelId),
+      supabase.from("financial_invoices").select("*").eq("hotel_id", targetHotelId)
+    ]);
+
+    const hotel = hotelRes.data;
+    const rooms = roomsRes.data || [];
+    const reservations = resRes.data || [];
+    const assignedRooms = Number(hotel?.total_rooms) || 0;
+    const createdRooms = rooms.length;
+    const remainingRooms = Math.max(0, assignedRooms - createdRooms);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        hotel,
+        insights: {
+          assignedRooms,
+          createdRooms,
+          remainingRooms,
+          limitReached: assignedRooms > 0 && createdRooms >= assignedRooms,
+          vacantRooms: rooms.filter((r: any) => r.status === "VACANT_READY" || !r.status).length,
+          occupiedRooms: rooms.filter((r: any) => r.status === "OCCUPIED").length,
+          dirtyRooms: rooms.filter((r: any) => r.status === "DIRTY").length,
+          totalBookings: reservations.length,
+          grossRevenue: reservations
+            .filter((r: any) => r.status !== "CANCELLED")
+            .reduce((sum: number, r: any) => sum + (Number(r.amount) || 0), 0),
+          fnbOrdersCount: (fnbRes.data || []).length,
+          cabBookingsCount: (cabRes.data || []).length,
+          housekeepingTasksCount: (hkRes.data || []).length,
+          invoicesCount: (invRes.data || []).length
+        },
+        rooms,
+        roomTypes: rtRes.data || [],
+        reservations
+      }),
+      { headers: corsHeaders, status: 200 }
+    );
+  }
+
   // Support generic Enterprise PMS table mutation + immediate cross-device broadcast
   if (action === "pms_mutation") {
     const { table, operation, data, match } = payload;
@@ -342,6 +399,30 @@ serve(async (req: Request) => {
         headers: corsHeaders,
         status: 400
       });
+    }
+
+    // Enforce SuperAdmin room quota when Admin attempts to insert a room
+    if (table === "rooms" && (operation === "insert" || operation === "upsert")) {
+      const targetHotelId = Array.isArray(data) ? data[0]?.hotel_id : data?.hotel_id;
+      if (targetHotelId) {
+        const [{ data: hotelRow }, { data: existingRooms }] = await Promise.all([
+          supabase.from("hotels").select("total_rooms").eq("id", targetHotelId).maybeSingle(),
+          supabase.from("rooms").select("id").eq("hotel_id", targetHotelId)
+        ]);
+        const assignedLimit = Number(hotelRow?.total_rooms) || 0;
+        const currentCount = (existingRooms || []).length;
+        const addingCount = Array.isArray(data) ? data.length : 1;
+        if (assignedLimit <= 0 || currentCount + addingCount > assignedLimit) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              limitReached: true,
+              error: `Your room creation limit (${assignedLimit} rooms) has reached. Contact SuperAdmin.`
+            }),
+            { headers: corsHeaders, status: 403 }
+          );
+        }
+      }
     }
     let result: any = null;
     if (operation === "upsert") {

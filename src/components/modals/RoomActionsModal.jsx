@@ -456,20 +456,12 @@ export default function RoomActionsModal({ isOpen, onClose, room, onAction }) {
           </div>
 
           {/* Section: Room Administration */}
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-            <button
-              onClick={() => handleSelectAction('delete')}
-              className="px-3.5 py-2 rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 text-xs font-bold flex items-center space-x-2 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete Room #{room.roomNumber}</span>
-            </button>
-
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-end">
             <button
               onClick={onClose}
               className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
             >
-              Cancel
+              Close
             </button>
           </div>
         </div>

@@ -545,24 +545,13 @@ export default function RatePlansView() {
                           if (updateRoomStatus) updateRoomStatus(rNum, e.target.value);
                           showNotification(`Room #${rNum} set to ${e.target.value}`);
                         }}
-                        className="text-[10.5px] font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none cursor-pointer"
+                        className="w-full text-[10.5px] font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none cursor-pointer"
                       >
                         <option value="VACANT_READY">Vacant Ready</option>
                         <option value="DIRTY">Mark Dirty</option>
                         <option value="OCCUPIED">Occupied</option>
                         <option value="MAINTENANCE">Maintenance</option>
                       </select>
-
-                      <button
-                        onClick={() => {
-                          if (requestDeleteRoom) requestDeleteRoom(r);
-                          else if (deleteRoom) deleteRoom(r.id || rNum);
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
-                        title="Delete Room"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   </div>
                 );

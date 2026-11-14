@@ -22,12 +22,15 @@ export default function CreateRoomModal() {
     isCreateRoomModalOpen,
     setIsCreateRoomModalOpen,
     addRoom,
-    deleteRoom,
-    requestDeleteRoom,
+    currentHotel,
     rooms = [],
     roomTypes = [],
     showNotification
   } = useDashboard();
+
+  const assignedRoomLimit = Number(currentHotel?.totalRooms) || 0;
+  const remainingRoomQuota = Math.max(0, assignedRoomLimit - rooms.length);
+  const isRoomLimitReached = rooms.length >= assignedRoomLimit;
 
   // Combined room categories (Explicit room types + Inferred from existing rooms + Defaults)
   const effectiveRoomTypes = useMemo(() => {
@@ -116,6 +119,13 @@ export default function CreateRoomModal() {
 
     if (roomNums.length === 0) {
       setError('Room Number is required');
+      return;
+    }
+
+    if (rooms.length >= assignedRoomLimit || rooms.length + roomNums.length > assignedRoomLimit) {
+      const limitErr = `Your room creation limit has reached (${rooms.length}/${assignedRoomLimit} rooms created). Please contact SuperAdmin.`;
+      setError(limitErr);
+      showNotification('Your room creation limit has reached, contact SuperAdmin.');
       return;
     }
 
@@ -231,6 +241,35 @@ export default function CreateRoomModal() {
         {/* Tab 1: Add Room Form */}
         {activeTab === 'addRoom' && (
           <form onSubmit={handleCreateRoom} className="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+            {/* SuperAdmin Assigned Room Limit Banner */}
+            <div
+              className={`p-3.5 rounded-2xl border flex items-center justify-between ${
+                isRoomLimitReached
+                  ? 'bg-amber-50 border-amber-300 text-amber-900'
+                  : 'bg-indigo-50/70 border-indigo-200 text-indigo-950'
+              }`}
+            >
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider block opacity-75">
+                  SuperAdmin Room Creation Quota
+                </span>
+                <span className="font-bold text-xs mt-0.5 block">
+                  {isRoomLimitReached
+                    ? 'Your room creation limit has reached. Contact SuperAdmin to add more rooms.'
+                    : `You can create ${remainingRoomQuota} more room${remainingRoomQuota === 1 ? '' : 's'} (Assigned by SuperAdmin: ${assignedRoomLimit})`}
+                </span>
+              </div>
+              <span
+                className={`px-3 py-1 rounded-xl font-mono font-black text-xs shrink-0 ${
+                  isRoomLimitReached
+                    ? 'bg-amber-200/80 text-amber-950'
+                    : 'bg-indigo-900 text-white'
+                }`}
+              >
+                {rooms.length} / {assignedRoomLimit} Created
+              </span>
+            </div>
+
             {error && (
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-semibold">
                 {error}
@@ -449,10 +488,17 @@ export default function CreateRoomModal() {
           </div>
         )}
 
-        {/* Tab 3: Active Rooms List */}
+        {/* Tab 3: Active Rooms List (Deletion Controlled Exclusively by SuperAdmin) */}
         {activeTab === 'manageRooms' && (
           <div className="p-6 overflow-y-auto flex-1 space-y-3 text-xs">
-            <h4 className="font-bold text-slate-800 text-sm mb-2">Room Numbers Directory</h4>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-bold text-slate-800 text-sm">
+                Room Numbers Directory ({rooms.length} / {assignedRoomLimit} Assigned)
+              </h4>
+              <span className="text-[11px] font-semibold text-slate-500">
+                Room deletion is managed by SuperAdmin
+              </span>
+            </div>
             <div className="border border-slate-200 rounded-2xl overflow-hidden">
               <table className="w-full text-left">
                 <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] font-bold border-b border-slate-200">
@@ -461,7 +507,7 @@ export default function CreateRoomModal() {
                     <th className="px-4 py-2.5">Category</th>
                     <th className="px-4 py-2.5">Floor</th>
                     <th className="px-4 py-2.5">Tariff</th>
-                    <th className="px-4 py-2.5 text-right">Action</th>
+                    <th className="px-4 py-2.5 text-right">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
@@ -474,15 +520,9 @@ export default function CreateRoomModal() {
                         <td className="px-4 py-2.5 text-slate-500">{r.floor || 'Floor 1'}</td>
                         <td className="px-4 py-2.5 font-mono font-bold text-slate-800">₹{r.price || 2000}</td>
                         <td className="px-4 py-2.5 text-right">
-                          <button
-                            onClick={() => {
-                              if (requestDeleteRoom) requestDeleteRoom(r.id || rNum);
-                              else deleteRoom(rNum);
-                            }}
-                            className="text-rose-600 hover:text-rose-800 font-bold text-xs"
-                          >
-                            Delete
-                          </button>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px]">
+                            {r.status || 'VACANT_READY'}
+                          </span>
                         </td>
                       </tr>
                     );

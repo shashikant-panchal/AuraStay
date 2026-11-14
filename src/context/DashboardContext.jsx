@@ -301,7 +301,10 @@ export function DashboardProvider({ children }) {
             mobile: matchedHotel.mobile || currentHotel.mobile || '',
             address: matchedHotel.address || currentHotel.address || 'India',
             city: matchedHotel.city || currentHotel.city || 'Bengaluru',
-            totalRooms: Number(matchedHotel.total_rooms) || currentHotel.totalRooms || 0
+            totalRooms:
+              matchedHotel.total_rooms !== undefined && matchedHotel.total_rooms !== null
+                ? Number(matchedHotel.total_rooms)
+                : (Number(currentHotel.totalRooms) || 0)
           };
           if (
             syncedHotel.name !== currentHotel.name ||
@@ -888,8 +891,19 @@ export function DashboardProvider({ children }) {
     }
   };
 
-  // Add room (saved to Supabase & local state)
+  // Add room (saved to Supabase & local state — strictly enforces SuperAdmin's assigned room limit)
   const addRoom = async (newRoom) => {
+    const assignedLimit = Number(currentHotel?.totalRooms) || 0;
+    if (assignedLimit <= 0 || rooms.length >= assignedLimit) {
+      const limitMsg = `Your room creation limit (${assignedLimit} rooms) has reached, contact SuperAdmin.`;
+      showNotification(limitMsg);
+      return {
+        success: false,
+        limitReached: true,
+        message: limitMsg
+      };
+    }
+
     const cleanNum = String(newRoom.roomNumber).trim();
     const room = {
       hotelId: currentHotel.id,
@@ -941,41 +955,27 @@ export function DashboardProvider({ children }) {
         console.warn('Supabase room insert error:', err);
       }
     }
+    return { success: true, room };
   };
 
-  // Delete room state & modal controls
+  // Room deletion is controlled exclusively by SuperAdmin
   const [deleteConfirmRoom, setDeleteConfirmRoom] = useState(null);
 
-  const requestDeleteRoom = (roomOrNumber) => {
-    setDeleteConfirmRoom(roomOrNumber);
+  const requestDeleteRoom = () => {
+    showNotification('Room deletion is restricted to SuperAdmin. Please contact SuperAdmin.');
   };
 
   const cancelDeleteRoom = () => {
     setDeleteConfirmRoom(null);
   };
 
-  const deleteRoom = async (roomNumber) => {
-    const num = String(roomNumber).trim();
-    setRooms(prev => prev.filter(r => String(r.roomNumber) !== num && String(r.room_number) !== num));
-    showNotification(`Room ${num} permanently deleted.`);
-
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('rooms').delete().eq('room_number', num);
-        await broadcastCrossDeviceSync({ action: 'room_delete', roomNumber: num });
-      } catch (err) {
-        console.warn('Supabase room delete error:', err);
-      }
-    }
+  const deleteRoom = async () => {
+    showNotification('Room deletion is restricted to SuperAdmin. Please contact SuperAdmin.');
   };
 
   const confirmDeleteRoom = async () => {
-    if (!deleteConfirmRoom) return;
-    const roomNum = typeof deleteConfirmRoom === 'object'
-      ? (deleteConfirmRoom.room_number || deleteConfirmRoom.roomNumber || deleteConfirmRoom.number)
-      : deleteConfirmRoom;
-    await deleteRoom(roomNum);
     setDeleteConfirmRoom(null);
+    showNotification('Room deletion is restricted to SuperAdmin. Please contact SuperAdmin.');
   };
 
   const addFnbOrder = async (order) => {
