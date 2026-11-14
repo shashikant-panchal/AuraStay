@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDashboard } from '../context/DashboardContext';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import aavasaLogo from '../assets/aavasa-logo.jpg';
-import { 
-  Lock, 
-  Mail, 
-  ArrowRight, 
-  ShieldCheck, 
-  ExternalLink,
+import {
+  Lock,
+  Mail,
+  ArrowRight,
   Eye,
   EyeOff
 } from 'lucide-react';
@@ -18,6 +17,29 @@ export default function HotelAdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [brandHotel, setBrandHotel] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hotelSlug = params.get('hotel')?.trim();
+    if (!hotelSlug || !isSupabaseConfigured || !supabase) return;
+
+    let active = true;
+    supabase
+      .from('hotels')
+      .select('name, logo_url')
+      .eq('slug', hotelSlug)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active && data) {
+          setBrandHotel(data);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,7 +49,7 @@ export default function HotelAdminLogin() {
     const cleanPass = password.trim();
 
     if (!cleanEmail || !cleanPass) {
-      setError('Please enter both Admin Email/Username and Password.');
+      setError('Please enter both Email and Password.');
       return;
     }
 
@@ -38,7 +60,7 @@ export default function HotelAdminLogin() {
       if (!isSuccess) {
         setError(
           result?.message ||
-            'Invalid Hotel Admin credentials. Only credentials created in Aavasa Super Admin can log in.'
+            'Invalid email or password. Please check your credentials and try again.'
         );
       }
     } catch (err) {
@@ -47,6 +69,9 @@ export default function HotelAdminLogin() {
       setIsLoggingIn(false);
     }
   };
+
+  const displayName = brandHotel?.name || 'Aavasa';
+  const displayLogo = brandHotel?.logo_url || aavasaLogo || './aavasa-logo.jpg';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#0a2331] to-[#0e4860] flex items-center justify-center p-4 relative overflow-hidden font-sans">
@@ -59,17 +84,20 @@ export default function HotelAdminLogin() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center p-3 rounded-3xl bg-white shadow-xl shadow-black/30 mb-4 border border-white/20">
             <img
-              src={aavasaLogo || "./aavasa-logo.jpg"}
-              alt="Aavasa"
-              className="h-14 w-auto object-contain rounded-xl"
+              src={displayLogo}
+              alt={displayName}
+              className="h-14 w-auto max-w-[160px] object-contain rounded-xl"
               onError={(e) => {
                 e.currentTarget.onerror = null;
-                e.currentTarget.src = './aavasa-logo.jpg';
+                e.currentTarget.src = aavasaLogo || './aavasa-logo.jpg';
               }}
             />
           </div>
           <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
-            Aavasa <span className="text-amber-400 font-sans font-medium text-base">• Hospitality Simplified</span>
+            {displayName}
+            {!brandHotel?.name && (
+              <span className="text-amber-400 font-sans font-medium text-base">• Hospitality Simplified</span>
+            )}
           </h1>
           <p className="text-xs text-slate-300 mt-1 font-medium">
             Property Management & Front Desk Operations Portal
@@ -80,11 +108,11 @@ export default function HotelAdminLogin() {
         <div className="bg-white/95 backdrop-blur-xl border border-white/30 rounded-3xl p-7 shadow-2xl shadow-black/50 text-slate-900">
           <div className="flex items-center justify-between pb-5 border-b border-slate-200/80 mb-6">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Hotel Admin Sign In</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Sign in using credentials provisioned by Super Admin</p>
+              <h2 className="text-base font-bold text-slate-900">Admin Sign In</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Enter your email and password to sign in</p>
             </div>
             <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#0e4860]/10 text-[#0e4860] border border-[#0e4860]/20">
-              Verified Access
+              Admin Portal
             </span>
           </div>
 
@@ -96,7 +124,7 @@ export default function HotelAdminLogin() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Admin Email / Property ID</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -104,14 +132,14 @@ export default function HotelAdminLogin() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter Admin Email or ID created in Super Admin"
+                  placeholder="Enter email"
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0e4860] focus:border-[#0e4860] font-medium"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Admin Password</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Password</label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -119,7 +147,7 @@ export default function HotelAdminLogin() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Enter password"
                   className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0e4860] focus:border-[#0e4860] font-mono"
                 />
                 <button
@@ -138,34 +166,10 @@ export default function HotelAdminLogin() {
               disabled={isLoggingIn}
               className="w-full py-3 px-4 bg-[#0e4860] hover:bg-[#135d7c] disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-lg shadow-[#0e4860]/30 flex items-center justify-center space-x-2 transition duration-200 mt-2 cursor-pointer"
             >
-              <span>{isLoggingIn ? 'Validating Credentials...' : 'Sign In to Hotel PMS'}</span>
+              <span>{isLoggingIn ? 'Signing In...' : 'Sign In'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* SuperAdmin Provisioning Security Notice */}
-          <div className="mt-6 pt-5 border-t border-slate-200">
-            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 leading-relaxed">
-              <ShieldCheck className="w-4 h-4 text-[#0e4860] shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-slate-800 block mb-0.5">SuperAdmin-Provisioned Access Only</span>
-                All pre-existing admin logins are disabled. Only active Admin credentials created in the <span className="font-semibold text-[#0e4860]">Aavasa Super Admin</span> portal can sign in.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Portal Links */}
-        <div className="mt-6 flex items-center justify-center space-x-4 text-xs text-slate-300">
-          <a
-            href="https://shashikant-panchal.github.io/AuraStaySuperAdmin/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-cyan-300 transition flex items-center gap-1"
-          >
-            <span>Aavasa Super Admin Portal</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
         </div>
       </div>
     </div>

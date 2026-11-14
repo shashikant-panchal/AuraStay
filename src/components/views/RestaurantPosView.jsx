@@ -42,7 +42,7 @@ const MENU_ITEMS = [
   { id: 'M-4', name: 'Veg Spring Rolls (6 pcs)', category: 'Starters', price: 210, isVeg: true, desc: 'Crispy rolls stuffed with seasoned shredded vegetables' },
   { id: 'M-5', name: 'Tandoori Chicken Wings', category: 'Starters', price: 320, isVeg: false, desc: 'Marinated roasted juicy chicken wings' },
   { id: 'M-6', name: 'Paneer Butter Masala', category: 'Mains', price: 320, isVeg: true, desc: 'Fresh paneer cooked in creamy tomato butter gravy' },
-  { id: 'M-7', name: 'Dal Makhani Shivanandi', category: 'Mains', price: 260, isVeg: true, desc: 'Slow simmered black lentils with cream and butter' },
+  { id: 'M-7', name: 'Dal Makhani Royal', category: 'Mains', price: 260, isVeg: true, desc: 'Slow simmered black lentils with cream and butter' },
   { id: 'M-8', name: 'Murgh Makhani (Butter Chicken)', category: 'Mains', price: 380, isVeg: false, desc: 'Boneless tandoori chicken in rich silk makhani gravy' },
   { id: 'M-9', name: 'Kadhai Paneer', category: 'Mains', price: 310, isVeg: true, desc: 'Cottage cheese with capsicum, onion and crushed spices' },
   { id: 'M-10', name: 'Awadhi Veg Biryani', category: 'Mains', price: 280, isVeg: true, desc: 'Fragrant basmati rice dum cooked with vegetables and saffron' },
@@ -59,7 +59,7 @@ const MENU_ITEMS = [
 ];
 
 export default function RestaurantPosView() {
-  const { navigateTo, showNotification, fnbOrders = [], addFnbOrder, settleFnbOrder, rooms = [] } = useDashboard();
+  const { navigateTo, showNotification, fnbOrders = [], addFnbOrder, settleFnbOrder, rooms = [], currentHotel } = useDashboard();
 
   const [tables, setTables] = useState(TABLES_DATA);
   const [menuItems, setMenuItems] = useState(MENU_ITEMS);
@@ -182,7 +182,7 @@ export default function RestaurantPosView() {
         <body>
           <div class="center">
             <h2 style="margin:0 0 4px 0; font-size:16px;">KITCHEN ORDER TICKET (KOT)</h2>
-            <p style="margin:2px 0;"><strong>Aavasa — Shivanandi</strong></p>
+            <p style="margin:2px 0;"><strong>${currentHotel?.name || 'Hotel Dining'}</strong></p>
             <p style="margin:2px 0;">Token: <strong>#${kotId}</strong> | ${new Date().toLocaleTimeString()}</p>
             <p style="margin:4px 0 0; font-size: 15px;"><strong>${selectedTable?.name || 'Table'} (${selectedTable?.area || 'Dining'})</strong></p>
           </div>

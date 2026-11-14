@@ -105,18 +105,18 @@ export default function HousekeepingView() {
   const [staffPhone, setStaffPhone] = useState('');
   const [staffShift, setStaffShift] = useState('Morning (07:00 - 15:30)');
 
-  // Load live data from Supabase backend
+  // Load live data from Supabase backend (strictly tenant-isolated)
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured || !currentHotel?.id) return;
     let isMounted = true;
 
     async function loadHousekeepingData() {
       try {
-        const hotelId = currentHotel?.id || 'shivanandi';
+        const hotelId = currentHotel.id;
         const [tasksRes, lostRes, staffRes] = await Promise.all([
-          supabase.from('housekeeping_tasks').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`).order('created_at', { ascending: false }),
-          supabase.from('lost_and_found_items').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`).order('created_at', { ascending: false }),
-          supabase.from('staff_users').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`)
+          supabase.from('housekeeping_tasks').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
+          supabase.from('lost_and_found_items').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
+          supabase.from('staff_users').select('*').eq('hotel_id', hotelId)
         ]);
 
         if (!isMounted) return;
@@ -227,11 +227,11 @@ export default function HousekeepingView() {
     setIsNewTaskModalOpen(false);
     showNotification(`Cleaning task created for Room ${taskRoom}`);
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('housekeeping_tasks').insert([{
           id: newTask.id,
-          hotel_id: currentHotel?.id || 'shivanandi',
+          hotel_id: currentHotel.id,
           room_number: taskRoom,
           task_type: taskType,
           priority: taskPriority,
@@ -261,9 +261,9 @@ export default function HousekeepingView() {
       }
     }
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('housekeeping_tasks').update({ status: newStatus }).eq('id', taskId);
+        await supabase.from('housekeeping_tasks').update({ status: newStatus }).eq('id', taskId).eq('hotel_id', currentHotel.id);
       } catch (e) {}
     }
   };
@@ -292,11 +292,11 @@ export default function HousekeepingView() {
     setIsNewLostModalOpen(false);
     showNotification(`Lost & found item "${lostName}" logged in registry.`);
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('lost_and_found_items').insert([{
           id: newItem.id,
-          hotel_id: currentHotel?.id || 'shivanandi',
+          hotel_id: currentHotel.id,
           item_name: newItem.itemName,
           category: newItem.category,
           room_number: newItem.roomNumber,
@@ -333,13 +333,13 @@ export default function HousekeepingView() {
     }));
     setIsClaimModalOpen(false);
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('lost_and_found_items').update({
           status: 'CLAIMED',
           claimed_by: claimantName,
           claimant_phone: claimantPhone
-        }).eq('id', selectedLostItem.id);
+        }).eq('id', selectedLostItem.id).eq('hotel_id', currentHotel.id);
       } catch (err) {
         console.warn('Supabase lost item claim update error:', err);
       }
@@ -366,11 +366,11 @@ export default function HousekeepingView() {
     setIsNewStaffModalOpen(false);
     showNotification(`Added ${staffName} to housekeeping roster.`);
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('staff_users').insert([{
           id: newStaff.id,
-          hotel_id: currentHotel?.id || 'shivanandi',
+          hotel_id: currentHotel.id,
           name: newStaff.name,
           phone: newStaff.phone,
           role: 'Housekeeping',

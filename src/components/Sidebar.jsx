@@ -233,15 +233,15 @@ export default function Sidebar() {
             <div
               onClick={() => handleNav('dashboard')}
               className="flex-1 flex flex-col items-center justify-center cursor-pointer group py-1"
-              title="Aavasa HMS - Shivanandi"
+              title={currentHotel?.name || 'Hotel PMS'}
             >
               <img
-                src={aavasaLogo || "./aavasa-logo.jpg"}
-                alt="Aavasa - Hospitality Simplified"
-                className="h-12 w-auto max-w-[190px] object-contain transition group-hover:scale-102"
+                src={currentHotel?.logoUrl || aavasaLogo || "./aavasa-logo.jpg"}
+                alt={currentHotel?.name || 'Property Logo'}
+                className="h-12 w-auto max-w-[190px] object-contain transition group-hover:scale-102 rounded"
                 onError={(e) => {
                   e.currentTarget.onerror = null;
-                  e.currentTarget.src = './aavasa-logo.jpg';
+                  e.currentTarget.src = aavasaLogo || './aavasa-logo.jpg';
                 }}
               />
             </div>
@@ -249,15 +249,15 @@ export default function Sidebar() {
             <div
               onClick={() => handleNav('dashboard')}
               className="w-full flex items-center justify-center cursor-pointer py-1"
-              title="Aavasa HMS"
+              title={currentHotel?.name || 'Hotel PMS'}
             >
               <img
-                src={aavasaLogo || "./aavasa-logo.jpg"}
-                alt="Aavasa"
+                src={currentHotel?.logoUrl || aavasaLogo || "./aavasa-logo.jpg"}
+                alt={currentHotel?.name || 'Property Logo'}
                 className="h-9 w-9 object-contain rounded-md"
                 onError={(e) => {
                   e.currentTarget.onerror = null;
-                  e.currentTarget.src = './aavasa-logo.jpg';
+                  e.currentTarget.src = aavasaLogo || './aavasa-logo.jpg';
                 }}
               />
             </div>
@@ -389,21 +389,21 @@ export default function Sidebar() {
 
         </div>
 
-        {/* BOTTOM USER PROFILE CARD (EXACT EXCEED / SHIVANANDI MATCH) */}
+        {/* BOTTOM USER PROFILE CARD */}
         <div className="mt-auto pt-2 pb-3 px-2 shrink-0 border-t border-slate-800/80">
           {isExpanded ? (
             <div className="bg-[#060c1d] border border-slate-800/80 rounded-2xl p-2.5 flex items-center justify-between shadow-lg">
               <div className="flex items-center space-x-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-700 to-sky-500 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
-                  S
+                  {(currentHotel?.ownerName || currentHotel?.name || 'A').charAt(0).toUpperCase()}
                 </div>
 
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-white tracking-wide truncate">
-                    {currentHotel?.ownerName || 'Shivanandi'}
+                    {currentHotel?.ownerName || 'Property Admin'}
                   </div>
                   <div className="text-[9px] font-semibold text-slate-400 tracking-wider uppercase truncate mt-0.5">
-                    {currentHotel?.name || 'Shivanandi Hotel'}
+                    {currentHotel?.name || 'Hotel PMS'}
                   </div>
                 </div>
               </div>

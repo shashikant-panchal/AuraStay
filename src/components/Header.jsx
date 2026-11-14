@@ -7,7 +7,6 @@ import {
   Moon,
   Search,
   Building2,
-  ChevronDown,
   Languages,
   Bell,
   User,
@@ -31,11 +30,9 @@ import {
   HelpCircle,
   ExternalLink,
   ShieldCheck,
-  Check,
   CarTaxiFront,
   X
 } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export default function Header() {
   const {
@@ -52,7 +49,6 @@ export default function Header() {
     subModuleTitle,
     isLiveConnected,
     currentHotel,
-    setCurrentHotel,
     logout,
     workingDate,
     showNotification
@@ -61,60 +57,17 @@ export default function Header() {
   const { property } = data;
 
   const [isQuickLinksOpen, setIsQuickLinksOpen] = useState(false);
-  const [isPropertyDropdownOpen, setIsPropertyDropdownOpen] = useState(false);
   const quickLinksRef = useRef(null);
-  const propRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (quickLinksRef.current && !quickLinksRef.current.contains(e.target)) {
         setIsQuickLinksOpen(false);
       }
-      if (propRef.current && !propRef.current.contains(e.target)) {
-        setIsPropertyDropdownOpen(false);
-      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const [propertiesList, setPropertiesList] = useState([]);
-
-  useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    async function loadProperties() {
-      try {
-        const { data, error } = await supabase.from('hotels').select('id, name, city, total_rooms, short_name');
-        if (!error && Array.isArray(data)) {
-          setPropertiesList(data.map(h => ({
-            id: h.id,
-            name: h.name,
-            rooms: h.total_rooms || 0,
-            city: h.city || 'Bengaluru',
-            shortName: h.short_name || 'AST'
-          })));
-        }
-      } catch (err) {
-        console.warn('Failed to load hotel properties from Supabase:', err);
-      }
-    }
-    loadProperties();
-  }, [currentHotel]);
-
-  const handleSwitchProperty = (prop) => {
-    if (setCurrentHotel) {
-      setCurrentHotel({
-        ...currentHotel,
-        id: prop.id,
-        name: prop.name,
-        city: prop.city,
-        totalRooms: prop.rooms,
-        ownerName: prop.name
-      });
-      showNotification(`Switched active property to ${prop.name}.`);
-    }
-    setIsPropertyDropdownOpen(false);
-  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -139,19 +92,19 @@ export default function Header() {
             <Menu className="w-5 h-5" />
           </button>
 
-          {/* Aavasa Brand Logo */}
+          {/* Client Property Brand Logo */}
           <div
             onClick={() => navigateTo('dashboard')}
             className="flex items-center cursor-pointer pr-1 transition hover:opacity-90"
-            title="Aavasa — Hospitality Simplified"
+            title={currentHotel?.name || 'Property Dashboard'}
           >
             <img
-              src={aavasaLogo || "./aavasa-logo.jpg"}
-              alt="Aavasa"
-              className="h-8 sm:h-9 w-auto object-contain rounded"
+              src={currentHotel?.logoUrl || aavasaLogo || "./aavasa-logo.jpg"}
+              alt={currentHotel?.name || 'Property Logo'}
+              className="h-8 sm:h-9 w-auto max-w-[140px] object-contain rounded"
               onError={(e) => {
                 e.currentTarget.onerror = null;
-                e.currentTarget.src = './aavasa-logo.jpg';
+                e.currentTarget.src = aavasaLogo || './aavasa-logo.jpg';
               }}
             />
           </div>
@@ -280,8 +233,8 @@ export default function Header() {
           <div className="hidden lg:flex items-center space-x-2 pl-2">
             <div className="text-xs font-bold text-slate-800 leading-tight flex items-center space-x-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>{currentHotel?.name || 'Shivanandi'}</span>
-              <span className="text-slate-400 font-normal">({currentHotel?.city || 'Bengaluru'})</span>
+              <span>{currentHotel?.name || 'Hotel Admin'}</span>
+              <span className="text-slate-400 font-normal">({currentHotel?.city || 'India'})</span>
             </div>
           </div>
         </div>
@@ -311,40 +264,13 @@ export default function Header() {
             </kbd>
           </button>
 
-          {/* Property Switcher Dropdown (Single hotel "Shivanandi" default, extensible) */}
-          <div className="relative" ref={propRef}>
-            <button
-              onClick={() => setIsPropertyDropdownOpen(!isPropertyDropdownOpen)}
-              className="flex items-center space-x-2 bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-1.5 hover:bg-slate-100 transition shadow-xs text-xs font-bold text-slate-800"
-            >
-              <Building2 className="w-4 h-4 text-[#0e4860]" />
-              <span className="max-w-[150px] truncate">{currentHotel?.name || 'Shivanandi'}</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-
-            {isPropertyDropdownOpen && (
-              <div className="absolute right-0 top-11 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 text-xs animate-in fade-in">
-                <div className="px-3 py-1 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100 flex items-center justify-between">
-                  <span>Properties</span>
-                  <span className="text-emerald-600 font-bold">{propertiesList.length} Active</span>
-                </div>
-                {propertiesList.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleSwitchProperty(p)}
-                    className="w-full px-3.5 py-2.5 text-left hover:bg-slate-50 flex items-center justify-between text-xs transition"
-                  >
-                    <div>
-                      <p className="font-bold text-slate-900">{p.name}</p>
-                      <p className="text-[10px] text-slate-500">{p.city} • {p.rooms} Rooms</p>
-                    </div>
-                    {(currentHotel?.id === p.id || currentHotel?.name === p.name) && (
-                      <Check className="w-4 h-4 text-emerald-600" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
+          {/* Active Client Property Badge (Tenant-Isolated) */}
+          <div
+            className="flex items-center space-x-2 bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-1.5 shadow-xs text-xs font-bold text-slate-800"
+            title={`${currentHotel?.name || 'Property'} • Tenant Isolated`}
+          >
+            <Building2 className="w-4 h-4 text-[#0e4860]" />
+            <span className="max-w-[150px] truncate">{currentHotel?.name || 'Hotel Admin'}</span>
           </div>
 
           {/* User Profile Avatar & Logout */}

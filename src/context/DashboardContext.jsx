@@ -89,12 +89,17 @@ export function DashboardProvider({ children }) {
     return DEFAULT_HOTEL;
   });
 
-  // Persist Admin session in localStorage so page refresh never logs out the Admin
+  // Persist Admin session in localStorage so page refresh never logs out the Admin, and reflect client name in browser title
   useEffect(() => {
     try {
       if (isLoggedIn && currentHotel && (currentHotel.id || currentHotel.email)) {
         localStorage.setItem('aavasa_admin_auth_v3', 'true');
         localStorage.setItem('aavasa_admin_session_v3', JSON.stringify(currentHotel));
+        if (currentHotel.name) {
+          document.title = `${currentHotel.name} — PMS Admin`;
+        }
+      } else {
+        document.title = 'Hotel Admin Portal';
       }
     } catch (e) { }
   }, [isLoggedIn, currentHotel]);
@@ -254,8 +259,10 @@ export function DashboardProvider({ children }) {
             if (!rm.hotel_id || !activeHotelIds.has(String(rm.hotel_id).trim().toLowerCase())) {
               if (rm.id) {
                 await supabase.from('rooms').delete().eq('id', rm.id);
+              } else if (rm.room_number && rm.hotel_id) {
+                await supabase.from('rooms').delete().eq('hotel_id', rm.hotel_id).eq('room_number', rm.room_number);
               } else if (rm.room_number) {
-                await supabase.from('rooms').delete().eq('room_number', rm.room_number);
+                await supabase.from('rooms').delete().is('hotel_id', null).eq('room_number', rm.room_number);
               }
             }
           }
@@ -294,7 +301,7 @@ export function DashboardProvider({ children }) {
             slug: matchedHotel.slug || matchedHotel.id,
             name: matchedHotel.name || currentHotel.name,
             shortName: matchedHotel.short_name || currentHotel.shortName || 'HTL',
-            logoUrl: matchedHotel.logo_url || currentHotel.logoUrl,
+            logoUrl: matchedHotel.logo_url || DEFAULT_HOTEL.logoUrl,
             ownerName: matchedHotel.owner_name || currentHotel.ownerName || 'Hotel Admin',
             email: matchedHotel.email || currentHotel.email,
             password: matchedHotel.password || currentHotel.password,
@@ -308,6 +315,8 @@ export function DashboardProvider({ children }) {
           };
           if (
             syncedHotel.name !== currentHotel.name ||
+            syncedHotel.shortName !== currentHotel.shortName ||
+            syncedHotel.logoUrl !== currentHotel.logoUrl ||
             syncedHotel.ownerName !== currentHotel.ownerName ||
             syncedHotel.mobile !== currentHotel.mobile ||
             syncedHotel.address !== currentHotel.address ||
@@ -407,7 +416,8 @@ export function DashboardProvider({ children }) {
       }
 
       if (Array.isArray(staffRes?.data)) {
-        setStaffUsers(staffRes.data);
+        const hotelStaff = staffRes.data.filter(s => belongsToCurrentHotel(s.hotel_id, currentHotel));
+        setStaffUsers(hotelStaff);
       }
 
       if (Array.isArray(chanRes?.data) && chanRes.data.length > 0) {
@@ -565,30 +575,28 @@ export function DashboardProvider({ children }) {
     };
   }, [currentHotel?.id, loadSupabaseData]);
 
-  // Hotel Admin Authentication functions - Strictly SuperAdmin-Provisioned Credentials Only
+  // Hotel Admin Authentication functions - Client-provisioned credentials only
   const login = async (email, password) => {
     const inputIdent = String(email || '').trim().toLowerCase();
     const inputPass = String(password || '').trim();
 
     if (!inputIdent || !inputPass) {
-      return { success: false, message: 'Please enter both Admin Email/Username and Password.' };
+      return { success: false, message: 'Please enter both Email and Password.' };
     }
 
     if (inputIdent.length < 3 || inputPass.length < 4) {
-      return { success: false, message: 'Invalid credential format. Please enter the exact credentials created in Super Admin.' };
+      return { success: false, message: 'Invalid email or password format.' };
     }
 
-    if (inputIdent === 'superadmin@aavasa.com' || inputIdent === 'superadmin@aurastay.com') {
+    if (
+      inputIdent === 'superadmin@aavasa.com' ||
+      inputIdent === 'superadmin@aurastay.com' ||
+      inputIdent === 'admin@aurastay.com' ||
+      inputIdent === 'hotel_aurastay_01'
+    ) {
       return {
         success: false,
-        message: 'Super Admin credentials cannot sign in here. Please log in to Aavasa Super Admin and create a Hotel Admin credential first.'
-      };
-    }
-
-    if (inputIdent === 'admin@aurastay.com' || inputIdent === 'hotel_aurastay_01') {
-      return {
-        success: false,
-        message: 'Default credentials have been removed. Please use an Admin credential created in Aavasa Super Admin.'
+        message: 'Invalid email or password. Please verify your credentials and try again.'
       };
     }
 
@@ -602,7 +610,7 @@ export function DashboardProvider({ children }) {
         .select('*');
 
       if (error || !Array.isArray(allHotels)) {
-        return { success: false, message: 'Unable to verify credentials with Supabase. Please try again.' };
+        return { success: false, message: 'Unable to verify credentials. Please try again.' };
       }
 
       const validHotels = allHotels.filter(
@@ -614,7 +622,7 @@ export function DashboardProvider({ children }) {
       if (validHotels.length === 0) {
         return {
           success: false,
-          message: 'No Hotel Admin credentials exist yet. Log in to Aavasa Super Admin (superadmin@aavasa.com) and create Admin credentials first.'
+          message: 'Invalid email or password. Please verify your credentials and try again.'
         };
       }
 
@@ -628,22 +636,21 @@ export function DashboardProvider({ children }) {
       if (!hotelData) {
         return {
           success: false,
-          message: 'Admin credential not found. Only credentials created in Aavasa Super Admin are allowed to sign in.'
+          message: 'Invalid email or password. Please verify your credentials and try again.'
         };
       }
 
       if (hotelData.status && hotelData.status !== 'ACTIVE') {
         return {
           success: false,
-          message: 'This Admin credential has been SUSPENDED by Super Admin. Please activate it in Aavasa Super Admin.'
+          message: 'This account is currently suspended. Please contact your platform administrator.'
         };
       }
 
-      // Strictly verify exact password provisioned by SuperAdmin in Supabase
       if (!hotelData.password || hotelData.password !== inputPass) {
         return {
           success: false,
-          message: 'Incorrect password. Please enter the exact password created in Aavasa Super Admin.'
+          message: 'Incorrect password. Please try again.'
         };
       }
 
@@ -679,11 +686,18 @@ export function DashboardProvider({ children }) {
   const logout = () => {
     setIsLoggedIn(false);
     setCurrentHotel(DEFAULT_HOTEL);
+    setRooms([]);
+    setReservations([]);
+    setRoomTypes([]);
+    setFnbOrders([]);
+    setCabBookings([]);
+    setFolios({});
+    setStaffUsers([]);
     localStorage.removeItem('aavasa_admin_auth_v3');
     localStorage.removeItem('aavasa_admin_session_v3');
     localStorage.removeItem('aurastay_hotel_auth');
     localStorage.removeItem('aurastay_hotel_session');
-    showNotification('Logged out from Hotel PMS', 'info');
+    showNotification('Logged out successfully', 'info');
   };
 
   // Keyboard shortcut Ctrl + K
@@ -804,18 +818,20 @@ export function DashboardProvider({ children }) {
     ));
     showNotification(`Room ${cleanNum} status set to ${newStatus}`);
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        // Try updating by room_number first, or by id
+        // Always scope by hotel_id so identical room numbers across properties never collide
         const { error } = await supabase
           .from('rooms')
           .update({ status: newStatus, updated_at: new Date().toISOString() })
+          .eq('hotel_id', currentHotel.id)
           .eq('room_number', cleanNum);
 
         if (error) {
           await supabase
             .from('rooms')
             .update({ status: newStatus, updated_at: new Date().toISOString() })
+            .eq('hotel_id', currentHotel.id)
             .eq('id', roomIdentifier);
         }
         await broadcastCrossDeviceSync({ action: 'room_status', roomNumber: cleanNum, status: newStatus });
@@ -868,9 +884,9 @@ export function DashboardProvider({ children }) {
   const updateRoomType = async (id, updatedType) => {
     setRoomTypes(prev => (prev || []).map(t => t.id === id ? { ...t, ...updatedType } : t));
     showNotification('Room category updated.');
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('room_types').update(updatedType).eq('id', id);
+        await supabase.from('room_types').update(updatedType).eq('id', id).eq('hotel_id', currentHotel.id);
         await broadcastCrossDeviceSync({ action: 'room_type_update', id });
       } catch (err) {
         console.warn('Supabase update room type error:', err);
@@ -881,9 +897,9 @@ export function DashboardProvider({ children }) {
   const deleteRoomType = async (id) => {
     setRoomTypes(prev => (prev || []).filter(t => t.id !== id));
     showNotification('Room category removed.');
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('room_types').delete().eq('id', id);
+        await supabase.from('room_types').delete().eq('id', id).eq('hotel_id', currentHotel.id);
         await broadcastCrossDeviceSync({ action: 'room_type_delete', id });
       } catch (err) {
         console.warn('Supabase delete room type error:', err);
@@ -947,8 +963,8 @@ export function DashboardProvider({ children }) {
           ...payload,
           hotel_id: currentHotel.id
         });
-        if (error && (error.code === 'PGRST204' || error.message?.includes('hotel_id'))) {
-          await supabase.from('rooms').insert(payload);
+        if (error) {
+          console.warn('Supabase room insert error:', error.message);
         }
         await broadcastCrossDeviceSync({ action: 'room_add', roomNumber: cleanNum });
       } catch (err) {
@@ -1014,9 +1030,9 @@ export function DashboardProvider({ children }) {
 
   const settleFnbOrder = async (orderId, paymentMode = 'UPI') => {
     setFnbOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, status: 'BILLED' } : o));
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('fnb_orders').update({ status: 'BILLED' }).eq('id', orderId);
+        await supabase.from('fnb_orders').update({ status: 'BILLED' }).eq('id', orderId).eq('hotel_id', currentHotel.id);
       } catch (err) {
         console.warn('Supabase settle FNB order error:', err);
       }
@@ -1050,9 +1066,9 @@ export function DashboardProvider({ children }) {
       return next;
     });
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        const invId = `FOL-${cleanKey}`;
+        const invId = !/\D/.test(cleanKey) ? `FOL-${currentHotel.id}-${cleanKey}` : `FOL-${cleanKey}`;
         await supabase.from('financial_invoices').upsert({
           id: invId,
           hotel_id: currentHotel.id,
@@ -1140,7 +1156,7 @@ export function DashboardProvider({ children }) {
     }));
     showNotification(`Payment recorded for booking #${reservationId}. Status: ${newPayment}`);
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         const { error } = await supabase
           .from('reservations')
@@ -1149,7 +1165,8 @@ export function DashboardProvider({ children }) {
             paid: Number(paid) || 0,
             updated_at: new Date().toISOString()
           })
-          .eq('id', reservationId);
+          .eq('id', reservationId)
+          .eq('hotel_id', currentHotel.id);
         if (error) console.warn('Supabase payment update error:', error);
       } catch (err) {
         console.warn('Supabase payment sync error:', err);
@@ -1209,7 +1226,7 @@ export function DashboardProvider({ children }) {
 
   const updateCabBooking = async (bookingId, updates) => {
     setCabBookings(prev => prev.map(b => b.id === bookingId ? { ...b, ...updates } : b));
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('cab_bookings').update({
           booking_status: updates.bookingStatus || updates.booking_status,
@@ -1218,7 +1235,7 @@ export function DashboardProvider({ children }) {
           driver_phone: updates.driverPhone || updates.driver_phone,
           vehicle_number: updates.vehicleNumber || updates.vehicle_number,
           fare: updates.fare !== undefined ? Number(updates.fare) : undefined
-        }).eq('id', bookingId);
+        }).eq('id', bookingId).eq('hotel_id', currentHotel.id);
       } catch (err) {
         console.warn('Supabase cab booking update error:', err);
       }
@@ -1228,9 +1245,9 @@ export function DashboardProvider({ children }) {
 
   const deleteCabBooking = async (bookingId) => {
     setCabBookings(prev => prev.filter(b => b.id !== bookingId));
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('cab_bookings').delete().eq('id', bookingId);
+        await supabase.from('cab_bookings').delete().eq('id', bookingId).eq('hotel_id', currentHotel.id);
       } catch (err) {
         console.warn('Supabase cab booking delete error:', err);
       }
@@ -1300,20 +1317,20 @@ export function DashboardProvider({ children }) {
         return rm;
       }));
 
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured && currentHotel?.id) {
         try {
           await supabase.from('rooms').update({
             status: 'OCCUPIED',
             guest: updatedRes?.guest || 'Checked-in Guest',
             booking_id: reservationId
-          }).eq('room_number', cleanNum);
+          }).eq('hotel_id', currentHotel.id).eq('room_number', cleanNum);
         } catch (err) {
           console.warn('Supabase room check-in update error:', err);
         }
       }
     }
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('reservations').update({
           status: 'CHECKED_IN',
@@ -1326,7 +1343,7 @@ export function DashboardProvider({ children }) {
           payment: updatedRes?.payment,
           payment_mode: paymentMode,
           updated_at: new Date().toISOString()
-        }).eq('id', reservationId);
+        }).eq('id', reservationId).eq('hotel_id', currentHotel.id);
       } catch (err) {
         console.warn('Supabase reservation check-in update error:', err);
       }
@@ -1389,14 +1406,14 @@ export function DashboardProvider({ children }) {
         return rm;
       }));
 
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured && currentHotel?.id) {
         try {
           await supabase.from('rooms').update({
             status: 'DIRTY',
             guest: null,
             booking_id: null,
             updated_at: new Date().toISOString()
-          }).eq('room_number', String(targetRoom));
+          }).eq('hotel_id', currentHotel.id).eq('room_number', String(targetRoom));
         } catch (err) { }
 
         // Automatically create turnover task in housekeeping_tasks table
@@ -1415,13 +1432,13 @@ export function DashboardProvider({ children }) {
       }
     }
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('reservations').update({
           status: 'CHECKED_OUT',
           actual_check_out_time: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        }).eq('id', reservationId);
+        }).eq('id', reservationId).eq('hotel_id', currentHotel.id);
         await broadcastCrossDeviceSync({ action: 'checkout', bookingId: reservationId, roomNumber: targetRoom });
       } catch (err) { }
     }
@@ -1460,14 +1477,14 @@ export function DashboardProvider({ children }) {
       return r;
     }));
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('reservations').update({
           paid: updatedRes?.paid,
           payment: updatedRes?.payment,
           payment_mode: paymentMethod,
           updated_at: new Date().toISOString()
-        }).eq('id', reservationId);
+        }).eq('id', reservationId).eq('hotel_id', currentHotel.id);
       } catch (err) {
         console.warn('Supabase collect payment error:', err);
       }
@@ -1613,13 +1630,13 @@ export function DashboardProvider({ children }) {
           });
         }
 
-        if (cleanRoomNum && reservation.check_in <= todayStr && reservation.check_out >= todayStr) {
+        if (cleanRoomNum && currentHotel?.id && reservation.check_in <= todayStr && reservation.check_out >= todayStr) {
           await supabase.from('rooms').update({
             status: 'OCCUPIED',
             guest: reservation.guest,
             booking_id: resId,
             check_out: reservation.check_out
-          }).eq('room_number', cleanRoomNum);
+          }).eq('hotel_id', currentHotel.id).eq('room_number', cleanRoomNum);
         }
         await broadcastCrossDeviceSync({
           action: 'book',
@@ -1721,12 +1738,12 @@ export function DashboardProvider({ children }) {
     showNotification(`Room shifted from #${src} to #${tgt} (${reason}).`);
 
     // Sync to Supabase
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('rooms').update({ status: 'DIRTY' }).eq('room_number', src);
-        await supabase.from('rooms').update({ status: 'OCCUPIED' }).eq('room_number', tgt);
+        await supabase.from('rooms').update({ status: 'DIRTY' }).eq('hotel_id', currentHotel.id).eq('room_number', src);
+        await supabase.from('rooms').update({ status: 'OCCUPIED' }).eq('hotel_id', currentHotel.id).eq('room_number', tgt);
         if (activeRes) {
-          await supabase.from('reservations').update({ room: `Room ${tgt}` }).eq('id', activeRes.id);
+          await supabase.from('reservations').update({ room: `Room ${tgt}` }).eq('hotel_id', currentHotel.id).eq('id', activeRes.id);
         }
       } catch (err) {
         console.warn('Supabase shift room sync:', err);
@@ -1756,10 +1773,10 @@ export function DashboardProvider({ children }) {
 
     showNotification(`Stay extended for Room #${num} till ${newCheckOutDate}.`);
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('reservations').update({ check_out: newCheckOutDate }).eq('id', reservationId);
-        await supabase.from('rooms').update({ check_out: newCheckOutDate }).eq('room_number', num);
+        await supabase.from('reservations').update({ check_out: newCheckOutDate }).eq('hotel_id', currentHotel.id).eq('id', reservationId);
+        await supabase.from('rooms').update({ check_out: newCheckOutDate }).eq('hotel_id', currentHotel.id).eq('room_number', num);
       } catch (err) {
         console.warn('Supabase extend stay sync:', err);
       }
@@ -1789,21 +1806,21 @@ export function DashboardProvider({ children }) {
 
     showNotification(`Room #${num} checked out. Room marked DIRTY for housekeeping turnover.`);
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('rooms').update({
           status: 'DIRTY',
           guest: null,
           booking_id: null,
           updated_at: new Date().toISOString()
-        }).eq('room_number', num);
+        }).eq('hotel_id', currentHotel.id).eq('room_number', num);
 
         if (reservationId) {
           await supabase.from('reservations').update({
             status: 'CHECKED_OUT',
             actual_check_out_time: new Date().toISOString(),
             updated_at: new Date().toISOString()
-          }).eq('id', reservationId);
+          }).eq('hotel_id', currentHotel.id).eq('id', reservationId);
         }
 
         // Automatically create turnover task in housekeeping_tasks table
@@ -1835,9 +1852,9 @@ export function DashboardProvider({ children }) {
     }));
     showNotification(`Room #${num} blocked for ${reason}.`);
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('rooms').update({ status: 'MAINTENANCE' }).eq('room_number', num);
+        await supabase.from('rooms').update({ status: 'MAINTENANCE' }).eq('hotel_id', currentHotel.id).eq('room_number', num);
       } catch (err) {
         console.warn('Supabase block room sync:', err);
       }
@@ -1856,9 +1873,9 @@ export function DashboardProvider({ children }) {
     }));
     showNotification(`Room #${num} unblocked and marked VACANT_READY.`);
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('rooms').update({ status: 'VACANT_READY' }).eq('room_number', num);
+        await supabase.from('rooms').update({ status: 'VACANT_READY' }).eq('hotel_id', currentHotel.id).eq('room_number', num);
       } catch (err) {
         console.warn('Supabase unblock room sync:', err);
       }
@@ -1877,9 +1894,9 @@ export function DashboardProvider({ children }) {
     }));
     showNotification(`Room #${num} housekeeping status updated to ${newStatus}.`);
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('rooms').update({ status: newStatus }).eq('room_number', num);
+        await supabase.from('rooms').update({ status: newStatus }).eq('hotel_id', currentHotel.id).eq('room_number', num);
       } catch (err) {
         console.warn('Supabase housekeeping update sync:', err);
       }

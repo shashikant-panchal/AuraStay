@@ -258,7 +258,10 @@ serve(async (req: Request) => {
 
     let createdCount = 0;
     if (Array.isArray(roomCategories) && roomCategories.length > 0) {
-      const { data: existingRooms } = await supabase.from("rooms").select("room_number");
+      const { data: existingRooms } = await supabase
+        .from("rooms")
+        .select("room_number")
+        .eq("hotel_id", hotel.id);
       const usedNumbers = new Set(
         (existingRooms || []).map((r: any) => String(r.room_number || "").trim())
       );
@@ -479,9 +482,10 @@ serve(async (req: Request) => {
         existingRes?.room_number ||
         existingRes?.room?.match(/\b(\d+)\b/)?.[1] ||
         null;
+      const cancelHotelId = existingRes?.hotel_id || resolvedHotelId;
 
       if (assignedRoom) {
-        await supabase
+        let unlockQ = supabase
           .from("rooms")
           .update({
             status: "VACANT_READY",
@@ -491,6 +495,10 @@ serve(async (req: Request) => {
             updated_at: new Date().toISOString()
           })
           .eq("room_number", assignedRoom);
+        if (cancelHotelId) {
+          unlockQ = unlockQ.eq("hotel_id", cancelHotelId);
+        }
+        await unlockQ;
       } else {
         await supabase
           .from("rooms")
@@ -568,24 +576,28 @@ serve(async (req: Request) => {
       let roomHotelId = existingRes?.hotel_id || resolvedHotelId;
 
       if (!allocatedRoomNumber) {
-        const { data: availableRooms } = await supabase
+        let matchQuery = supabase
           .from("rooms")
           .select("*")
           .or(`type.ilike.%${pmsRoomType}%,type.ilike.%${rawRoomCode}%`)
           .eq("status", "VACANT_READY")
           .order("room_number", { ascending: true })
           .limit(1);
+        if (roomHotelId) matchQuery = matchQuery.eq("hotel_id", roomHotelId);
+        const { data: availableRooms } = await matchQuery;
 
         if (availableRooms && availableRooms.length > 0) {
           allocatedRoomNumber = availableRooms[0].room_number;
           if (availableRooms[0].hotel_id) roomHotelId = availableRooms[0].hotel_id;
         } else {
-          const { data: anyVacant } = await supabase
+          let fallbackQuery = supabase
             .from("rooms")
             .select("*")
             .eq("status", "VACANT_READY")
             .order("room_number", { ascending: true })
             .limit(1);
+          if (roomHotelId) fallbackQuery = fallbackQuery.eq("hotel_id", roomHotelId);
+          const { data: anyVacant } = await fallbackQuery;
           if (anyVacant && anyVacant.length > 0) {
             allocatedRoomNumber = anyVacant[0].room_number;
             if (anyVacant[0].hotel_id) roomHotelId = anyVacant[0].hotel_id;
@@ -594,7 +606,7 @@ serve(async (req: Request) => {
       }
 
       if (allocatedRoomNumber) {
-        await supabase
+        let lockQuery = supabase
           .from("rooms")
           .update({
             status: "OCCUPIED",
@@ -604,6 +616,8 @@ serve(async (req: Request) => {
             updated_at: new Date().toISOString()
           })
           .eq("room_number", allocatedRoomNumber);
+        if (roomHotelId) lockQuery = lockQuery.eq("hotel_id", roomHotelId);
+        await lockQuery;
       }
 
       const fullReservationRecord: Record<string, unknown> = {

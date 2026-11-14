@@ -222,11 +222,14 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation }
       return;
     }
     const basePath = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/';
-    const logoUrl = new URL(aavasaLogo || 'aavasa-logo.jpg', basePath).href;
+    const rawLogo = currentHotel?.logoUrl;
+    const logoUrl = rawLogo && (rawLogo.startsWith('data:') || rawLogo.startsWith('http://') || rawLogo.startsWith('https://'))
+      ? rawLogo
+      : new URL(rawLogo || aavasaLogo || 'aavasa-logo.jpg', basePath).href;
 
-    const hotelName = currentHotel?.name || 'Shivanandi';
-    const operatingUnit = 'Aavasa — Hospitality Simplified';
-    const hotelAddress = currentHotel?.city ? `${currentHotel.city}, Karnataka, India` : 'Bengaluru, Karnataka, India';
+    const hotelName = currentHotel?.name || 'Hotel PMS';
+    const operatingUnit = currentHotel?.ownerName ? `Managed by ${currentHotel.ownerName}` : 'Front Desk & Guest Billing';
+    const hotelAddress = currentHotel?.address || (currentHotel?.city ? `${currentHotel.city}, India` : 'India');
     const docTitle = voucherType === 'BOOKING VOUCHER' ? 'Booking Voucher' : 'Tax Invoice';
 
     printWindow.document.write(`

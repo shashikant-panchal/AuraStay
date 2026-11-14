@@ -5,15 +5,15 @@ import aavasaLogo from '../../assets/aavasa-logo.jpg';
 /**
  * Architectural Neoclassical Hotel Emblem Logo matching Image 2 & 3
  */
-export function HotelVoucherLogo({ className = "w-16 h-16" }) {
+export function HotelVoucherLogo({ className = "w-16 h-16", logoUrl, hotelName }) {
   return (
     <img
-      src={aavasaLogo || "./aavasa-logo.jpg"}
-      alt="Aavasa — Hospitality Simplified"
+      src={logoUrl || aavasaLogo || "./aavasa-logo.jpg"}
+      alt={hotelName || "Property Logo"}
       className={`${className} object-contain rounded-md`}
       onError={(e) => {
         e.currentTarget.onerror = null;
-        e.currentTarget.src = './aavasa-logo.jpg';
+        e.currentTarget.src = aavasaLogo || './aavasa-logo.jpg';
       }}
     />
   );
@@ -100,12 +100,12 @@ export default function BookingVoucher({
   const displayVoucherNo = voucherNo || reservation?.id || `VOUCH-${roomNum}`;
 
   // Hotel Info
-  const hotelName = currentHotel?.name || 'Shivanandi';
-  const operatingUnit = currentHotel?.operatingUnit || 'Aavasa — Hospitality Simplified';
-  const hotelAddress = currentHotel?.address || 'Bengaluru, Karnataka, India';
-  const hotelPhone = currentHotel?.mobile || currentHotel?.phone || '+91 79785 78046';
-  const hotelEmail = currentHotel?.email || 'reservations@aavasa.com';
-  const hotelWebsite = currentHotel?.website || 'https://aavasa.com';
+  const hotelName = currentHotel?.name || 'Hotel Admin';
+  const operatingUnit = currentHotel?.operatingUnit || (currentHotel?.ownerName ? `Managed by ${currentHotel.ownerName}` : 'Hospitality Operations');
+  const hotelAddress = currentHotel?.address || (currentHotel?.city ? `${currentHotel.city}, India` : 'India');
+  const hotelPhone = currentHotel?.mobile || currentHotel?.phone || 'N/A';
+  const hotelEmail = currentHotel?.email || 'N/A';
+  const hotelWebsite = currentHotel?.website || '';
 
   // --- DETAILED FINANCIAL CALCULATIONS ---
   // 1. Room Tariff
@@ -160,7 +160,10 @@ export default function BookingVoucher({
       return;
     }
     const basePath = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/';
-    const logoUrl = new URL(aavasaLogo || 'aavasa-logo.jpg', basePath).href;
+    const rawLogo = currentHotel?.logoUrl;
+    const logoUrl = rawLogo && (rawLogo.startsWith('data:') || rawLogo.startsWith('http://') || rawLogo.startsWith('https://'))
+      ? rawLogo
+      : new URL(rawLogo || aavasaLogo || 'aavasa-logo.jpg', basePath).href;
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -364,7 +367,7 @@ export default function BookingVoucher({
         {/* Left: Hotel Logo & Details */}
         <div className="flex items-start space-x-3.5 max-w-[65%]">
           <div className="shrink-0 pt-0.5">
-            <HotelVoucherLogo className="w-14 h-14" />
+            <HotelVoucherLogo className="w-14 h-14" logoUrl={currentHotel?.logoUrl} hotelName={hotelName} />
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-[#083d63] tracking-tight leading-tight uppercase">

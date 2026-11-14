@@ -95,18 +95,18 @@ export default function StockManagementView() {
   const [reqQty, setReqQty] = useState('10');
   const [reqNotes, setReqNotes] = useState('');
 
-  // Load from Supabase on mount / hotel change
+  // Load from Supabase on mount / hotel change (strictly tenant-isolated)
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured || !currentHotel?.id) return;
 
     let isMounted = true;
     const fetchStockData = async () => {
       try {
-        const hotelId = currentHotel?.id || 'shivanandi';
+        const hotelId = currentHotel.id;
         const [itemsRes, posRes, reqsRes] = await Promise.all([
-          supabase.from('inventory_items').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`),
-          supabase.from('purchase_orders').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`),
-          supabase.from('material_requisitions').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`)
+          supabase.from('inventory_items').select('*').eq('hotel_id', hotelId),
+          supabase.from('purchase_orders').select('*').eq('hotel_id', hotelId),
+          supabase.from('material_requisitions').select('*').eq('hotel_id', hotelId)
         ]);
 
         if (!isMounted) return;
@@ -181,11 +181,11 @@ export default function StockManagementView() {
       setNewItemName('');
       setNewItemSupplier('');
 
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured && currentHotel?.id) {
         try {
           await supabase.from('inventory_items').insert([{
             id: newItem.id,
-            hotel_id: currentHotel?.id || 'shivanandi',
+            hotel_id: currentHotel.id,
             sku_code: newItem.id,
             name: newItem.name,
             category: newItem.category,
@@ -225,11 +225,11 @@ export default function StockManagementView() {
         setPoSupplier('');
         setPoItems('');
 
-        if (isSupabaseConfigured) {
+        if (isSupabaseConfigured && currentHotel?.id) {
           try {
             await supabase.from('purchase_orders').insert([{
               id: newPo.id,
-              hotel_id: currentHotel?.id || 'shivanandi',
+              hotel_id: currentHotel.id,
               supplier: newPo.supplier,
               items: newPo.items,
               total_amount: newPo.totalAmount,
@@ -265,11 +265,11 @@ export default function StockManagementView() {
           setReqCustomItem('');
           setReqNotes('');
 
-          if (isSupabaseConfigured) {
+          if (isSupabaseConfigured && currentHotel?.id) {
             try {
               await supabase.from('material_requisitions').insert([{
                 id: newReq.id,
-                hotel_id: currentHotel?.id || 'shivanandi',
+                hotel_id: currentHotel.id,
                 department: newReq.department,
                 requested_by: newReq.requestedBy,
                 sku_id: newReq.skuId,

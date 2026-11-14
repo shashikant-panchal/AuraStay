@@ -160,7 +160,7 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
         const active = activeHotels.find(h => h.status === 'ACTIVE') || activeHotels[0];
         targetHotelId = active.id;
       } else {
-        targetHotelId = 'shivanandi';
+        targetHotelId = null;
       }
     }
 
@@ -176,6 +176,7 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
         existingRes?.room_number ||
         existingRes?.room?.match(/\b(\d+)\b/)?.[1] ||
         null;
+      const cancelHotelId = existingRes?.hotel_id || targetHotelId;
 
       await supabase
         .from('reservations')
@@ -185,7 +186,7 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
         })
         .eq('id', bookingId);
 
-      if (assignedRoom) {
+      if (assignedRoom && cancelHotelId) {
         await supabase
           .from('rooms')
           .update({
@@ -195,6 +196,7 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
             check_out: null,
             updated_at: new Date().toISOString()
           })
+          .eq('hotel_id', cancelHotelId)
           .eq('room_number', assignedRoom);
       } else {
         await supabase
@@ -245,10 +247,14 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
       let roomHotelId = existingRes?.hotel_id || targetHotelId;
 
       if (!allocatedRoomNumber) {
-        const { data: allRooms } = await supabase
+        let roomsQuery = supabase
           .from('rooms')
           .select('*')
           .order('room_number', { ascending: true });
+        if (roomHotelId) {
+          roomsQuery = roomsQuery.eq('hotel_id', roomHotelId);
+        }
+        const { data: allRooms } = await roomsQuery;
 
         if (allRooms && allRooms.length > 0) {
           const { allocatedRoomNumber: picked } = allocateAndLockPhysicalRoom(resObj, allRooms);
@@ -268,7 +274,7 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
         resObj.room = `Room ${allocatedRoomNumber}`;
         resObj.room_number = allocatedRoomNumber;
 
-        await supabase
+        let lockQuery = supabase
           .from('rooms')
           .update({
             status: 'OCCUPIED',
@@ -278,6 +284,10 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
             updated_at: new Date().toISOString()
           })
           .eq('room_number', allocatedRoomNumber);
+        if (roomHotelId) {
+          lockQuery = lockQuery.eq('hotel_id', roomHotelId);
+        }
+        await lockQuery;
       } else {
         resObj.room = resObj.room || `Unassigned (${resObj.room_type || 'Standard Room'})`;
       }

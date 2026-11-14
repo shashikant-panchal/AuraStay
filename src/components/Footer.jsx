@@ -3,7 +3,7 @@ import { useDashboard } from '../context/DashboardContext';
 import { ExternalLink, ShieldCheck, Heart } from 'lucide-react';
 
 export default function Footer() {
-  const { data } = useDashboard();
+  const { data, currentHotel } = useDashboard();
   const { property } = data;
 
   return (
@@ -12,16 +12,16 @@ export default function Footer() {
         <div className="flex items-center space-x-3">
           <span className="text-slate-300">|</span>
           <span>
-            Powered by <strong className="text-slate-700">Aavasa Hospitality Suite</strong> (v4.2.0)
+            <strong className="text-slate-700">{currentHotel?.name || property.name}</strong> Hospitality Management Portal
           </span>
         </div>
 
         <div className="flex items-center space-x-4 text-slate-400 text-[11px]">
           <span className="flex items-center space-x-1">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Deterministic Analytics Engine</span>
+            <span>Multi-Tenant Isolated Suite</span>
           </span>
-          <span>© 2026 {property.name}. All rights reserved.</span>
+          <span>© 2026 {currentHotel?.name || property.name}. All rights reserved.</span>
         </div>
       </div>
     </footer>

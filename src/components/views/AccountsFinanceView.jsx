@@ -33,7 +33,7 @@ export default function AccountsFinanceView() {
     showNotification,
     reservations = [],
     updateReservationPayment,
-    currentHotel = { name: 'AuraStay Suite', id: 'hotel_aurastay_01' },
+    currentHotel = {},
     activeTab: contextActiveTab,
     setActiveTab: setContextActiveTab
   } = useDashboard();
@@ -183,17 +183,17 @@ export default function AccountsFinanceView() {
     };
   }, [allInvoices, totalExpenses]);
 
-  // Load from Supabase on mount / hotel change
+  // Load from Supabase on mount / hotel change (strictly tenant-isolated)
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured || !currentHotel?.id) return;
 
     let isMounted = true;
     const fetchFinanceData = async () => {
       try {
-        const hotelId = currentHotel?.id || 'shivanandi';
+        const hotelId = currentHotel.id;
         const [invRes, expRes] = await Promise.all([
-          supabase.from('financial_invoices').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`),
-          supabase.from('hotel_expenses').select('*').or(`hotel_id.eq.${hotelId},hotel_id.eq.hotel_aurastay_01`)
+          supabase.from('financial_invoices').select('*').eq('hotel_id', hotelId),
+          supabase.from('hotel_expenses').select('*').eq('hotel_id', hotelId)
         ]);
 
         if (!isMounted) return;
@@ -290,11 +290,11 @@ export default function AccountsFinanceView() {
     setInvClientName('');
     setInvPhone('');
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('financial_invoices').upsert([{
           id: newInv.id,
-          hotel_id: currentHotel?.id || 'shivanandi',
+          hotel_id: currentHotel.id,
           client_name: newInv.clientName,
           client_phone: newInv.clientPhone,
           category: newInv.category,
@@ -333,11 +333,11 @@ export default function AccountsFinanceView() {
     showNotification(`Expense voucher #${newExp.id} of ₹${newExp.amount} recorded.`);
     setExpPayee('');
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('hotel_expenses').insert([{
           id: newExp.id,
-          hotel_id: currentHotel?.id || 'shivanandi',
+          hotel_id: currentHotel.id,
           payee: newExp.payee,
           category: newExp.category,
           amount: newExp.amount,

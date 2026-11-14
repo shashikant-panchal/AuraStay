@@ -25,15 +25,15 @@ import {
 import { useDashboard } from '../../context/DashboardContext';
 
 export default function BookARoomView({ onBack, onSaveReservation }) {
-  const { showNotification, rooms = [], addReservation } = useDashboard();
+  const { showNotification, rooms = [], addReservation, currentHotel } = useDashboard();
 
   // Mode and switchers
   const [activeTab, setActiveTab] = useState('room'); // 'room' | 'daytrip' | 'wholeproperty'
   const [bookingMode, setBookingMode] = useState('RESERVATION'); // 'ENQUIRY' | 'RESERVATION'
   const [groupMode, setGroupMode] = useState('SINGLE'); // 'SINGLE' | 'GROUP'
   const [bookingStatus, setBookingStatus] = useState('Confirmed'); // 'Confirmed' | 'Tentative' | 'Hold Until' | 'Maintenance'
-  const [counter, setCounter] = useState('Shivanandi-FrontDesk');
-  const [operator, setOperator] = useState('Aavasa Admin');
+  const [counter, setCounter] = useState('Front Desk Counter 1');
+  const [operator, setOperator] = useState(currentHotel?.ownerName || 'Property Admin');
 
   // Primary Guest
   const [isAddGuestModalOpen, setIsAddGuestModalOpen] = useState(false);
@@ -359,7 +359,6 @@ export default function BookARoomView({ onBack, onSaveReservation }) {
                   onChange={(e) => setCounter(e.target.value)}
                   className="appearance-none bg-white border border-slate-300 rounded-lg px-3 py-1.5 pr-8 font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs shadow-2xs"
                 >
-                  <option value="Shivanandi-FrontDesk">Shivanandi-FrontDesk</option>
                   <option value="Front Desk Counter 1">Front Desk Counter 1</option>
                   <option value="Front Desk Counter 2">Front Desk Counter 2</option>
                 </select>
