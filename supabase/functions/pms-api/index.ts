@@ -15,8 +15,8 @@ const SUPABASE_ANON_KEY =
   Deno.env.get("SUPABASE_ANON_KEY") || "sb_publishable_qbJiyQ6eiAtwvQA17pG9cg_8bHn3uWi";
 const SUPABASE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || SUPABASE_ANON_KEY;
 
-const AIOSELL_USERNAME = Deno.env.get("AIOSELL_WEBHOOK_USERNAME") || "aiosell";
-const AIOSELL_PASSWORD = Deno.env.get("AIOSELL_WEBHOOK_PASSWORD") || "AIOsell@123";
+const AIOSELL_USERNAME = Deno.env.get("AIOSELL_API_USERNAME") || "aiosell";
+const AIOSELL_PASSWORD = Deno.env.get("AIOSELL_API_PASSWORD") || "AIOsell@123";
 const AIOSELL_PARTNER_ID = Deno.env.get("AIOSELL_PARTNER_ID") || "sample-pms";
 const AIOSELL_API_BASE = Deno.env.get("AIOSELL_API_BASE") || "https://live.aiosell.com/api/v2/cm";
 

@@ -7,8 +7,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
  * tenant hotel_id isolation, date-overlap double-booking protection, and minimal responses.
  */
 
-const AIOSELL_USERNAME = Deno.env.get("AIOSELL_WEBHOOK_USERNAME") || "aiosell";
-const AIOSELL_PASSWORD = Deno.env.get("AIOSELL_WEBHOOK_PASSWORD") || "AIOsell@123";
+const WEBHOOK_USERNAME = Deno.env.get("AAVASA_WEBHOOK_USERNAME") || "adminaavasa";
+const WEBHOOK_PASSWORD = Deno.env.get("AAVASA_WEBHOOK_PASSWORD") || "admin123";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://pdsfctfixxfazchamznm.supabase.co";
 const SUPABASE_KEY =
@@ -39,7 +39,7 @@ function validateBasicAuth(req: Request): boolean {
     if (sepIdx <= 0) return false;
     const user = decoded.slice(0, sepIdx);
     const pass = decoded.slice(sepIdx + 1);
-    return user === AIOSELL_USERNAME && pass === AIOSELL_PASSWORD;
+    return user === WEBHOOK_USERNAME && pass === WEBHOOK_PASSWORD;
   } catch {
     return false;
   }

@@ -12,6 +12,8 @@ export const PMS_API_URL = `${supabaseUrl}/functions/v1/pms-api`;
 export const DEFAULT_AIOSELL_CONFIG = {
   username: 'aiosell',
   password: 'AIOsell@123',
+  webhookUsername: 'adminaavasa',
+  webhookPassword: 'admin123',
   hotelCode: 'sandbox-pms',
   partnerId: 'sample-pms',
   baseUrl: 'https://live.aiosell.com/api/v2/cm',
@@ -178,7 +180,7 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        Authorization: getBasicAuthHeader(config.username, config.password)
+        Authorization: getBasicAuthHeader(config.webhookUsername || 'adminaavasa', config.webhookPassword || 'admin123')
       },
       body: JSON.stringify(webhookBody)
     });

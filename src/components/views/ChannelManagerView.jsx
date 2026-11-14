@@ -1556,7 +1556,7 @@ export default function ChannelManagerView() {
                 POST https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook
               </div>
               <div className="text-slate-400 text-[11px] pt-1">
-                Auth Header: <span className="text-amber-300 font-bold">Authorization: Basic {btoa('aiosell:AIOsell@123')}</span> (username: <span className="text-white">aiosell</span>, password: <span className="text-white">AIOsell@123</span>)
+                Auth Header: <span className="text-amber-300 font-bold">Authorization: Basic {btoa('adminaavasa:admin123')}</span> (username: <span className="text-white">adminaavasa</span>, password: <span className="text-white">admin123</span>)
               </div>
             </div>
           </div>
@@ -1658,7 +1658,7 @@ export default function ChannelManagerView() {
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <span><strong>Webhook HTTP Basic Auth:</strong> username: <code className="font-mono bg-white px-1 rounded">aiosell</code>, password: <code className="font-mono bg-white px-1 rounded">AIOsell@123</code></span>
+                    <span><strong>Webhook HTTP Basic Auth:</strong> username: <code className="font-mono bg-white px-1 rounded">adminaavasa</code>, password: <code className="font-mono bg-white px-1 rounded">admin123</code></span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
