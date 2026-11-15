@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Tag
 } from 'lucide-react';
+import { compareCategoryNames, compareRoomsByCategoryAndNumber } from '../../utils/roomSort';
 
 export default function RatePlansView() {
   const {
@@ -53,18 +54,21 @@ export default function RatePlansView() {
   const [corporateDiscount, setCorporateDiscount] = useState(10);
   const [minNightsWeekend, setMinNightsWeekend] = useState(2);
 
-  // Filtered rooms
+  // Filtered rooms (Standard -> Deluxe -> Executive -> Room Number)
   const filteredRooms = useMemo(() => {
-    return rooms.filter(r => {
-      const matchFloor = selectedFloor === 'ALL' || r.floor === selectedFloor;
-      const matchStatus = selectedStatus === 'ALL' || r.status === selectedStatus;
-      const q = searchQuery.toLowerCase().trim();
-      const matchSearch = !q || 
-        String(r.roomNumber || r.room_number).toLowerCase().includes(q) ||
-        String(r.type || '').toLowerCase().includes(q) ||
-        String(r.floor || '').toLowerCase().includes(q);
-      return matchFloor && matchStatus && matchSearch;
-    });
+    return rooms
+      .filter(r => {
+        const matchFloor = selectedFloor === 'ALL' || r.floor === selectedFloor;
+        const matchStatus = selectedStatus === 'ALL' || r.status === selectedStatus;
+        const q = searchQuery.toLowerCase().trim();
+        const matchSearch = !q ||
+          String(r.roomNumber || r.room_number).toLowerCase().includes(q) ||
+          String(r.type || '').toLowerCase().includes(q) ||
+          String(r.floor || '').toLowerCase().includes(q);
+        return matchFloor && matchStatus && matchSearch;
+      })
+      .slice()
+      .sort(compareRoomsByCategoryAndNumber);
   }, [rooms, selectedFloor, selectedStatus, searchQuery]);
 
   // Floors list
@@ -103,7 +107,7 @@ export default function RatePlansView() {
       }
     });
 
-    return list;
+    return list.sort((a, b) => compareCategoryNames(a.name, b.name));
   }, [roomTypes, rooms]);
 
   return (

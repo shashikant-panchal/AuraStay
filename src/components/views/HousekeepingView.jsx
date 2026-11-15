@@ -26,6 +26,7 @@ import {
   Eye
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { compareRoomsByCategoryAndNumber } from '../../utils/roomSort';
 
 export default function HousekeepingView() {
   const { 
@@ -194,7 +195,7 @@ export default function HousekeepingView() {
       const matchFloor = selectedFloor === 'ALL' || String(r.floor) === String(selectedFloor);
 
       return matchSearch && matchStatus && matchFloor;
-    });
+    }).slice().sort(compareRoomsByCategoryAndNumber);
   }, [contextRooms, searchQuery, statusFilter, selectedFloor]);
 
   // One-click room status toggle

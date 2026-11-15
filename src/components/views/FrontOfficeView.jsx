@@ -7,6 +7,7 @@ import ReservationManagementView from './ReservationManagementView';
 import FolioBillingModal from '../modals/FolioBillingModal';
 import CheckInModal from '../modals/CheckInModal';
 import CollectPaymentModal from '../modals/CollectPaymentModal';
+import { compareCategoryNames } from '../../utils/roomSort';
 import {
   Building2,
   Home,
@@ -88,10 +89,12 @@ export default function FrontOfficeView() {
         catMap[type].available += 1;
       }
     });
-    return Object.values(catMap).map(c => ({
-      ...c,
-      occupancy: c.toSell > 0 ? Math.round((c.sold / c.toSell) * 100) : 0
-    }));
+    return Object.values(catMap)
+      .map(c => ({
+        ...c,
+        occupancy: c.toSell > 0 ? Math.round((c.sold / c.toSell) * 100) : 0
+      }))
+      .sort((a, b) => compareCategoryNames(a.category, b.category));
   }, [rooms]);
 
   // Dynamic Recent Check-ins & Reservations derived from live reservations
@@ -683,7 +686,9 @@ export default function FrontOfficeView() {
                     No room categories created yet.
                   </div>
                 ) : (
-                  Array.from(new Set(rooms.map(r => r.type || 'Standard Room'))).map(typeName => {
+                  Array.from(new Set(rooms.map(r => r.type || 'Standard Room')))
+                    .sort(compareCategoryNames)
+                    .map(typeName => {
                     const categoryRooms = rooms.filter(r => (r.type || 'Standard Room') === typeName);
                     const occupiedCount = categoryRooms.filter(r => r.status === 'OCCUPIED').length;
                     const percent = categoryRooms.length > 0 ? Math.round((occupiedCount / categoryRooms.length) * 100) : 0;

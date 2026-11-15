@@ -31,6 +31,7 @@ import {
   Sparkles,
   Trash2
 } from 'lucide-react';
+import { compareCategoryNames, compareRoomsByCategoryAndNumber } from '../../utils/roomSort';
 
 export default function DayViewOperations() {
   const {
@@ -119,8 +120,16 @@ export default function DayViewOperations() {
         children: booking?.children || 0,
         amenities: { electricity: true, wifi: true, ac: true }
       };
-    });
+    }).sort(compareRoomsByCategoryAndNumber);
   }, [contextRooms, reservations]);
+
+  const roomTypeOptions = React.useMemo(() => {
+    const types = new Set(['Standard Room', 'Deluxe Room', 'Executive Room']);
+    dayRooms.forEach(r => {
+      if (r.type) types.add(r.type);
+    });
+    return Array.from(types).sort(compareCategoryNames);
+  }, [dayRooms]);
 
   // Handle Checkout using full reservation & timestamp capture
   const handleCheckoutGuest = (roomId) => {
@@ -394,12 +403,9 @@ export default function DayViewOperations() {
             className="h-9 px-3 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
           >
             <option value="ALL">Room Type</option>
-            <option value="Standard Room">Standard Room</option>
-            <option value="Deluxe Room">Deluxe Room</option>
-            <option value="Super Deluxe Room">Super Deluxe Room</option>
-            <option value="Suite Room">Suite Room</option>
-            <option value="Banquet Hall">Banquet Hall</option>
-            <option value="DayTrip">DayTrip</option>
+            {roomTypeOptions.map(rt => (
+              <option key={rt} value={rt}>{rt}</option>
+            ))}
           </select>
 
           {/* Room Number Dropdown */}

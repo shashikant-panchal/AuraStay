@@ -4,6 +4,7 @@ import { initialMockData } from '../data/mockData';
 import { mockRooms, mockReservations, mockFnbOrders, mockStaffUsers, mockOtaChannels } from '../data/suiteData';
 import { supabase, isSupabaseConfigured, supabaseAnonKey } from '../lib/supabase';
 import { PMS_API_URL, broadcastCrossDeviceSync, pushHotelInventoryViaBackend } from '../services/aiosellService';
+import { compareCategoryNames, compareRoomsByCategoryAndNumber } from '../utils/roomSort';
 
 const DEFAULT_HOTEL = {
   id: '',
@@ -198,7 +199,19 @@ export function DashboardProvider({ children }) {
   const [isMonitoringModalOpen, setIsMonitoringModalOpen] = useState(false);
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isCreateReservationModalOpen, setIsCreateReservationModalOpen] = useState(false);
+  const [isCreateReservationModalOpenState, setIsCreateReservationModalOpenState] = useState(false);
+  const [reservationPrefill, setReservationPrefill] = useState(null);
+  const isCreateReservationModalOpen = isCreateReservationModalOpenState;
+  const setIsCreateReservationModalOpen = (open) => {
+    setIsCreateReservationModalOpenState(open);
+    if (!open) {
+      setReservationPrefill(null);
+    }
+  };
+  const openCreateReservationModal = (prefill = null) => {
+    setReservationPrefill(prefill);
+    setIsCreateReservationModalOpenState(true);
+  };
   const [isCreateRoomModalOpenState, setIsCreateRoomModalOpenState] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
 
@@ -335,7 +348,7 @@ export function DashboardProvider({ children }) {
           isOtaLocked: !!r.is_ota_locked,
           is_ota_locked: !!r.is_ota_locked,
           otaChannel: r.ota_channel || ''
-        })));
+        })).sort(compareRoomsByCategoryAndNumber));
         tablesFound = true;
       }
 
@@ -465,7 +478,7 @@ export function DashboardProvider({ children }) {
           description: t.description || '',
           notes: t.notes || '',
           isBookingEngine: t.is_booking_engine !== false
-        })));
+        })).sort((a, b) => compareCategoryNames(a.name, b.name)));
       }
 
       if (!cabsRes?.error && Array.isArray(cabsRes?.data)) {
@@ -923,7 +936,10 @@ export function DashboardProvider({ children }) {
       id: newType.id || `rt-${Date.now().toString().slice(-4)}`,
       hotelId: currentHotel.id
     };
-    setRoomTypes(prev => [typeObj, ...(prev || []).filter(t => t.name.toLowerCase() !== typeObj.name.toLowerCase())]);
+    setRoomTypes(prev =>
+      [typeObj, ...(prev || []).filter(t => t.name.toLowerCase() !== typeObj.name.toLowerCase())]
+        .sort((a, b) => compareCategoryNames(a.name, b.name))
+    );
     showNotification(`Room Category ${typeObj.name} saved successfully.`);
     setIsCreateRoomTypeModalOpen(false);
 
@@ -957,7 +973,10 @@ export function DashboardProvider({ children }) {
   };
 
   const updateRoomType = async (id, updatedType) => {
-    setRoomTypes(prev => (prev || []).map(t => t.id === id ? { ...t, ...updatedType } : t));
+    setRoomTypes(prev =>
+      (prev || []).map(t => t.id === id ? { ...t, ...updatedType } : t)
+        .sort((a, b) => compareCategoryNames(a.name, b.name))
+    );
     showNotification('Room category updated.');
     if (isSupabaseConfigured && currentHotel?.id) {
       try {
@@ -1016,7 +1035,10 @@ export function DashboardProvider({ children }) {
       checkOut: null
     };
 
-    setRooms(prev => [room, ...prev.filter(r => String(r.roomNumber || r.room_number) !== cleanNum)]);
+    setRooms(prev =>
+      [room, ...prev.filter(r => String(r.roomNumber || r.room_number) !== cleanNum)]
+        .sort(compareRoomsByCategoryAndNumber)
+    );
     showNotification(`Room #${cleanNum} created successfully.`);
     setIsCreateRoomModalOpen(false);
 
@@ -1244,7 +1266,7 @@ export function DashboardProvider({ children }) {
         const matchById = updatedRoomObj.id && r.id && String(r.id) === String(updatedRoomObj.id);
         const matchByNum = String(r.roomNumber || r.room_number) === origRoomNum;
         return matchById || matchByNum ? updatedRoomObj : r;
-      })
+      }).sort(compareRoomsByCategoryAndNumber)
     );
 
     if (newRoomNum !== origRoomNum) {
@@ -2840,6 +2862,8 @@ export function DashboardProvider({ children }) {
       setIsTourOpen,
       setIsSearchOpen,
       setIsCreateReservationModalOpen,
+      reservationPrefill,
+      openCreateReservationModal,
       roomTypes,
       setRoomTypes,
       addRoomType,

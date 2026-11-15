@@ -4,8 +4,6 @@ import {
   Search,
   Filter,
   Plus,
-  Moon,
-  ClipboardList,
   BedDouble,
   CheckCircle2,
   AlertTriangle,
@@ -40,27 +38,25 @@ import ExtendStayModal from '../modals/ExtendStayModal';
 import QuickBalanceModal from '../modals/QuickBalanceModal';
 import Guest360Modal from '../modals/Guest360Modal';
 import FolioBillingModal from '../modals/FolioBillingModal';
-import NightAuditModal from '../modals/NightAuditModal';
 import BlockRoomModal from '../modals/BlockRoomModal';
-import FrontDeskTasksDrawer from '../modals/FrontDeskTasksDrawer';
 import RoomActionsModal from '../modals/RoomActionsModal';
 import CheckInModal from '../modals/CheckInModal';
 import TodayGlanceRevenueCard from '../dashboard/TodayGlanceRevenueCard';
+import { compareCategoryNames, compareRoomNumbers } from '../../utils/roomSort';
 
 export default function DashboardView() {
   const {
     currentHotel,
     rooms = [],
     reservations = [],
-    workingDate,
+    navigateTo,
     showNotification,
     setIsCreateReservationModalOpen,
     setIsCreateRoomModalOpen,
     openEditRoomModal,
     requestDeleteRoom,
     updateHousekeepingCleanliness,
-    checkoutRoom,
-    frontDeskTasks = []
+    checkoutRoom
   } = useDashboard();
 
   // Active filters
@@ -88,9 +84,7 @@ export default function DashboardView() {
   const [isFolioModalOpen, setIsFolioModalOpen] = useState(false);
   const [folioInitialTab, setFolioInitialTab] = useState('charges');
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
-  const [isNightAuditOpen, setIsNightAuditOpen] = useState(false);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
-  const [isTasksDrawerOpen, setIsTasksDrawerOpen] = useState(false);
 
   const nowLocal = new Date();
   const todayStr = new Date(nowLocal.getTime() - nowLocal.getTimezoneOffset() * 60000).toISOString().split('T')[0];
@@ -209,7 +203,7 @@ export default function DashboardView() {
 
   const uniqueCategories = useMemo(() => {
     const set = new Set(enrichedRooms.map(r => r.category).filter(Boolean));
-    return ['ALL', ...Array.from(set).sort()];
+    return ['ALL', ...Array.from(set).sort(compareCategoryNames)];
   }, [enrichedRooms]);
 
   // Filtered rooms
@@ -237,7 +231,7 @@ export default function DashboardView() {
     });
   }, [enrichedRooms, selectedFloor, selectedCategory, statusFilter, searchQuery]);
 
-  // Group rooms by category
+  // Group rooms by category (Standard -> Deluxe -> Executive -> others, natural room number order)
   const groupedRooms = useMemo(() => {
     const groups = {};
     filteredRooms.forEach(room => {
@@ -245,7 +239,13 @@ export default function DashboardView() {
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(room);
     });
-    return groups;
+    const sortedGroups = {};
+    Object.keys(groups)
+      .sort(compareCategoryNames)
+      .forEach(cat => {
+        sortedGroups[cat] = groups[cat].slice().sort(compareRoomNumbers);
+      });
+    return sortedGroups;
   }, [filteredRooms]);
 
   // Top KPI calculations
@@ -260,8 +260,6 @@ export default function DashboardView() {
   const totalRevenue = enrichedRooms
     .filter(r => r.effectiveStatus === 'OCCUPIED' || r.effectiveStatus === 'RESERVED')
     .reduce((sum, r) => sum + r.tariff, 0);
-
-  const pendingTasksCount = frontDeskTasks.filter(t => !t.completed).length;
 
   // Toggle category accordion
   const toggleCategory = (cat) => {
@@ -355,33 +353,19 @@ export default function DashboardView() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Working Date & Night Audit */}
+          {/* Stay Overview Quick Jump */}
           <button
-            onClick={() => setIsNightAuditOpen(true)}
-            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-slate-800 hover:to-indigo-900 text-white text-xs font-bold shadow-md shadow-indigo-950/20 flex items-center space-x-2 transition-all hover:scale-[1.02]"
+            onClick={() => navigateTo && navigateTo('stay-view-calendar')}
+            className="px-4 py-2.5 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200 text-xs font-bold shadow-xs flex items-center space-x-2 transition-all hover:scale-[1.02] cursor-pointer"
           >
-            <Moon className="w-4 h-4 text-indigo-300" />
-            <span>Night Audit ({workingDate})</span>
-          </button>
-
-          {/* Front Desk Tasks Drawer */}
-          <button
-            onClick={() => setIsTasksDrawerOpen(true)}
-            className="px-4 py-2.5 rounded-2xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs flex items-center space-x-2 transition-all"
-          >
-            <ClipboardList className="w-4 h-4 text-amber-600" />
-            <span>Shift Tasks</span>
-            {pendingTasksCount > 0 && (
-              <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-black">
-                {pendingTasksCount}
-              </span>
-            )}
+            <Calendar className="w-4 h-4 text-sky-600" />
+            <span>Stay Overview</span>
           </button>
 
           {/* New Reservation */}
           <button
             onClick={() => setIsCreateReservationModalOpen(true)}
-            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white text-xs font-bold shadow-md shadow-amber-600/20 flex items-center space-x-1.5 transition-all hover:scale-[1.02]"
+            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white text-xs font-bold shadow-md shadow-amber-600/20 flex items-center space-x-1.5 transition-all hover:scale-[1.02] cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>New Reservation</span>
@@ -996,20 +980,10 @@ export default function DashboardView() {
         reservation={modalRes}
       />
 
-      <NightAuditModal
-        isOpen={isNightAuditOpen}
-        onClose={() => setIsNightAuditOpen(false)}
-      />
-
       <BlockRoomModal
         isOpen={isBlockModalOpen}
         onClose={() => setIsBlockModalOpen(false)}
         room={modalRoom}
-      />
-
-      <FrontDeskTasksDrawer
-        isOpen={isTasksDrawerOpen}
-        onClose={() => setIsTasksDrawerOpen(false)}
       />
 
     </div>

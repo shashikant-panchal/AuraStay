@@ -17,6 +17,7 @@ import {
   Edit3
 } from 'lucide-react';
 import CreateRoomTypeModal from './CreateRoomTypeModal';
+import { compareCategoryNames, compareRoomsByCategoryAndNumber } from '../../utils/roomSort';
 
 const STANDARD_FLOOR_OPTIONS = [
   'Ground Floor',
@@ -93,15 +94,19 @@ export default function CreateRoomModal() {
       );
     }
 
-    return list;
+    return list.sort((a, b) => compareCategoryNames(a.name, b.name));
   }, [roomTypes, rooms]);
+
+  const sortedRooms = useMemo(() => {
+    return (rooms || []).slice().sort(compareRoomsByCategoryAndNumber);
+  }, [rooms]);
 
   const [activeTab, setActiveTab] = useState('addRoom'); // 'addRoom' | 'roomCategories' | 'manageRooms'
   const [isRoomTypeModalOpen, setIsRoomTypeModalOpen] = useState(false);
 
   // Form fields for Add / Edit Room
   const [roomNumber, setRoomNumber] = useState('');
-  const [selectedType, setSelectedType] = useState(() => effectiveRoomTypes[0]?.name || 'Deluxe Room');
+  const [selectedType, setSelectedType] = useState(() => effectiveRoomTypes[0]?.name || 'Standard Room');
   const [floor, setFloor] = useState('Floor 1');
   const [bed, setBed] = useState('King Bed');
   const [price, setPrice] = useState('2500');
@@ -713,7 +718,7 @@ export default function CreateRoomModal() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {rooms.map(r => {
+                  {sortedRooms.map(r => {
                     const rNum = String(r.room_number || r.roomNumber);
                     return (
                       <tr key={r.id || rNum} className="hover:bg-slate-50">

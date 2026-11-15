@@ -18,11 +18,13 @@ import {
   DollarSign,
   Calendar
 } from 'lucide-react';
+import { compareRoomsByCategoryAndNumber } from '../../utils/roomSort';
 
 export default function CreateReservationModal() {
   const {
     isCreateReservationModalOpen,
     setIsCreateReservationModalOpen,
+    reservationPrefill,
     addReservation,
     rooms = [],
     reservations = [],
@@ -63,20 +65,46 @@ export default function CreateReservationModal() {
   const [validationError, setValidationError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Available vacant rooms
+  // Available vacant rooms (Standard -> Deluxe -> Executive -> Room Number)
   const availableRooms = useMemo(() => {
-    return rooms.filter(r => {
-      const num = String(r.room_number || r.roomNumber);
-      return r.status !== 'MAINTENANCE';
-    });
+    return rooms
+      .filter(r => r.status !== 'MAINTENANCE')
+      .slice()
+      .sort(compareRoomsByCategoryAndNumber);
   }, [rooms]);
 
   useEffect(() => {
-    if (availableRooms.length > 0 && !selectedRoomNum) {
+    if (!isCreateReservationModalOpen) return;
+    setValidationError('');
+
+    if (reservationPrefill?.checkIn) {
+      setCheckIn(reservationPrefill.checkIn);
+      const nextDay = new Date(`${reservationPrefill.checkIn}T00:00:00`);
+      if (!Number.isNaN(nextDay.getTime())) {
+        nextDay.setDate(nextDay.getDate() + 1);
+        const yyyy = nextDay.getFullYear();
+        const mm = String(nextDay.getMonth() + 1).padStart(2, '0');
+        const dd = String(nextDay.getDate()).padStart(2, '0');
+        setCheckOut(`${yyyy}-${mm}-${dd}`);
+      }
+    }
+
+    if (reservationPrefill?.roomNumber) {
+      const targetNum = String(reservationPrefill.roomNumber).trim();
+      const matched = rooms.find(r => String(r.room_number || r.roomNumber) === targetNum);
+      setSelectedRoomNum(targetNum);
+      if (matched) {
+        setTariffRate(Number(matched.price || 2500));
+      }
+    }
+  }, [isCreateReservationModalOpen, reservationPrefill]);
+
+  useEffect(() => {
+    if (!reservationPrefill?.roomNumber && availableRooms.length > 0 && !selectedRoomNum) {
       setSelectedRoomNum(String(availableRooms[0].room_number || availableRooms[0].roomNumber));
       setTariffRate(Number(availableRooms[0].price || 2500));
     }
-  }, [availableRooms, selectedRoomNum]);
+  }, [availableRooms, selectedRoomNum, reservationPrefill]);
 
   const handleRoomSelect = (num) => {
     setSelectedRoomNum(num);
