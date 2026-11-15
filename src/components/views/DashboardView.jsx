@@ -56,6 +56,7 @@ export default function DashboardView() {
     showNotification,
     setIsCreateReservationModalOpen,
     setIsCreateRoomModalOpen,
+    openEditRoomModal,
     requestDeleteRoom,
     updateHousekeepingCleanliness,
     checkoutRoom,
@@ -169,7 +170,10 @@ export default function DashboardView() {
       else if (isDirty) effectiveStatus = 'DIRTY';
 
       const roomNum = String(r.room_number || r.roomNumber || r.id);
-      const floor = r.floor ? (String(r.floor).startsWith('Floor') ? r.floor : `Floor ${r.floor}`) : 'Floor 1';
+      const rawFloor = String(r.floor || '').trim();
+      const floor = rawFloor
+        ? (/^\d+$/.test(rawFloor) ? `Floor ${rawFloor}` : rawFloor)
+        : 'Floor 1';
       const category = r.type || r.category || 'Standard Room';
       const totalResAmt = Number(activeRes?.amount) || Number(r.price || r.tariff) || 2500;
       const paidResAmt = Number(activeRes?.paid) || 0;
@@ -323,6 +327,9 @@ export default function DashboardView() {
         break;
       case 'fnb':
         showNotification(`Digital Room Service Menu link copied for Room #${room.roomNumber}. Sent to guest via SMS/WhatsApp.`);
+        break;
+      case 'edit':
+        openEditRoomModal(room);
         break;
       default:
         break;

@@ -331,6 +331,60 @@ serve(async (req: Request) => {
       );
     }
 
+    // 3b. Atomic Hotel-Scoped Room Edit (updates metadata, tariff, category & cascades renamed room_number)
+    if (action === "update_room") {
+      const targetHotelId = String(payload.hotelId || payload.hotel_id || "").trim();
+      const origNum = String(payload.originalRoomNumber || payload.original_room_number || "").trim();
+      const newNum = String(payload.roomNumber || payload.newRoomNumber || payload.room_number || origNum).trim();
+
+      if (!targetHotelId || !newNum) {
+        return jsonResponse({ success: false, message: "hotelId and roomNumber are required." }, 400);
+      }
+
+      const rawId = payload.roomId || payload.id || null;
+      const uuidValid =
+        typeof rawId === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId.trim())
+          ? rawId.trim()
+          : null;
+
+      const { data: updatedRoom, error: rpcErr } = await supabase.rpc("admin_update_room", {
+        p_hotel_id: targetHotelId,
+        p_original_room_number: origNum || newNum,
+        p_new_room_number: newNum,
+        p_target_room_id: uuidValid,
+        p_room_type_id: payload.roomTypeId ?? payload.room_type_id ?? null,
+        p_floor: payload.floor ?? null,
+        p_type: payload.type ?? null,
+        p_bed: payload.bed ?? null,
+        p_price: payload.price !== undefined && payload.price !== null ? Number(payload.price) : null,
+        p_key_card_no: payload.keyCardNo ?? payload.key_card_no ?? null,
+        p_is_smoking: payload.isSmoking !== undefined ? Boolean(payload.isSmoking) : null,
+        p_phone_extension: payload.phoneExtension ?? payload.phone_extension ?? null,
+        p_housekeeping: payload.housekeeping ?? null,
+        p_status: payload.status ?? null,
+        p_interconnecting_room: payload.interconnectingRoom ?? payload.interconnecting_room ?? null
+      });
+
+      if (rpcErr) {
+        const isDuplicate = /already exists/i.test(rpcErr.message || "");
+        const isNotFound = /not found/i.test(rpcErr.message || "");
+        return jsonResponse(
+          { success: false, message: rpcErr.message || "Failed to update room." },
+          isDuplicate ? 409 : isNotFound ? 404 : 400
+        );
+      }
+
+      await broadcastRealtimeSync({
+        action: "room_update",
+        hotelId: targetHotelId,
+        roomNumber: newNum,
+        previousRoomNumber: origNum
+      });
+
+      return jsonResponse({ success: true, room: updatedRoom }, 200);
+    }
+
     // 4. Quota-guarded PMS Mutation for allowlisted operational tables
     if (action === "pms_mutation") {
       const { table, operation, data, match } = payload;

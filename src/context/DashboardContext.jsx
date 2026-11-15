@@ -199,7 +199,24 @@ export function DashboardProvider({ children }) {
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCreateReservationModalOpen, setIsCreateReservationModalOpen] = useState(false);
-  const [isCreateRoomModalOpen, setIsCreateRoomModalOpen] = useState(false);
+  const [isCreateRoomModalOpenState, setIsCreateRoomModalOpenState] = useState(false);
+  const [editingRoom, setEditingRoom] = useState(null);
+
+  const isCreateRoomModalOpen = isCreateRoomModalOpenState;
+  const setIsCreateRoomModalOpen = (open) => {
+    setIsCreateRoomModalOpenState(open);
+    if (!open) {
+      setEditingRoom(null);
+    }
+  };
+  const openCreateRoomModal = () => {
+    setEditingRoom(null);
+    setIsCreateRoomModalOpenState(true);
+  };
+  const openEditRoomModal = (room) => {
+    setEditingRoom(room || null);
+    setIsCreateRoomModalOpenState(true);
+  };
 
   // Popover state for Master Service Home cards
   const [activePopoverModule, setActivePopoverModule] = useState(null);
@@ -294,6 +311,8 @@ export function DashboardProvider({ children }) {
           hotelId: r.hotel_id || hotelId,
           roomNumber: r.room_number,
           room_number: r.room_number,
+          roomTypeId: r.room_type_id || null,
+          room_type_id: r.room_type_id || null,
           floor: r.floor,
           type: r.type,
           category: r.type,
@@ -307,8 +326,12 @@ export function DashboardProvider({ children }) {
           check_out: r.check_out,
           housekeeping: r.housekeeping || (r.status === 'DIRTY' ? 'Dirty' : 'Clean'),
           keyCardNo: r.key_card_no,
+          key_card_no: r.key_card_no,
           isSmoking: !!r.is_smoking,
+          is_smoking: !!r.is_smoking,
           phoneExtension: r.phone_extension,
+          phone_extension: r.phone_extension,
+          interconnectingRoom: r.interconnecting_room || '',
           isOtaLocked: !!r.is_ota_locked,
           is_ota_locked: !!r.is_ota_locked,
           otaChannel: r.ota_channel || ''
@@ -1001,6 +1024,7 @@ export function DashboardProvider({ children }) {
       try {
         const payload = {
           room_number: room.roomNumber,
+          room_type_id: room.roomTypeId || null,
           floor: room.floor,
           type: room.type,
           bed: room.bed,
@@ -1011,19 +1035,256 @@ export function DashboardProvider({ children }) {
           is_smoking: room.isSmoking,
           phone_extension: room.phoneExtension
         };
-        const { error } = await supabase.from('rooms').insert({
-          ...payload,
-          hotel_id: currentHotel.id
-        });
+        const { data: insertedRoom, error } = await supabase
+          .from('rooms')
+          .insert({
+            ...payload,
+            hotel_id: currentHotel.id
+          })
+          .select()
+          .maybeSingle();
         if (error) {
           console.warn('Supabase room insert error:', error.message);
+        } else if (insertedRoom?.id) {
+          room.id = insertedRoom.id;
+          setRooms(prev =>
+            prev.map(r =>
+              String(r.roomNumber || r.room_number) === cleanNum ? { ...r, id: insertedRoom.id } : r
+            )
+          );
         }
         await broadcastCrossDeviceSync({ action: 'room_add', roomNumber: cleanNum });
+        pushHotelInventoryViaBackend({ hotelId: currentHotel.id }).catch(() => {});
       } catch (err) {
         console.warn('Supabase room insert error:', err);
       }
     }
     return { success: true, room };
+  };
+
+  // Edit / Update pre-entered room details (persisted via atomic PostgreSQL RPC & synced realtime)
+  const updateRoom = async (originalRoom, updatedData = {}) => {
+    const origObj =
+      originalRoom && typeof originalRoom === 'object'
+        ? originalRoom
+        : rooms.find(
+            r =>
+              String(r.id) === String(originalRoom) ||
+              String(r.roomNumber || r.room_number) === String(originalRoom)
+          );
+
+    const origRoomNum = String(
+      origObj?.roomNumber || origObj?.room_number || (typeof originalRoom === 'string' ? originalRoom : '')
+    ).trim();
+    const newRoomNum = String(updatedData.roomNumber ?? origRoomNum).trim();
+
+    if (!newRoomNum) {
+      const msg = 'Room Number is required.';
+      showNotification(msg);
+      return { success: false, message: msg };
+    }
+
+    const parsedPrice = Number(updatedData.price ?? origObj?.price ?? 2500);
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      const msg = 'Tariff per night must be greater than zero.';
+      showNotification(msg);
+      return { success: false, message: msg };
+    }
+
+    const duplicateRoom = rooms.find(r => {
+      const rNum = String(r.roomNumber || r.room_number || '').trim();
+      if (rNum !== newRoomNum) return false;
+      if (origObj?.id && r.id) return String(r.id) !== String(origObj.id);
+      return rNum !== origRoomNum;
+    });
+
+    if (duplicateRoom) {
+      const msg = `Room #${newRoomNum} already exists in inventory.`;
+      showNotification(msg);
+      return { success: false, message: msg };
+    }
+
+    const existingStatus = String(origObj?.status || 'VACANT_READY').toUpperCase();
+    const isStayActive = existingStatus === 'OCCUPIED' || existingStatus === 'RESERVED';
+    const nextHousekeeping = String(updatedData.housekeeping ?? origObj?.housekeeping ?? 'Clean').trim() || 'Clean';
+
+    let nextStatus = existingStatus;
+    if (!isStayActive) {
+      if (updatedData.status) {
+        nextStatus = String(updatedData.status).toUpperCase();
+      } else if (nextHousekeeping.toLowerCase() === 'dirty') {
+        nextStatus = 'DIRTY';
+      } else if (nextHousekeeping.toLowerCase() === 'maintenance') {
+        nextStatus = 'MAINTENANCE';
+      } else {
+        nextStatus = 'VACANT_READY';
+      }
+    }
+
+    const nextType = String(updatedData.type ?? origObj?.type ?? origObj?.category ?? 'Standard Room').trim();
+    const nextFloor = String(updatedData.floor ?? origObj?.floor ?? 'Floor 1').trim();
+    const nextBed = String(updatedData.bed ?? origObj?.bed ?? 'King Bed').trim();
+    const nextRoomTypeId =
+      updatedData.roomTypeId ??
+      origObj?.roomTypeId ??
+      origObj?.room_type_id ??
+      roomTypes.find(rt => String(rt.name || '').trim().toLowerCase() === nextType.toLowerCase())?.id ??
+      null;
+    const nextKeyCardNo =
+      updatedData.keyCardNo !== undefined ? String(updatedData.keyCardNo).trim() : (origObj?.keyCardNo ?? origObj?.key_card_no ?? '');
+    const nextPhoneExt =
+      updatedData.phoneExtension !== undefined
+        ? String(updatedData.phoneExtension).trim()
+        : (origObj?.phoneExtension ?? origObj?.phone_extension ?? newRoomNum);
+    const nextSmoking =
+      updatedData.isSmoking !== undefined ? Boolean(updatedData.isSmoking) : Boolean(origObj?.isSmoking ?? origObj?.is_smoking);
+    const nextInterconnecting =
+      updatedData.interconnectingRoom !== undefined
+        ? String(updatedData.interconnectingRoom).trim()
+        : (origObj?.interconnectingRoom ?? origObj?.interconnecting_room ?? '');
+
+    let savedRow = null;
+
+    if (isSupabaseConfigured && currentHotel?.id) {
+      try {
+        const rawId = origObj?.id ? String(origObj.id).trim() : null;
+        const uuidId =
+          rawId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId) ? rawId : null;
+
+        const { data: rpcRow, error: rpcErr } = await supabase.rpc('admin_update_room', {
+          p_hotel_id: currentHotel.id,
+          p_original_room_number: origRoomNum || newRoomNum,
+          p_new_room_number: newRoomNum,
+          p_target_room_id: uuidId,
+          p_room_type_id: nextRoomTypeId,
+          p_floor: nextFloor,
+          p_type: nextType,
+          p_bed: nextBed,
+          p_price: parsedPrice,
+          p_key_card_no: nextKeyCardNo,
+          p_is_smoking: nextSmoking,
+          p_phone_extension: nextPhoneExt,
+          p_housekeeping: nextHousekeeping,
+          p_status: nextStatus,
+          p_interconnecting_room: nextInterconnecting
+        });
+
+        if (rpcErr) {
+          const isMissingRpc =
+            /admin_update_room/i.test(rpcErr.message || '') &&
+            /(could not find|does not exist|schema cache)/i.test(rpcErr.message || '');
+
+          if (!isMissingRpc) {
+            const errMsg = rpcErr.message || 'Failed to update room details.';
+            showNotification(errMsg);
+            return { success: false, message: errMsg };
+          }
+
+          // Fallback direct update if RPC isn't present in schema cache
+          const directPayload = {
+            room_number: newRoomNum,
+            room_type_id: nextRoomTypeId || null,
+            floor: nextFloor,
+            type: nextType,
+            bed: nextBed,
+            price: parsedPrice,
+            key_card_no: nextKeyCardNo || null,
+            is_smoking: nextSmoking,
+            phone_extension: nextPhoneExt || null,
+            interconnecting_room: nextInterconnecting || null,
+            housekeeping: nextHousekeeping,
+            status: nextStatus,
+            updated_at: new Date().toISOString()
+          };
+
+          let query = supabase.from('rooms').update(directPayload).eq('hotel_id', currentHotel.id);
+          query = uuidId ? query.eq('id', uuidId) : query.eq('room_number', origRoomNum);
+          const { data: fallbackData, error: fallbackErr } = await query.select().maybeSingle();
+          if (fallbackErr) {
+            showNotification(fallbackErr.message || 'Failed to update room.');
+            return { success: false, message: fallbackErr.message || 'Failed to update room.' };
+          }
+          savedRow = fallbackData;
+        } else {
+          savedRow = rpcRow;
+        }
+      } catch (err) {
+        const msg = err?.message || 'Failed to update room details.';
+        showNotification(msg);
+        return { success: false, message: msg };
+      }
+    }
+
+    const updatedRoomObj = {
+      ...(origObj || {}),
+      id: savedRow?.id || origObj?.id,
+      hotelId: currentHotel?.id || origObj?.hotelId,
+      roomNumber: savedRow?.room_number || newRoomNum,
+      room_number: savedRow?.room_number || newRoomNum,
+      roomTypeId: savedRow?.room_type_id ?? nextRoomTypeId,
+      room_type_id: savedRow?.room_type_id ?? nextRoomTypeId,
+      floor: savedRow?.floor || nextFloor,
+      type: savedRow?.type || nextType,
+      category: savedRow?.type || nextType,
+      bed: savedRow?.bed || nextBed,
+      status: savedRow?.status || nextStatus,
+      housekeeping: savedRow?.housekeeping || nextHousekeeping,
+      price: Number(savedRow?.price ?? parsedPrice),
+      keyCardNo: savedRow?.key_card_no ?? nextKeyCardNo,
+      key_card_no: savedRow?.key_card_no ?? nextKeyCardNo,
+      isSmoking: savedRow?.is_smoking !== undefined ? Boolean(savedRow.is_smoking) : nextSmoking,
+      is_smoking: savedRow?.is_smoking !== undefined ? Boolean(savedRow.is_smoking) : nextSmoking,
+      phoneExtension: savedRow?.phone_extension ?? nextPhoneExt,
+      phone_extension: savedRow?.phone_extension ?? nextPhoneExt,
+      interconnectingRoom: savedRow?.interconnecting_room ?? nextInterconnecting
+    };
+
+    setRooms(prev =>
+      prev.map(r => {
+        const matchById = updatedRoomObj.id && r.id && String(r.id) === String(updatedRoomObj.id);
+        const matchByNum = String(r.roomNumber || r.room_number) === origRoomNum;
+        return matchById || matchByNum ? updatedRoomObj : r;
+      })
+    );
+
+    if (newRoomNum !== origRoomNum) {
+      setReservations(prev =>
+        prev.map(res => {
+          const resNum = String(res.room_number || '').trim() || (String(res.room || '').match(/\b(\d+)\b/)?.[1] || '');
+          if (resNum === origRoomNum || String(res.room || '').trim() === origRoomNum) {
+            return { ...res, room_number: newRoomNum, room: `Room ${newRoomNum}` };
+          }
+          return res;
+        })
+      );
+      setRestaurantTables(prev =>
+        prev.map(t => (String(t.roomNumber || '') === origRoomNum ? { ...t, roomNumber: newRoomNum } : t))
+      );
+      setCabBookings(prev =>
+        prev.map(c => (String(c.roomNumber || '') === origRoomNum ? { ...c, roomNumber: newRoomNum } : c))
+      );
+    }
+
+    setEditingRoom(null);
+    setIsCreateRoomModalOpenState(false);
+    showNotification(
+      newRoomNum !== origRoomNum
+        ? `Room #${origRoomNum} updated and renamed to #${newRoomNum}.`
+        : `Room #${newRoomNum} updated successfully.`
+    );
+
+    if (isSupabaseConfigured && currentHotel?.id) {
+      scheduleRealtimeRefresh?.();
+      broadcastCrossDeviceSync({
+        action: 'room_update',
+        hotelId: currentHotel.id,
+        roomNumber: newRoomNum,
+        previousRoomNumber: origRoomNum
+      }).catch(() => {});
+      pushHotelInventoryViaBackend({ hotelId: currentHotel.id }).catch(() => {});
+    }
+
+    return { success: true, room: updatedRoomObj };
   };
 
   // Room deletion is controlled exclusively by SuperAdmin
@@ -2588,7 +2849,12 @@ export function DashboardProvider({ children }) {
       setIsCreateRoomTypeModalOpen,
       isCreateRoomModalOpen,
       setIsCreateRoomModalOpen,
+      editingRoom,
+      setEditingRoom,
+      openCreateRoomModal,
+      openEditRoomModal,
       addRoom,
+      updateRoom,
       deleteRoom,
       deleteConfirmRoom,
       requestDeleteRoom,

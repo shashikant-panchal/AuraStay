@@ -13,24 +13,48 @@ import {
   Phone,
   Sparkles,
   ShieldCheck,
-  Check
+  Check,
+  Edit3
 } from 'lucide-react';
 import CreateRoomTypeModal from './CreateRoomTypeModal';
+
+const STANDARD_FLOOR_OPTIONS = [
+  'Ground Floor',
+  'Floor 1',
+  'Floor 2',
+  'Floor 3',
+  'Floor 4',
+  'Executive Floor'
+];
+
+const STANDARD_BED_OPTIONS = [
+  'King Bed',
+  'Queen Bed',
+  'Twin Beds',
+  'Double Bed',
+  'Single Bed',
+  'King + Sofa Bed'
+];
 
 export default function CreateRoomModal() {
   const {
     isCreateRoomModalOpen,
     setIsCreateRoomModalOpen,
+    editingRoom,
+    setEditingRoom,
+    openEditRoomModal,
     addRoom,
+    updateRoom,
     currentHotel,
     rooms = [],
     roomTypes = [],
     showNotification
   } = useDashboard();
 
+  const isEditMode = Boolean(editingRoom);
   const assignedRoomLimit = Number(currentHotel?.totalRooms) || 0;
   const remainingRoomQuota = Math.max(0, assignedRoomLimit - rooms.length);
-  const isRoomLimitReached = rooms.length >= assignedRoomLimit;
+  const isRoomLimitReached = assignedRoomLimit > 0 ? rooms.length >= assignedRoomLimit : true;
 
   // Combined room categories (Explicit room types + Inferred from existing rooms + Defaults)
   const effectiveRoomTypes = useMemo(() => {
@@ -75,7 +99,7 @@ export default function CreateRoomModal() {
   const [activeTab, setActiveTab] = useState('addRoom'); // 'addRoom' | 'roomCategories' | 'manageRooms'
   const [isRoomTypeModalOpen, setIsRoomTypeModalOpen] = useState(false);
 
-  // Form fields for Add Room
+  // Form fields for Add / Edit Room
   const [roomNumber, setRoomNumber] = useState('');
   const [selectedType, setSelectedType] = useState(() => effectiveRoomTypes[0]?.name || 'Deluxe Room');
   const [floor, setFloor] = useState('Floor 1');
@@ -88,8 +112,50 @@ export default function CreateRoomModal() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Keep selectedType valid as roomTypes update
+  // Pre-fill form whenever modal opens or target editingRoom changes
   useEffect(() => {
+    if (!isCreateRoomModalOpen) return;
+    setError('');
+    setIsSubmitting(false);
+
+    if (editingRoom) {
+      setActiveTab('addRoom');
+      const existingNum = String(editingRoom.roomNumber || editingRoom.room_number || '').trim();
+      const existingType = String(editingRoom.type || editingRoom.category || effectiveRoomTypes[0]?.name || 'Standard Room').trim();
+      const existingFloor = String(editingRoom.floor || 'Floor 1').trim();
+      const existingBed = String(editingRoom.bed || 'King Bed').trim();
+      const existingPrice = Number(editingRoom.price ?? editingRoom.tariff ?? 2500);
+      const existingStatus = String(editingRoom.status || 'VACANT_READY').toUpperCase();
+      const defaultHk =
+        existingStatus === 'DIRTY' ? 'Dirty' : existingStatus === 'MAINTENANCE' ? 'Maintenance' : 'Clean';
+
+      setRoomNumber(existingNum);
+      setSelectedType(existingType);
+      setFloor(existingFloor);
+      setBed(existingBed);
+      setPrice(String(existingPrice > 0 ? existingPrice : 2500));
+      setKeyCardNo(String(editingRoom.keyCardNo ?? editingRoom.key_card_no ?? ''));
+      setPhoneExt(String(editingRoom.phoneExtension ?? editingRoom.phone_extension ?? ''));
+      setIsSmoking(Boolean(editingRoom.isSmoking ?? editingRoom.is_smoking));
+      setHousekeeping(String(editingRoom.housekeeping || defaultHk));
+    } else {
+      const defaultType = effectiveRoomTypes[0]?.name || 'Standard Room';
+      const matched = effectiveRoomTypes.find(t => t.name === defaultType) || effectiveRoomTypes[0];
+      setRoomNumber('');
+      setSelectedType(defaultType);
+      setFloor('Floor 1');
+      setBed(matched?.beddingType || 'King Bed');
+      setPrice(String(matched?.basePrice || 2500));
+      setKeyCardNo('');
+      setPhoneExt('');
+      setIsSmoking(false);
+      setHousekeeping('Clean');
+    }
+  }, [isCreateRoomModalOpen, editingRoom]);
+
+  // Keep selectedType valid as roomTypes update in Create mode
+  useEffect(() => {
+    if (!isCreateRoomModalOpen || editingRoom) return;
     if (effectiveRoomTypes.length > 0) {
       const exists = effectiveRoomTypes.some(t => t.name === selectedType);
       if (!exists) {
@@ -98,9 +164,32 @@ export default function CreateRoomModal() {
         setBed(effectiveRoomTypes[0].beddingType || 'King Bed');
       }
     }
-  }, [effectiveRoomTypes]);
+  }, [effectiveRoomTypes, isCreateRoomModalOpen, editingRoom, selectedType]);
+
+  const floorOptions = useMemo(() => {
+    if (floor && !STANDARD_FLOOR_OPTIONS.includes(floor)) {
+      return [floor, ...STANDARD_FLOOR_OPTIONS];
+    }
+    return STANDARD_FLOOR_OPTIONS;
+  }, [floor]);
+
+  const bedOptions = useMemo(() => {
+    if (bed && !STANDARD_BED_OPTIONS.includes(bed)) {
+      return [bed, ...STANDARD_BED_OPTIONS];
+    }
+    return STANDARD_BED_OPTIONS;
+  }, [bed]);
 
   if (!isCreateRoomModalOpen) return null;
+
+  const originalRoomNum = editingRoom ? String(editingRoom.roomNumber || editingRoom.room_number || '').trim() : '';
+  const isActiveStayRoom =
+    isEditMode && ['OCCUPIED', 'RESERVED'].includes(String(editingRoom?.status || '').toUpperCase());
+
+  const handleCloseModal = () => {
+    setEditingRoom?.(null);
+    setIsCreateRoomModalOpen(false);
+  };
 
   const handleCategoryChange = (catName) => {
     setSelectedType(catName);
@@ -111,8 +200,65 @@ export default function CreateRoomModal() {
     }
   };
 
-  const handleCreateRoom = async (e) => {
+  const handleSubmitRoom = async (e) => {
     e.preventDefault();
+    setError('');
+
+    if (isEditMode) {
+      const trimmedNum = roomNumber.trim();
+      if (!trimmedNum) {
+        setError('Room Number is required.');
+        return;
+      }
+      if (trimmedNum.includes(',')) {
+        setError('Please enter a single Room Number when editing an existing room.');
+        return;
+      }
+
+      const parsedTariff = Number(price);
+      if (!Number.isFinite(parsedTariff) || parsedTariff <= 0) {
+        setError('Please enter a valid Tariff Per Night.');
+        return;
+      }
+
+      const duplicate = rooms.find(r => {
+        const rNum = String(r.room_number || r.roomNumber || '').trim();
+        if (rNum !== trimmedNum) return false;
+        if (editingRoom?.id && r.id) return String(r.id) !== String(editingRoom.id);
+        return rNum !== originalRoomNum;
+      });
+      if (duplicate) {
+        setError(`Room #${trimmedNum} already exists in inventory.`);
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const matchedType = effectiveRoomTypes.find(rt => rt.name === selectedType);
+        const result = await updateRoom(editingRoom, {
+          roomNumber: trimmedNum,
+          roomTypeId: matchedType?.id && !String(matchedType.id).startsWith('rt-inferred-') ? matchedType.id : editingRoom?.roomTypeId || null,
+          type: selectedType,
+          floor,
+          bed,
+          price: parsedTariff,
+          keyCardNo: keyCardNo.trim(),
+          isSmoking,
+          phoneExtension: phoneExt.trim(),
+          housekeeping
+        });
+
+        if (result && result.success === false) {
+          setError(result.message || 'Failed to update room details.');
+        }
+      } catch (err) {
+        setError(err?.message || 'Failed to update room details.');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     const roomNums = roomNumber
       .split(',')
       .map(s => s.trim())
@@ -138,7 +284,6 @@ export default function CreateRoomModal() {
       return;
     }
 
-    setError('');
     setIsSubmitting(true);
 
     try {
@@ -156,7 +301,7 @@ export default function CreateRoomModal() {
           isSmoking,
           phoneExtension: roomNums.length === 1 && phoneExt.trim() ? phoneExt.trim() : cleanNum,
           housekeeping,
-          status: housekeeping === 'Clean' ? 'VACANT_READY' : 'DIRTY'
+          status: housekeeping === 'Clean' ? 'VACANT_READY' : housekeeping === 'Maintenance' ? 'MAINTENANCE' : 'DIRTY'
         });
       }
 
@@ -169,7 +314,7 @@ export default function CreateRoomModal() {
           : `Room #${roomNums[0]} added to ${selectedType} category!`,
         'success'
       );
-      setIsCreateRoomModalOpen(false);
+      handleCloseModal();
     } catch (err) {
       setError('Failed to save room.');
     } finally {
@@ -185,16 +330,23 @@ export default function CreateRoomModal() {
         <div className="px-6 py-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
-              <Building2 className="w-5 h-5" />
+              {isEditMode ? <Edit3 className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
             </div>
             <div>
-              <h3 className="font-black text-base tracking-wide">Room & Category Inventory Master</h3>
-              <p className="text-xs text-indigo-200/80">Exceed HMS Room Numbers & Types Setup</p>
+              <h3 className="font-black text-base tracking-wide">
+                {isEditMode ? `Edit Room #${originalRoomNum}` : 'Room & Category Inventory Master'}
+              </h3>
+              <p className="text-xs text-indigo-200/80">
+                {isEditMode
+                  ? 'Update saved room number, category, tariff, floor & hardware details'
+                  : 'Exceed HMS Room Numbers & Types Setup'}
+              </p>
             </div>
           </div>
           <button
-            onClick={() => setIsCreateRoomModalOpen(false)}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
+            type="button"
+            onClick={handleCloseModal}
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -203,20 +355,22 @@ export default function CreateRoomModal() {
         {/* Tab Navigation */}
         <div className="flex border-b border-slate-200 bg-slate-50 px-6 pt-3 shrink-0 space-x-4 text-xs font-bold">
           <button
+            type="button"
             onClick={() => setActiveTab('addRoom')}
-            className={`pb-3 border-b-2 transition flex items-center gap-1.5 ${
+            className={`pb-3 border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'addRoom'
                 ? 'border-indigo-600 text-indigo-900'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Room Number</span>
+            {isEditMode ? <Edit3 className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+            <span>{isEditMode ? `Edit Room #${originalRoomNum}` : 'Add Room Number'}</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('roomCategories')}
-            className={`pb-3 border-b-2 transition flex items-center gap-1.5 ${
+            className={`pb-3 border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'roomCategories'
                 ? 'border-indigo-600 text-indigo-900'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -227,8 +381,9 @@ export default function CreateRoomModal() {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('manageRooms')}
-            className={`pb-3 border-b-2 transition flex items-center gap-1.5 ${
+            className={`pb-3 border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'manageRooms'
                 ? 'border-indigo-600 text-indigo-900'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -239,37 +394,59 @@ export default function CreateRoomModal() {
           </button>
         </div>
 
-        {/* Tab 1: Add Room Form */}
+        {/* Tab 1: Add / Edit Room Form */}
         {activeTab === 'addRoom' && (
-          <form onSubmit={handleCreateRoom} className="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
-            {/* SuperAdmin Assigned Room Limit Banner */}
-            <div
-              className={`p-3.5 rounded-2xl border flex items-center justify-between ${
-                isRoomLimitReached
-                  ? 'bg-amber-50 border-amber-300 text-amber-900'
-                  : 'bg-indigo-50/70 border-indigo-200 text-indigo-950'
-              }`}
-            >
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider block opacity-75">
-                  SuperAdmin Room Creation Quota
-                </span>
-                <span className="font-bold text-xs mt-0.5 block">
-                  {isRoomLimitReached
-                    ? 'Your room creation limit has reached. Contact SuperAdmin to add more rooms.'
-                    : `You can create ${remainingRoomQuota} more room${remainingRoomQuota === 1 ? '' : 's'} (Assigned by SuperAdmin: ${assignedRoomLimit})`}
-                </span>
+          <form onSubmit={handleSubmitRoom} className="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+            {/* SuperAdmin Quota / Edit Mode Status Banner */}
+            {isEditMode ? (
+              <div className="p-3.5 rounded-2xl border bg-sky-50/80 border-sky-200 text-sky-950 flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider block text-sky-700">
+                    Editing Existing Inventory Record
+                  </span>
+                  <span className="font-bold text-xs mt-0.5 block">
+                    {isActiveStayRoom
+                      ? `Room #${originalRoomNum} is currently ${editingRoom.status} — stay status remains protected.`
+                      : `Modifying Room #${originalRoomNum} pre-entered settings (${rooms.length} / ${assignedRoomLimit} rooms used).`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingRoom(null)}
+                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-sky-100 text-sky-900 border border-sky-200 font-bold text-[11px] shrink-0 transition cursor-pointer"
+                >
+                  + Add New Room
+                </button>
               </div>
-              <span
-                className={`px-3 py-1 rounded-xl font-mono font-black text-xs shrink-0 ${
+            ) : (
+              <div
+                className={`p-3.5 rounded-2xl border flex items-center justify-between ${
                   isRoomLimitReached
-                    ? 'bg-amber-200/80 text-amber-950'
-                    : 'bg-indigo-900 text-white'
+                    ? 'bg-amber-50 border-amber-300 text-amber-900'
+                    : 'bg-indigo-50/70 border-indigo-200 text-indigo-950'
                 }`}
               >
-                {rooms.length} / {assignedRoomLimit} Created
-              </span>
-            </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider block opacity-75">
+                    SuperAdmin Room Creation Quota
+                  </span>
+                  <span className="font-bold text-xs mt-0.5 block">
+                    {isRoomLimitReached
+                      ? 'Your room creation limit has reached. Contact SuperAdmin to add more rooms.'
+                      : `You can create ${remainingRoomQuota} more room${remainingRoomQuota === 1 ? '' : 's'} (Assigned by SuperAdmin: ${assignedRoomLimit})`}
+                  </span>
+                </div>
+                <span
+                  className={`px-3 py-1 rounded-xl font-mono font-black text-xs shrink-0 ${
+                    isRoomLimitReached
+                      ? 'bg-amber-200/80 text-amber-950'
+                      : 'bg-indigo-900 text-white'
+                  }`}
+                >
+                  {rooms.length} / {assignedRoomLimit} Created
+                </span>
+              </div>
+            )}
 
             {error && (
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-semibold">
@@ -284,7 +461,7 @@ export default function CreateRoomModal() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. 101, 102, 204"
+                  placeholder={isEditMode ? 'e.g. 101' : 'e.g. 101, 102, 204'}
                   value={roomNumber}
                   onChange={(e) => setRoomNumber(e.target.value)}
                   required
@@ -301,12 +478,9 @@ export default function CreateRoomModal() {
                   onChange={(e) => setFloor(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-semibold outline-none"
                 >
-                  <option value="Ground Floor">Ground Floor</option>
-                  <option value="Floor 1">Floor 1</option>
-                  <option value="Floor 2">Floor 2</option>
-                  <option value="Floor 3">Floor 3</option>
-                  <option value="Floor 4">Floor 4</option>
-                  <option value="Executive Floor">Executive Penthouse Floor</option>
+                  {floorOptions.map(fl => (
+                    <option key={fl} value={fl}>{fl === 'Executive Floor' ? 'Executive Penthouse Floor' : fl}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -320,7 +494,7 @@ export default function CreateRoomModal() {
                   <button
                     type="button"
                     onClick={() => setIsRoomTypeModalOpen(true)}
-                    className="text-[10px] font-bold text-indigo-600 hover:underline"
+                    className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer"
                   >
                     + New Category
                   </button>
@@ -338,6 +512,23 @@ export default function CreateRoomModal() {
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Bed Configuration
+                </label>
+                <select
+                  value={bed}
+                  onChange={(e) => setBed(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-semibold outline-none"
+                >
+                  {bedOptions.map(b => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Tariff Per Night (₹)
                 </label>
                 <input
@@ -347,6 +538,23 @@ export default function CreateRoomModal() {
                   onChange={(e) => setPrice(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono font-bold text-xs outline-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  {isEditMode ? 'Cleanliness / Condition' : 'Initial Cleanliness'}
+                </label>
+                <select
+                  value={housekeeping}
+                  onChange={(e) => setHousekeeping(e.target.value)}
+                  disabled={isActiveStayRoom}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-semibold outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                >
+                  <option value="Clean">Clean (Ready for Check-In)</option>
+                  <option value="Dirty">Dirty (Needs Turnover Cleaning)</option>
+                  <option value="Inspected">Inspected & Verified</option>
+                  {isEditMode && <option value="Maintenance">Maintenance (Blocked)</option>}
+                </select>
               </div>
             </div>
 
@@ -384,51 +592,42 @@ export default function CreateRoomModal() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Initial Cleanliness
-                </label>
-                <select
-                  value={housekeeping}
-                  onChange={(e) => setHousekeeping(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-semibold outline-none"
-                >
-                  <option value="Clean">Clean (Ready for Check-In)</option>
-                  <option value="Dirty">Dirty (Needs Turnover Cleaning)</option>
-                  <option value="Inspected">Inspected & Verified</option>
-                </select>
-              </div>
-
-              <div className="flex items-center space-x-2 pt-6">
-                <input
-                  type="checkbox"
-                  id="chkSmoking"
-                  checked={isSmoking}
-                  onChange={(e) => setIsSmoking(e.target.checked)}
-                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                />
-                <label htmlFor="chkSmoking" className="font-semibold text-slate-700 cursor-pointer">
-                  Smoking Allowed
-                </label>
-              </div>
+            <div className="flex items-center space-x-2 pt-1">
+              <input
+                type="checkbox"
+                id="chkSmoking"
+                checked={isSmoking}
+                onChange={(e) => setIsSmoking(e.target.checked)}
+                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+              <label htmlFor="chkSmoking" className="font-semibold text-slate-700 cursor-pointer">
+                Smoking Allowed
+              </label>
             </div>
 
             <div className="pt-3 border-t border-slate-200 flex items-center justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => setIsCreateRoomModalOpen(false)}
-                className="px-4 py-2.5 rounded-xl border border-slate-300 font-bold hover:bg-slate-50"
+                onClick={handleCloseModal}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 font-bold hover:bg-slate-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold shadow-md shadow-indigo-900/20 flex items-center space-x-1.5"
+                className="px-6 py-2.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold shadow-md shadow-indigo-900/20 flex items-center space-x-1.5 cursor-pointer disabled:opacity-60"
               >
                 <Check className="w-4 h-4" />
-                <span>{isSubmitting ? 'Adding...' : 'Add Room to Inventory'}</span>
+                <span>
+                  {isSubmitting
+                    ? isEditMode
+                      ? 'Saving Changes...'
+                      : 'Adding...'
+                    : isEditMode
+                      ? 'Save Room Changes'
+                      : 'Add Room to Inventory'}
+                </span>
               </button>
             </div>
           </form>
@@ -443,8 +642,9 @@ export default function CreateRoomModal() {
                 <p className="text-slate-500 text-[11px]">Configured room types and pricing tiers</p>
               </div>
               <button
+                type="button"
                 onClick={() => setIsRoomTypeModalOpen(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs flex items-center space-x-1 shadow-xs"
+                className="px-3.5 py-1.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs flex items-center space-x-1 shadow-xs cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>New Category</span>
@@ -489,7 +689,7 @@ export default function CreateRoomModal() {
           </div>
         )}
 
-        {/* Tab 3: Active Rooms List (Deletion Controlled Exclusively by SuperAdmin) */}
+        {/* Tab 3: Active Rooms List (Editable by Admin, Deletion Controlled by SuperAdmin) */}
         {activeTab === 'manageRooms' && (
           <div className="p-6 overflow-y-auto flex-1 space-y-3 text-xs">
             <div className="flex items-center justify-between mb-2">
@@ -497,7 +697,7 @@ export default function CreateRoomModal() {
                 Room Numbers Directory ({rooms.length} / {assignedRoomLimit} Assigned)
               </h4>
               <span className="text-[11px] font-semibold text-slate-500">
-                Room deletion is managed by SuperAdmin
+                Deletion controlled by SuperAdmin • Click Edit to modify
               </span>
             </div>
             <div className="border border-slate-200 rounded-2xl overflow-hidden">
@@ -508,22 +708,34 @@ export default function CreateRoomModal() {
                     <th className="px-4 py-2.5">Category</th>
                     <th className="px-4 py-2.5">Floor</th>
                     <th className="px-4 py-2.5">Tariff</th>
-                    <th className="px-4 py-2.5 text-right">Status</th>
+                    <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {rooms.map(r => {
                     const rNum = String(r.room_number || r.roomNumber);
                     return (
-                      <tr key={rNum} className="hover:bg-slate-50">
+                      <tr key={r.id || rNum} className="hover:bg-slate-50">
                         <td className="px-4 py-2.5 font-bold font-mono text-slate-900">#{rNum}</td>
                         <td className="px-4 py-2.5 text-slate-700">{r.type || r.category || 'Standard Room'}</td>
                         <td className="px-4 py-2.5 text-slate-500">{r.floor || 'Floor 1'}</td>
                         <td className="px-4 py-2.5 font-mono font-bold text-slate-800">₹{r.price || 2000}</td>
-                        <td className="px-4 py-2.5 text-right">
+                        <td className="px-4 py-2.5">
                           <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px]">
                             {r.status || 'VACANT_READY'}
                           </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <button
+                            type="button"
+                            onClick={() => openEditRoomModal(r)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 font-bold text-[11px] transition cursor-pointer"
+                            title={`Edit Room #${rNum}`}
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            <span>Edit</span>
+                          </button>
                         </td>
                       </tr>
                     );

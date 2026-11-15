@@ -18,7 +18,8 @@ import {
   ShieldCheck,
   AlertTriangle,
   DoorOpen,
-  UserCheck
+  UserCheck,
+  Edit3
 } from 'lucide-react';
 
 export default function RoomActionsModal({ isOpen, onClose, room, onAction }) {
@@ -529,6 +530,27 @@ export default function RoomActionsModal({ isOpen, onClose, room, onAction }) {
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition" />
+              </button>
+
+              {/* Edit Room Details */}
+              <button
+                onClick={() => handleSelectAction('edit')}
+                className="group p-3 rounded-2xl border border-indigo-200 hover:border-indigo-400 bg-indigo-50/50 hover:bg-indigo-100/60 transition-all text-left flex items-center justify-between shadow-2xs sm:col-span-2"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-700 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+                    <Edit3 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-950">
+                      Edit Room Details &amp; Tariff
+                    </h4>
+                    <p className="text-[10px] text-slate-500">
+                      Modify Room #{room.roomNumber} number, category, floor, bedding, card &amp; nightly tariff
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-indigo-400 group-hover:text-indigo-700 transition" />
               </button>
 
               {/* Digital Menu QR / URL */}
