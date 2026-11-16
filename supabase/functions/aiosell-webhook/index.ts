@@ -97,13 +97,22 @@ async function resolveHotelIdStrict(preferredHotelId?: string, hotelCode?: strin
     );
     if (matched) return matched.id;
 
-    // 2. Sandbox convenience ONLY when single active hotel or sandbox-pms default
-    if (codeNorm === "sandbox-pms") {
+    // 2. Convenience matching for live hotelCode 'ff144346e6' or 'sandbox-pms'
+    if (codeNorm === "ff144346e6" || codeNorm === "sandbox-pms") {
       const activeHotels = validHotels.filter((h: any) => !h.status || h.status === "ACTIVE");
-      if (activeHotels.length === 1) {
+      if (activeHotels.length >= 1) {
         return activeHotels[0].id;
       }
     }
+  }
+
+  // Fallback: If only 1 hotel exists, route to it
+  const activeHotels = validHotels.filter((h: any) => !h.status || h.status === "ACTIVE");
+  if (activeHotels.length === 1) {
+    return activeHotels[0].id;
+  }
+  if (validHotels.length === 1) {
+    return validHotels[0].id;
   }
 
   return null;
@@ -111,6 +120,7 @@ async function resolveHotelIdStrict(preferredHotelId?: string, hotelCode?: strin
 
 function normalizeCategory(rawRoomCode: string): string {
   const code = String(rawRoomCode || "").toLowerCase();
+  if (code.includes("penthouse")) return "Penthouse";
   if (code.includes("suite")) return "Executive Suite";
   if (code.includes("exec")) return "Executive Room";
   if (code.includes("std") || code.includes("standard")) return "Standard Room";
@@ -406,9 +416,45 @@ serve(async (req: Request) => {
       notes: `OTA Booking ${bookingId} via ${channel} (${checkIn} -> ${checkOut}). Reserved Room ${allocatedRoomNumber}.`
     };
 
-    const { error: upsertErr } = await supabase.from("reservations").upsert(reservationPayload);
+    // Auto-resilient upsert: strips unsupported columns if PostgreSQL schema cache doesn't have them yet
+    let activePayload = { ...reservationPayload };
+    let upsertErr: any = null;
+
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const { error } = await supabase.from("reservations").upsert(activePayload);
+      if (!error) {
+        upsertErr = null;
+        break;
+      }
+      upsertErr = error;
+      const missingColMatch = error.message?.match(/Could not find the '([^']+)' column/i);
+      if (missingColMatch && missingColMatch[1] && activePayload[missingColMatch[1]] !== undefined) {
+        console.warn(`[aiosell-webhook] Schema missing column '${missingColMatch[1]}'. Stripping and retrying upsert.`);
+        delete activePayload[missingColMatch[1]];
+        continue;
+      }
+      break;
+    }
+
     if (upsertErr) {
-      return jsonResponse({ success: false, message: `Reservation save error: ${upsertErr.message}` }, 500);
+      // Minimal fallback to guarantee booking receipt & room lock even on legacy table shapes
+      const minimalPayload = {
+        id: bookingId,
+        guest: guestName,
+        guest_email: guest.email || null,
+        guest_phone: guest.phone || null,
+        room: `Room ${allocatedRoomNumber}`,
+        check_in: checkIn,
+        check_out: checkOut,
+        source: `${channel} (Aiosell Channel Manager)`,
+        amount: totalAmount,
+        status: isAlreadyCheckedIn ? "CHECKED_IN" : "CONFIRMED",
+        payment: isPayAtHotel ? "PENDING" : "PAID"
+      };
+      const { error: fallbackErr } = await supabase.from("reservations").upsert(minimalPayload);
+      if (fallbackErr) {
+        return jsonResponse({ success: false, message: `Reservation save error: ${fallbackErr.message}` }, 500);
+      }
     }
 
     await broadcastRealtimeSync({

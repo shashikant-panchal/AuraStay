@@ -15,9 +15,9 @@ const SUPABASE_ANON_KEY =
   Deno.env.get("SUPABASE_ANON_KEY") || "sb_publishable_qbJiyQ6eiAtwvQA17pG9cg_8bHn3uWi";
 const SUPABASE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || SUPABASE_ANON_KEY;
 
-const AIOSELL_USERNAME = Deno.env.get("AIOSELL_API_USERNAME") || "aiosell";
-const AIOSELL_PASSWORD = Deno.env.get("AIOSELL_API_PASSWORD") || "AIOsell@123";
-const AIOSELL_PARTNER_ID = Deno.env.get("AIOSELL_PARTNER_ID") || "sample-pms";
+const AIOSELL_USERNAME = Deno.env.get("AIOSELL_API_USERNAME") || "aavasa";
+const AIOSELL_PASSWORD = Deno.env.get("AIOSELL_API_PASSWORD") || "sl3o7vwl";
+const AIOSELL_PARTNER_ID = Deno.env.get("AIOSELL_PARTNER_ID") || "aavasa";
 const AIOSELL_API_BASE = Deno.env.get("AIOSELL_API_BASE") || "https://live.aiosell.com/api/v2/cm";
 
 const ALLOWED_MUTATION_TABLES = new Set([
@@ -468,7 +468,7 @@ serve(async (req: Request) => {
       ]);
 
       const hotelCode =
-        String(payload.hotelCode || hotelRow?.aiosell_hotel_code || hotelRow?.slug || hotelId || "sandbox-pms").trim();
+        String(payload.hotelCode || hotelRow?.aiosell_hotel_code || hotelRow?.slug || "ff144346e6").trim();
 
       // Aggregate category counts for [startDate, endDate) with zero guest PII
       const categoryCounts = new Map<string, { total: number; free: number }>();
@@ -500,8 +500,17 @@ serve(async (req: Request) => {
         }
       });
 
+      const toAiosellRoomCode = (type: string): string => {
+        const norm = String(type || "").toLowerCase();
+        if (norm.includes("penthouse")) return "penthouse";
+        if (norm.includes("exec") || norm.includes("suite")) return "executive";
+        if (norm.includes("delux") || norm.includes("dlx")) return "deluxe";
+        if (norm.includes("std") || norm.includes("standard")) return "standard";
+        return norm || "standard";
+      };
+
       const aiosellRoomsPayload = Array.from(categoryCounts.entries()).map(([roomType, counts]) => ({
-        roomCode: roomType,
+        roomCode: toAiosellRoomCode(roomType),
         available: counts.free,
         stopSell: counts.total > 0 && counts.free === 0
       }));

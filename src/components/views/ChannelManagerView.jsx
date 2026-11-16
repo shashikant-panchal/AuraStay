@@ -102,7 +102,7 @@ export default function ChannelManagerView() {
   const [pushEndDate, setPushEndDate] = useState(tomorrowStr);
   const [pushRoomCode, setPushRoomCode] = useState('executive');
   const [pushAvailableCount, setPushAvailableCount] = useState(15);
-  const [pushRatePlanCode, setPushRatePlanCode] = useState('executive-s-ep');
+  const [pushRatePlanCode, setPushRatePlanCode] = useState('executive-s-cp');
   const [pushNightlyRate, setPushNightlyRate] = useState(2450);
   const [pushStopSell, setPushStopSell] = useState(false);
   const [pushMinStay, setPushMinStay] = useState(1);
@@ -585,10 +585,10 @@ export default function ChannelManagerView() {
     handleTestConnection(true);
   };
 
-  const handleResetToSandbox = () => {
+  const handleResetToLive = () => {
     setConfig(DEFAULT_AIOSELL_CONFIG);
     saveAiosellConfig(DEFAULT_AIOSELL_CONFIG);
-    showNotification('Reset to Aiosell Sandbox defaults (sandbox-pms / aiosell).');
+    showNotification('Loaded Aiosell Live Production defaults (hotel: ff144346e6 / partner: aavasa).');
   };
 
   return (
@@ -966,13 +966,19 @@ export default function ChannelManagerView() {
                 onChange={(e) => setPushRoomCode(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-hidden"
               >
-                <option value="executive">EXECUTIVE (executive - 25 Rooms in Sandbox)</option>
-                <option value="suite">SUITE (suite - 5 Rooms in Sandbox)</option>
-                {(roomTypes || []).map(rt => (
-                  <option key={rt.id} value={rt.name.toLowerCase().replace(/\s+/g, '-')}>
-                    {rt.name} ({rt.label || 'Aavasa Master'})
-                  </option>
-                ))}
+                <option value="standard">STANDARD (standard - Aiosell Live ID)</option>
+                <option value="deluxe">DELUXE (deluxe - Aiosell Live ID)</option>
+                <option value="executive">EXECUTIVE (executive - Aiosell Live ID)</option>
+                <option value="penthouse">PENTHOUSE (penthouse - Aiosell Live ID)</option>
+                {(roomTypes || []).map(rt => {
+                  const code = rt.name.toLowerCase().replace(/\s+/g, '-');
+                  if (['standard', 'deluxe', 'executive', 'penthouse'].includes(code)) return null;
+                  return (
+                    <option key={rt.id} value={code}>
+                      {rt.name} ({rt.label || 'Aavasa Master'})
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -1010,12 +1016,26 @@ export default function ChannelManagerView() {
                       onChange={(e) => setPushRatePlanCode(e.target.value)}
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold"
                     >
-                      <option value="executive-s-ep">executive-s-ep (Executive Room Only Single)</option>
-                      <option value="executive-d-ep">executive-d-ep (Executive Room Only Double)</option>
-                      <option value="executive-s-cp">executive-s-cp (Executive Breakfast Single)</option>
-                      <option value="executive-d-cp">executive-d-cp (Executive Breakfast Double)</option>
-                      <option value="suite-s-ep">suite-s-ep (Suite Room Only Single)</option>
-                      <option value="suite-d-cp">suite-d-cp (Suite Breakfast Double)</option>
+                      <optgroup label="Standard Room">
+                        <option value="standard-s-cp">standard-s-cp (Standard Single CP)</option>
+                        <option value="standard-d-cp">standard-d-cp (Standard Double CP)</option>
+                      </optgroup>
+                      <optgroup label="Deluxe Room">
+                        <option value="deluxe-s-cp">deluxe-s-cp (Deluxe Single CP)</option>
+                        <option value="deluxe-d-cp">deluxe-d-cp (Deluxe Double CP)</option>
+                      </optgroup>
+                      <optgroup label="Executive Room">
+                        <option value="executive-s-cp">executive-s-cp (Executive Single CP)</option>
+                        <option value="executive-d-cp">executive-d-cp (Executive Double CP)</option>
+                      </optgroup>
+                      <optgroup label="Penthouse">
+                        <option value="penthouse-s-cp">penthouse-s-cp (Penthouse Single CP)</option>
+                        <option value="penthouse-d-cp">penthouse-d-cp (Penthouse Double CP)</option>
+                        <option value="penthouse-t-cp">penthouse-t-cp (Penthouse Triple CP)</option>
+                        <option value="penthouse-q-cp">penthouse-q-cp (Penthouse Quad CP)</option>
+                        <option value="penthouse-p-cp">penthouse-p-cp (Penthouse Quintuple CP)</option>
+                        <option value="penthouse-h-cp">penthouse-h-cp (Penthouse Hex CP)</option>
+                      </optgroup>
                     </select>
                   </div>
 
@@ -1844,10 +1864,10 @@ export default function ChannelManagerView() {
 
             <button
               type="button"
-              onClick={handleResetToSandbox}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition cursor-pointer"
+              onClick={handleResetToLive}
+              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition cursor-pointer"
             >
-              Load Sandbox Defaults
+              Load Live Production Defaults
             </button>
           </div>
 
