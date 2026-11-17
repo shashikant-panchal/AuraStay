@@ -26,6 +26,7 @@ import {
   Eye
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { cachedQuery, invalidateCache } from '../../lib/queryCache';
 import { compareRoomsByCategoryAndNumber } from '../../utils/roomSort';
 
 export default function HousekeepingView() {
@@ -114,11 +115,29 @@ export default function HousekeepingView() {
     async function loadHousekeepingData() {
       try {
         const hotelId = currentHotel.id;
-        const [tasksRes, lostRes, staffRes] = await Promise.all([
-          supabase.from('housekeeping_tasks').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
-          supabase.from('lost_and_found_items').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
-          supabase.from('staff_users').select('*').eq('hotel_id', hotelId)
-        ]);
+        const [tasksRes, lostRes, staffRes] = await cachedQuery(
+          `pms:housekeeping:${hotelId}`,
+          () => Promise.all([
+            supabase
+              .from('housekeeping_tasks')
+              .select('id, room_number, task_type, priority, assigned_to, status, created_at, notes')
+              .eq('hotel_id', hotelId)
+              .order('created_at', { ascending: false })
+              .range(0, 199),
+            supabase
+              .from('lost_and_found_items')
+              .select('id, item_name, category, room_number, location, found_by, found_date, status, claimed_by, claimant_phone, notes, created_at')
+              .eq('hotel_id', hotelId)
+              .order('created_at', { ascending: false })
+              .range(0, 199),
+            supabase
+              .from('staff_users')
+              .select('id, name, role, department, phone, status')
+              .eq('hotel_id', hotelId)
+              .range(0, 99)
+          ]),
+          { ttlMs: 15000 }
+        );
 
         if (!isMounted) return;
 
@@ -240,6 +259,7 @@ export default function HousekeepingView() {
           status: 'PENDING',
           notes: taskNotes
         }]);
+        invalidateCache(`pms:housekeeping:${currentHotel.id}`);
       } catch (err) {
         console.warn('Supabase task insert err:', err.message);
       }
@@ -265,6 +285,7 @@ export default function HousekeepingView() {
     if (isSupabaseConfigured && currentHotel?.id) {
       try {
         await supabase.from('housekeeping_tasks').update({ status: newStatus }).eq('id', taskId).eq('hotel_id', currentHotel.id);
+        invalidateCache(`pms:housekeeping:${currentHotel.id}`);
       } catch (e) {}
     }
   };
@@ -307,6 +328,7 @@ export default function HousekeepingView() {
           status: 'UNCLAIMED',
           notes: newItem.notes
         }]);
+        invalidateCache(`pms:housekeeping:${currentHotel.id}`);
       } catch (err) {
         console.warn('Supabase lost_and_found_items insert error:', err);
       }

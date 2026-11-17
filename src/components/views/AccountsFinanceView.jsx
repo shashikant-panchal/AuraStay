@@ -26,6 +26,9 @@ import {
   Percent
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { cachedQuery, invalidateCache } from '../../lib/queryCache';
+
+const INVOICE_PAGE_SIZE = 25;
 
 export default function AccountsFinanceView() {
   const {
@@ -48,6 +51,11 @@ export default function AccountsFinanceView() {
   const [activeTab, setActiveTab] = useState(() => resolveTab(contextActiveTab));
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, currentHotel?.id]);
 
   useEffect(() => {
     if (contextActiveTab) {
@@ -191,10 +199,24 @@ export default function AccountsFinanceView() {
     const fetchFinanceData = async () => {
       try {
         const hotelId = currentHotel.id;
-        const [invRes, expRes] = await Promise.all([
-          supabase.from('financial_invoices').select('*').eq('hotel_id', hotelId),
-          supabase.from('hotel_expenses').select('*').eq('hotel_id', hotelId)
-        ]);
+        const [invRes, expRes] = await cachedQuery(
+          `pms:finance:${hotelId}`,
+          () => Promise.all([
+            supabase
+              .from('financial_invoices')
+              .select('id, client_name, client_phone, category, subtotal, cgst, sgst, total_amount, paid_amount, payment_mode, status, created_at')
+              .eq('hotel_id', hotelId)
+              .order('created_at', { ascending: false })
+              .range(0, 199),
+            supabase
+              .from('hotel_expenses')
+              .select('id, payee, category, amount, payment_mode, status, expense_date, created_at')
+              .eq('hotel_id', hotelId)
+              .order('created_at', { ascending: false })
+              .range(0, 199)
+          ]),
+          { ttlMs: 15000 }
+        );
 
         if (!isMounted) return;
 
@@ -307,6 +329,7 @@ export default function AccountsFinanceView() {
           status: newInv.status,
           notes: invNotes
         }]);
+        invalidateCache(`pms:finance:${currentHotel.id}`);
       } catch (err) {
         console.warn('Failed to insert invoice into Supabase:', err);
       }
@@ -346,6 +369,7 @@ export default function AccountsFinanceView() {
           expense_date: newExp.date,
           notes: expNotes
         }]);
+        invalidateCache(`pms:finance:${currentHotel.id}`);
       } catch (err) {
         console.warn('Failed to insert expense into Supabase:', err);
       }
@@ -374,6 +398,7 @@ export default function AccountsFinanceView() {
           paid_amount: inv.total,
           status: 'PAID'
         }).eq('id', inv.id);
+        if (currentHotel?.id) invalidateCache(`pms:finance:${currentHotel.id}`);
       } catch (err) {
         console.warn('Failed to update invoice in Supabase:', err);
       }
@@ -381,7 +406,7 @@ export default function AccountsFinanceView() {
     showNotification(`Invoice #${inv.id} settled in full.`);
   };
 
-  // Filter Invoices
+  // Filter & Paginate Invoices
   const filteredInvoices = useMemo(() => {
     return allInvoices.filter(inv => {
       const matchSearch = String(inv.clientName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -391,6 +416,13 @@ export default function AccountsFinanceView() {
       return matchSearch && matchStatus;
     });
   }, [allInvoices, searchQuery, statusFilter]);
+
+  const totalInvoicePages = Math.max(1, Math.ceil(filteredInvoices.length / INVOICE_PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalInvoicePages);
+  const paginatedInvoices = useMemo(() => {
+    const start = (safePage - 1) * INVOICE_PAGE_SIZE;
+    return filteredInvoices.slice(start, start + INVOICE_PAGE_SIZE);
+  }, [filteredInvoices, safePage]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -629,7 +661,7 @@ export default function AccountsFinanceView() {
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                  {filteredInvoices.map(inv => (
+                                  {paginatedInvoices.map(inv => (
                                     <tr key={inv.id} className="hover:bg-slate-50/60 transition">
                                       <td className="py-3.5 px-4 font-mono font-bold text-emerald-950">{inv.id}</td>
                                       <td className="py-3.5 px-4 font-bold text-slate-900">
@@ -676,6 +708,32 @@ export default function AccountsFinanceView() {
                                 </tbody>
                               </table>
                             </div>
+                            {filteredInvoices.length > INVOICE_PAGE_SIZE && (
+                              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/70 text-xs text-slate-600">
+                                <span>
+                                  Showing {(safePage - 1) * INVOICE_PAGE_SIZE + 1} to {Math.min(safePage * INVOICE_PAGE_SIZE, filteredInvoices.length)} of {filteredInvoices.length} invoices
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={safePage <= 1}
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold disabled:opacity-40 cursor-pointer"
+                                  >
+                                    Previous
+                                  </button>
+                                  <span className="font-mono font-bold">Page {safePage} / {totalInvoicePages}</span>
+                                  <button
+                                    type="button"
+                                    disabled={safePage >= totalInvoicePages}
+                                    onClick={() => setCurrentPage(p => Math.min(totalInvoicePages, p + 1))}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold disabled:opacity-40 cursor-pointer"
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -752,6 +810,32 @@ export default function AccountsFinanceView() {
                                 </tbody>
                               </table>
                             </div>
+                            {filteredInvoices.length > INVOICE_PAGE_SIZE && (
+                              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/70 text-xs text-slate-600">
+                                <span>
+                                  Showing {(safePage - 1) * INVOICE_PAGE_SIZE + 1} to {Math.min(safePage * INVOICE_PAGE_SIZE, filteredInvoices.length)} of {filteredInvoices.length} invoices
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={safePage <= 1}
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold disabled:opacity-40 cursor-pointer"
+                                  >
+                                    Previous
+                                  </button>
+                                  <span className="font-mono font-bold">Page {safePage} / {totalInvoicePages}</span>
+                                  <button
+                                    type="button"
+                                    disabled={safePage >= totalInvoicePages}
+                                    onClick={() => setCurrentPage(p => Math.min(totalInvoicePages, p + 1))}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold disabled:opacity-40 cursor-pointer"
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import aavasaLogo from '../../assets/aavasa-logo.jpg';
+import aavasaLogo from '../../assets/aavasa-logo.webp';
 import {
   X,
   Printer,
@@ -224,7 +224,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
     const rawLogo = currentHotel?.logoUrl;
     const logoUrl = rawLogo && (rawLogo.startsWith('data:') || rawLogo.startsWith('http://') || rawLogo.startsWith('https://'))
       ? rawLogo
-      : new URL(rawLogo || aavasaLogo || 'aavasa-logo.jpg', basePath).href;
+      : new URL(rawLogo || aavasaLogo || 'aavasa-logo.webp', basePath).href;
 
     const hotelName = currentHotel?.name || 'Hotel PMS';
     const operatingUnit = currentHotel?.ownerName ? `Managed by ${currentHotel.ownerName}` : 'Front Desk & Guest Billing';

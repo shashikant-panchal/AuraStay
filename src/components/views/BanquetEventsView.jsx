@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import aavasaLogo from '../../assets/aavasa-logo.jpg';
+import aavasaLogo from '../../assets/aavasa-logo.webp';
 import {
   PartyPopper,
   Building,
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useDashboard } from '../../context/DashboardContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { cachedQuery, invalidateCache } from '../../lib/queryCache';
 
 export default function BanquetEventsView() {
   const {
@@ -98,23 +99,36 @@ export default function BanquetEventsView() {
   const [menuItems, setMenuItems] = useState('');
 
   // Fetch live banquet bookings & venues from Supabase (strictly tenant-isolated)
-  const fetchBookings = async () => {
+  const fetchBookings = async (force = false) => {
     if (!isSupabaseConfigured || !currentHotel?.id) return;
     setIsLoading(true);
     try {
       const hotelId = currentHotel.id;
-      const [bRes, vRes] = await Promise.all([
-        supabase.from('banquet_bookings').select('*').eq('hotel_id', hotelId).order('event_date', { ascending: true }),
-        supabase.from('banquet_venues').select('*').eq('hotel_id', hotelId)
-      ]);
+      const [bRes, vRes] = await cachedQuery(
+        `pms:banquet:${hotelId}`,
+        () => Promise.all([
+          supabase
+            .from('banquet_bookings')
+            .select('id, event_name, event_type, client_name, client_phone, guest_name, venue, venue_name, event_date, time_slot, pax, menu_package, catering_package, total_amount, paid_amount, status, created_at')
+            .eq('hotel_id', hotelId)
+            .order('event_date', { ascending: true })
+            .range(0, 199),
+          supabase
+            .from('banquet_venues')
+            .select('id, name, capacity, base_rent, description')
+            .eq('hotel_id', hotelId)
+            .range(0, 99)
+        ]),
+        { ttlMs: 15000, force }
+      );
 
       if (bRes.data) {
         setBookings(bRes.data.map(b => ({
           id: b.id,
           guestName: b.guest_name || b.client_name,
-          phone: b.phone || b.client_phone,
+          phone: b.client_phone || '',
           venue: b.venue_name || b.venue,
-          date: b.date || b.event_date,
+          date: b.event_date,
           timeSlot: b.time_slot,
           eventType: b.event_type || b.event_name,
           pax: b.pax,
@@ -122,7 +136,7 @@ export default function BanquetEventsView() {
           totalAmount: Number(b.total_amount || 0),
           paidAmount: Number(b.paid_amount || 0),
           status: b.status || 'CONFIRMED',
-          notes: b.notes || ''
+          notes: ''
         })));
       }
 
@@ -196,11 +210,9 @@ export default function BanquetEventsView() {
           client_name: formGuestName,
           guest_name: formGuestName,
           client_phone: formPhone,
-          phone: formPhone,
           venue: finalVenueName,
           venue_name: finalVenueName,
           event_date: formDate,
-          date: formDate,
           time_slot: formTimeSlot,
           event_type: formEventType,
           pax: parseInt(formPax, 10) || 50,
@@ -208,9 +220,9 @@ export default function BanquetEventsView() {
           menu_package: finalMenuName,
           total_amount: calculatedTotal,
           paid_amount: Number(formAdvance) || 0,
-          status: 'CONFIRMED',
-          notes: formNotes
+          status: 'CONFIRMED'
         }]);
+        invalidateCache(`pms:banquet:${currentHotel.id}`);
       } catch (err) {
         console.warn('Supabase banquet insert err:', err.message);
       }
@@ -286,7 +298,7 @@ export default function BanquetEventsView() {
     const rawLogo = currentHotel?.logoUrl;
     const logoUrl = rawLogo && (rawLogo.startsWith('data:') || rawLogo.startsWith('http://') || rawLogo.startsWith('https://'))
       ? rawLogo
-      : new URL(rawLogo || aavasaLogo || 'aavasa-logo.jpg', basePath).href;
+      : new URL(rawLogo || aavasaLogo || 'aavasa-logo.webp', basePath).href;
     const hotelName = currentHotel?.name || 'Hotel Banquet';
     const hotelCity = currentHotel?.city || 'India';
     const hotelPhone = currentHotel?.mobile || 'N/A';

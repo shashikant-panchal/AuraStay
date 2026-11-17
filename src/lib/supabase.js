@@ -22,3 +22,23 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+
+export async function getAuthHeaders(extra = {}) {
+  let token = supabaseAnonKey;
+  if (supabase) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.access_token) {
+        token = data.session.access_token;
+      }
+    } catch {
+      // Fallback to anon key for public/login routes
+    }
+  }
+  return {
+    'Content-Type': 'application/json',
+    apikey: supabaseAnonKey,
+    Authorization: `Bearer ${token}`,
+    ...extra
+  };
+}

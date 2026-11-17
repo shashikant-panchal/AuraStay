@@ -20,6 +20,9 @@ import {
 } from 'lucide-react';
 import { useDashboard } from '../../context/DashboardContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { cachedQuery, invalidateCache } from '../../lib/queryCache';
+
+const STOCK_PAGE_SIZE = 25;
 
 export default function StockManagementView() {
   const {
@@ -72,6 +75,7 @@ export default function StockManagementView() {
 
   // Department Requisitions & Transfers State - driven by Supabase material_requisitions
   const [requisitions, setRequisitions] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Form State: Add Item
   const [newItemName, setNewItemName] = useState('');
@@ -103,11 +107,30 @@ export default function StockManagementView() {
     const fetchStockData = async () => {
       try {
         const hotelId = currentHotel.id;
-        const [itemsRes, posRes, reqsRes] = await Promise.all([
-          supabase.from('inventory_items').select('*').eq('hotel_id', hotelId),
-          supabase.from('purchase_orders').select('*').eq('hotel_id', hotelId),
-          supabase.from('material_requisitions').select('*').eq('hotel_id', hotelId)
-        ]);
+        const [itemsRes, posRes, reqsRes] = await cachedQuery(
+          `pms:stock:${hotelId}`,
+          () => Promise.all([
+            supabase
+              .from('inventory_items')
+              .select('id, sku_code, name, category, unit, current_stock, min_threshold, cost_per_unit, supplier, status')
+              .eq('hotel_id', hotelId)
+              .order('created_at', { ascending: false })
+              .range(0, 199),
+            supabase
+              .from('purchase_orders')
+              .select('id, supplier, items, total_amount, status, created_at')
+              .eq('hotel_id', hotelId)
+              .order('created_at', { ascending: false })
+              .range(0, 199),
+            supabase
+              .from('material_requisitions')
+              .select('id, department, requested_by, sku_id, item_name, qty, req_date, status, notes, created_at')
+              .eq('hotel_id', hotelId)
+              .order('created_at', { ascending: false })
+              .range(0, 199)
+          ]),
+          { ttlMs: 15000 }
+        );
 
         if (!isMounted) return;
 
@@ -312,6 +335,7 @@ export default function StockManagementView() {
                   supabase.from('material_requisitions').update({ status: 'APPROVED_ISSUED' }).eq('id', req.id),
                   supabase.from('inventory_items').update({ current_stock: updatedStock, status: newStatus }).or(`id.eq.${req.skuId},sku_code.eq.${req.skuId}`)
                 ]);
+                if (currentHotel?.id) invalidateCache(`pms:stock:${currentHotel.id}`);
               } catch (err) {
                 console.warn('Failed to update requisition/stock in Supabase:', err);
               }
@@ -354,6 +378,7 @@ export default function StockManagementView() {
                     current_stock: finalStock,
                     status: finalStatus
                   }).or(`id.eq.${selectedItemForAdjust.id},sku_code.eq.${selectedItemForAdjust.id}`);
+                  if (currentHotel?.id) invalidateCache(`pms:stock:${currentHotel.id}`);
                 } catch (err) {
                   console.warn('Failed to adjust stock in Supabase:', err);
                 }
@@ -368,6 +393,7 @@ export default function StockManagementView() {
                 if (isSupabaseConfigured) {
                   try {
                     await supabase.from('purchase_orders').update({ status: 'RECEIVED' }).eq('id', po.id);
+                    if (currentHotel?.id) invalidateCache(`pms:stock:${currentHotel.id}`);
                   } catch (err) {
                     console.warn('Failed to update PO status in Supabase:', err);
                   }
@@ -388,6 +414,13 @@ export default function StockManagementView() {
                   return matchSearch && matchCategory;
                 });
               }, [stockList, searchTerm, selectedCategory]);
+
+              const totalStockPages = Math.max(1, Math.ceil(filteredItems.length / STOCK_PAGE_SIZE));
+              const safeStockPage = Math.min(currentPage, totalStockPages);
+              const paginatedItems = useMemo(() => {
+                const start = (safeStockPage - 1) * STOCK_PAGE_SIZE;
+                return filteredItems.slice(start, start + STOCK_PAGE_SIZE);
+              }, [filteredItems, safeStockPage]);
 
               return (
                 <div className="space-y-6 animate-in fade-in duration-200">
@@ -625,7 +658,7 @@ export default function StockManagementView() {
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
-                                {filteredItems.map(item => (
+                                {paginatedItems.map(item => (
                                   <tr key={item.id} className="hover:bg-slate-50/60 transition">
                                     <td className="py-3.5 px-4 font-mono font-bold text-emerald-900">{item.id}</td>
                                     <td className="py-3.5 px-4 font-bold text-slate-900">
@@ -674,6 +707,32 @@ export default function StockManagementView() {
                               </tbody>
                             </table>
                           </div>
+                          {filteredItems.length > STOCK_PAGE_SIZE && (
+                            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/70 text-xs text-slate-600">
+                              <span>
+                                Showing {(safeStockPage - 1) * STOCK_PAGE_SIZE + 1} to {Math.min(safeStockPage * STOCK_PAGE_SIZE, filteredItems.length)} of {filteredItems.length} SKUs
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={safeStockPage <= 1}
+                                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                  className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold disabled:opacity-40 cursor-pointer"
+                                >
+                                  Previous
+                                </button>
+                                <span className="font-mono font-bold">Page {safeStockPage} / {totalStockPages}</span>
+                                <button
+                                  type="button"
+                                  disabled={safeStockPage >= totalStockPages}
+                                  onClick={() => setCurrentPage(p => Math.min(totalStockPages, p + 1))}
+                                  className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold disabled:opacity-40 cursor-pointer"
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -855,6 +914,32 @@ export default function StockManagementView() {
                               </tbody>
                             </table>
                           </div>
+                          {filteredItems.length > STOCK_PAGE_SIZE && (
+                            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/70 text-xs text-slate-600">
+                              <span>
+                                Showing {(safeStockPage - 1) * STOCK_PAGE_SIZE + 1} to {Math.min(safeStockPage * STOCK_PAGE_SIZE, filteredItems.length)} of {filteredItems.length} SKUs
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={safeStockPage <= 1}
+                                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                  className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold disabled:opacity-40 cursor-pointer"
+                                >
+                                  Previous
+                                </button>
+                                <span className="font-mono font-bold">Page {safeStockPage} / {totalStockPages}</span>
+                                <button
+                                  type="button"
+                                  disabled={safeStockPage >= totalStockPages}
+                                  onClick={() => setCurrentPage(p => Math.min(totalStockPages, p + 1))}
+                                  className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold disabled:opacity-40 cursor-pointer"
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

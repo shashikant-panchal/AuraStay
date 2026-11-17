@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import aavasaLogo from '../../assets/aavasa-logo.jpg';
+import aavasaLogo from '../../assets/aavasa-logo.webp';
 import { useDashboard } from '../../context/DashboardContext';
 import {
   CarTaxiFront,
@@ -209,7 +209,7 @@ export default function CabBookingView() {
     const rawLogo = currentHotel?.logoUrl;
     const logoUrl = rawLogo && (rawLogo.startsWith('data:') || rawLogo.startsWith('http://') || rawLogo.startsWith('https://'))
       ? rawLogo
-      : new URL(rawLogo || aavasaLogo || 'aavasa-logo.jpg', basePath).href;
+      : new URL(rawLogo || aavasaLogo || 'aavasa-logo.webp', basePath).href;
     const hotelName = currentHotel?.name || 'Hotel';
     const hotelCity = currentHotel?.city || 'India';
     const hotelPhone = currentHotel?.mobile || 'N/A';

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Printer, X } from 'lucide-react';
-import aavasaLogo from '../../assets/aavasa-logo.jpg';
+import aavasaLogo from '../../assets/aavasa-logo.webp';
 
 /**
  * Architectural Neoclassical Hotel Emblem Logo matching Image 2 & 3
@@ -8,12 +8,12 @@ import aavasaLogo from '../../assets/aavasa-logo.jpg';
 export function HotelVoucherLogo({ className = "w-16 h-16", logoUrl, hotelName }) {
   return (
     <img
-      src={logoUrl || aavasaLogo || "./aavasa-logo.jpg"}
+      src={logoUrl || aavasaLogo || "./aavasa-logo.webp"}
       alt={hotelName || "Property Logo"}
       className={`${className} object-contain rounded-md`}
       onError={(e) => {
         e.currentTarget.onerror = null;
-        e.currentTarget.src = aavasaLogo || './aavasa-logo.jpg';
+        e.currentTarget.src = aavasaLogo || './aavasa-logo.webp';
       }}
     />
   );
@@ -219,7 +219,7 @@ export default function BookingVoucher({
     const rawLogo = currentHotel?.logoUrl;
     const logoUrl = rawLogo && (rawLogo.startsWith('data:') || rawLogo.startsWith('http://') || rawLogo.startsWith('https://'))
       ? rawLogo
-      : new URL(rawLogo || aavasaLogo || 'aavasa-logo.jpg', basePath).href;
+      : new URL(rawLogo || aavasaLogo || 'aavasa-logo.webp', basePath).href;
 
     printWindow.document.write(`
       <!DOCTYPE html>

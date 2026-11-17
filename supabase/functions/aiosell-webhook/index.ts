@@ -7,16 +7,17 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
  * tenant hotel_id isolation, date-overlap double-booking protection, and minimal responses.
  */
 
-const WEBHOOK_USERNAME = Deno.env.get("AAVASA_WEBHOOK_USERNAME") || "adminaavasa";
-const WEBHOOK_PASSWORD = Deno.env.get("AAVASA_WEBHOOK_PASSWORD") || "admin123";
+const WEBHOOK_USERNAME = Deno.env.get("AAVASA_WEBHOOK_USERNAME") || "";
+const WEBHOOK_PASSWORD = Deno.env.get("AAVASA_WEBHOOK_PASSWORD") || "";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://pdsfctfixxfazchamznm.supabase.co";
-const SUPABASE_KEY =
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
-  Deno.env.get("SUPABASE_ANON_KEY") ||
-  "sb_publishable_qbJiyQ6eiAtwvQA17pG9cg_8bHn3uWi";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = SUPABASE_URL && SUPABASE_SERVICE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    })
+  : null;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,7 +30,20 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), { headers: corsHeaders, status });
 }
 
+function timingSafeEquals(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const ab = enc.encode(a);
+  const bb = enc.encode(b);
+  const maxLen = Math.max(ab.length, bb.length);
+  let diff = ab.length ^ bb.length;
+  for (let i = 0; i < maxLen; i++) {
+    diff |= (ab[i] ?? 0) ^ (bb[i] ?? 0);
+  }
+  return diff === 0;
+}
+
 function validateBasicAuth(req: Request): boolean {
+  if (!WEBHOOK_USERNAME || !WEBHOOK_PASSWORD) return false;
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
   if (!authHeader.startsWith("Basic ")) return false;
   try {
@@ -39,7 +53,7 @@ function validateBasicAuth(req: Request): boolean {
     if (sepIdx <= 0) return false;
     const user = decoded.slice(0, sepIdx);
     const pass = decoded.slice(sepIdx + 1);
-    return user === WEBHOOK_USERNAME && pass === WEBHOOK_PASSWORD;
+    return timingSafeEquals(user, WEBHOOK_USERNAME) && timingSafeEquals(pass, WEBHOOK_PASSWORD);
   } catch {
     return false;
   }
@@ -133,6 +147,10 @@ serve(async (req: Request) => {
       { success: false, message: "Method Not Allowed. Only authenticated POST webhook events are accepted." },
       405
     );
+  }
+
+  if (!supabase || !WEBHOOK_USERNAME || !WEBHOOK_PASSWORD) {
+    return jsonResponse({ success: false, message: "Server configuration incomplete." }, 503);
   }
 
   if (!validateBasicAuth(req)) {

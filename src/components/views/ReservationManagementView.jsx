@@ -51,8 +51,14 @@ export default function ReservationManagementView({ isSubTab = false }) {
     updateReservationPayment,
     checkOutReservation,
     currentHotel,
-    rooms = []
+    rooms = [],
+    hasMoreReservations = false,
+    loadMoreReservations,
+    isLoadingMoreReservations = false
   } = useDashboard();
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Mode: 'list' or 'book-a-room'
   const [viewMode, setViewMode] = useState('list');
@@ -228,6 +234,13 @@ export default function ReservationManagementView({ isSubTab = false }) {
       );
     });
   }, [reservations, filterCategory, searchKeyword, searchType]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredReservations.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedReservations = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredReservations.slice(start, start + pageSize);
+  }, [filteredReservations, safePage, pageSize]);
 
   // If in Book A Room mode (Screenshots 2, 3, 4, 5)
   if (viewMode === 'book-a-room') {
@@ -535,7 +548,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
             </thead>
 
             <tbody className="divide-y divide-slate-100">
-              {filteredReservations.map((res) => {
+              {paginatedReservations.map((res) => {
                 const isHighlight = res.highlight;
 
                 return (
@@ -777,33 +790,73 @@ export default function ReservationManagementView({ isSubTab = false }) {
           </table>
         </div>
 
-        {/* Table Pagination & Controls (Exact Screenshot 3) */}
+        {/* Table Pagination & Controls */}
         <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
-          <div>
-            Showing 1 to {filteredReservations.length} of {filteredReservations.length} entries
+          <div className="flex flex-wrap items-center gap-3">
+            <span>
+              Showing {filteredReservations.length > 0 ? (safePage - 1) * pageSize + 1 : 0} to {Math.min(safePage * pageSize, filteredReservations.length)} of {filteredReservations.length} entries
+            </span>
+            {hasMoreReservations && typeof loadMoreReservations === 'function' && (
+              <button
+                type="button"
+                disabled={isLoadingMoreReservations}
+                onClick={loadMoreReservations}
+                className="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 font-bold text-[11px] disabled:opacity-50 cursor-pointer transition"
+              >
+                {isLoadingMoreReservations ? 'Loading older bookings...' : 'Load Older Bookings'}
+              </button>
+            )}
           </div>
 
           <div className="flex items-center space-x-1 font-semibold">
-            <button className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-400 disabled:opacity-50">
+            <button
+              type="button"
+              disabled={safePage <= 1}
+              onClick={() => setCurrentPage(1)}
+              className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer"
+            >
               <ChevronsLeft className="w-3.5 h-3.5" />
             </button>
-            <button className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-400 disabled:opacity-50">
+            <button
+              type="button"
+              disabled={safePage <= 1}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer"
+            >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <button className="px-3 py-1 rounded border border-sky-300 bg-sky-50 text-sky-800 font-bold">
-              1
-            </button>
-            <button className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-400 disabled:opacity-50">
+            <span className="px-3 py-1 rounded border border-sky-300 bg-sky-50 text-sky-800 font-bold">
+              {safePage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={safePage >= totalPages}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer"
+            >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
-            <button className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-400 disabled:opacity-50">
+            <button
+              type="button"
+              disabled={safePage >= totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+              className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer"
+            >
               <ChevronsRight className="w-3.5 h-3.5" />
             </button>
 
-            <div className="ml-2 flex items-center border border-slate-200 rounded px-2 py-1 bg-white">
-              <span className="text-slate-700">10</span>
-              <ChevronDown className="w-3 h-3 ml-1 text-slate-400" />
-            </div>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="ml-2 border border-slate-200 rounded px-2 py-1 bg-white text-slate-700 font-semibold outline-none cursor-pointer"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
           </div>
         </div>
 

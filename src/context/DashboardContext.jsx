@@ -1,10 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import aavasaLogo from '../assets/aavasa-logo.jpg';
+import aavasaLogo from '../assets/aavasa-logo.webp';
 import { initialMockData } from '../data/mockData';
 import { mockRooms, mockReservations, mockFnbOrders, mockStaffUsers, mockOtaChannels } from '../data/suiteData';
 import { supabase, isSupabaseConfigured, supabaseAnonKey } from '../lib/supabase';
+import { cachedQuery, invalidateCache, invalidateAllCache } from '../lib/queryCache';
 import { PMS_API_URL, broadcastCrossDeviceSync, pushHotelInventoryViaBackend } from '../services/aiosellService';
 import { compareCategoryNames, compareRoomsByCategoryAndNumber } from '../utils/roomSort';
+
+const RESERVATION_PAGE_SIZE = 200;
+const FOLIO_PAGE_SIZE = 200;
+const POLL_FALLBACK_MS = 180000;
+const STALE_VISIBLE_MS = 60000;
 
 const DEFAULT_HOTEL = {
   id: '',
@@ -12,7 +18,7 @@ const DEFAULT_HOTEL = {
   aiosellHotelCode: '',
   name: 'AuraStay Property',
   shortName: 'AST',
-  logoUrl: aavasaLogo || './aavasa-logo.jpg',
+  logoUrl: aavasaLogo || './aavasa-logo.webp',
   ownerName: 'Property Admin',
   ownerRole: 'Property Admin',
   email: '',
@@ -90,7 +96,7 @@ export function DashboardProvider({ children }) {
     return DEFAULT_HOTEL;
   });
 
-  // Persist Admin session in localStorage so page refresh never logs out the Admin, and reflect client name in browser title
+  // Persist Admin session in localStorage and verify active Supabase Auth JWT on mount/change
   useEffect(() => {
     try {
       if (isLoggedIn && currentHotel && (currentHotel.id || currentHotel.email)) {
@@ -104,6 +110,39 @@ export function DashboardProvider({ children }) {
       }
     } catch (e) { }
   }, [isLoggedIn, currentHotel]);
+
+  const [hasMoreReservations, setHasMoreReservations] = useState(false);
+  const [isLoadingMoreReservations, setIsLoadingMoreReservations] = useState(false);
+  const lastLoadedAtRef = useRef(0);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    let mounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      const role = data?.session?.user?.app_metadata?.role;
+      const hasValidSession = Boolean(data?.session?.access_token && (!role || ['hotel_admin', 'staff', 'super_admin'].includes(role)));
+      if (isLoggedIn && !hasValidSession) {
+        // Legacy pre-RLS localStorage session without Auth JWT: require clean sign-in
+        setIsLoggedIn(false);
+        localStorage.removeItem('aavasa_admin_auth_v3');
+      }
+    }).catch(() => {});
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        invalidateAllCache();
+        setIsLoggedIn(false);
+        localStorage.removeItem('aavasa_admin_auth_v3');
+        localStorage.removeItem('aavasa_admin_session_v3');
+      }
+    });
+
+    return () => {
+      mounted = false;
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
 
   // Static mock fallbacks for initial render (never dumped to localStorage)
   const [data, setData] = useState(initialMockData);
@@ -238,9 +277,10 @@ export function DashboardProvider({ children }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // 1. Fetch hotel-scoped live data directly from Supabase (Free-Plan Optimized, zero cross-tenant leakage)
-  const loadSupabaseData = useCallback(async () => {
+  const loadSupabaseData = useCallback(async (options = {}) => {
     const hotelId = currentHotel?.id;
     if (!isSupabaseConfigured || !isLoggedIn || !hotelId) return;
+    const forceRefresh = Boolean(options?.force);
 
     try {
       const [
@@ -255,23 +295,71 @@ export function DashboardProvider({ children }) {
         roomTypesRes,
         cabsRes,
         invoicesRes
-      ] = await Promise.all([
-        supabase
-          .from('hotels')
-          .select('id, slug, name, short_name, logo_url, owner_name, email, mobile, address, city, total_rooms, status, currency, currency_symbol, aiosell_hotel_code')
-          .eq('id', hotelId)
-          .maybeSingle(),
-        supabase.from('rooms').select('*').eq('hotel_id', hotelId).order('room_number'),
-        supabase.from('reservations').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
-        supabase.from('fnb_orders').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
-        supabase.from('restaurant_tables').select('*').eq('hotel_id', hotelId).order('name'),
-        supabase.from('restaurant_menu_items').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
-        supabase.from('staff_users').select('*').eq('hotel_id', hotelId).order('id'),
-        supabase.from('ota_channels').select('*').order('id'),
-        supabase.from('room_types').select('*').eq('hotel_id', hotelId).order('name'),
-        supabase.from('cab_bookings').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
-        supabase.from('financial_invoices').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false })
-      ]);
+      ] = await cachedQuery(
+        `pms:dashboard:${hotelId}`,
+        () => Promise.all([
+          supabase
+            .from('hotels')
+            .select('id, slug, name, short_name, logo_url, owner_name, email, mobile, address, city, total_rooms, status, currency, currency_symbol, aiosell_hotel_code')
+            .eq('id', hotelId)
+            .maybeSingle(),
+          supabase
+            .from('rooms')
+            .select('id, hotel_id, room_number, room_type_id, floor, type, bed, status, housekeeping, price, guest, booking_id, check_out, key_card_no, is_smoking, interconnecting_room, phone_extension, is_ota_locked, ota_channel')
+            .eq('hotel_id', hotelId)
+            .order('room_number'),
+          supabase
+            .from('reservations')
+            .select('id, hotel_id, guest, guest_email, guest_phone, guest_id_type, guest_id_number, guest_id_city, room, room_number, room_type, check_in, check_out, actual_check_in_time, actual_check_out_time, expected_check_out_time, source, amount, paid, advance_paid, payment_mode, billing_mode, organisation, gstin, status, payment, created_at, rate_plan, adults, children, notes')
+            .eq('hotel_id', hotelId)
+            .order('created_at', { ascending: false })
+            .range(0, RESERVATION_PAGE_SIZE - 1),
+          supabase
+            .from('fnb_orders')
+            .select('id, room_table, guest, items, total, status, time, created_at')
+            .eq('hotel_id', hotelId)
+            .order('created_at', { ascending: false })
+            .range(0, FOLIO_PAGE_SIZE - 1),
+          supabase
+            .from('restaurant_tables')
+            .select('id, hotel_id, name, area, seats, status, guest_name, room_number, items_count, current_total, active_order_id, updated_at')
+            .eq('hotel_id', hotelId)
+            .order('name'),
+          supabase
+            .from('restaurant_menu_items')
+            .select('id, hotel_id, name, category, kitchen_station, price, cost_price, tax_pct, unit, is_veg, status, prep_time, description, image_url')
+            .eq('hotel_id', hotelId)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('staff_users')
+            .select('id, hotel_id, name, role, email, phone, department, status, created_at')
+            .eq('hotel_id', hotelId)
+            .order('id'),
+          supabase
+            .from('ota_channels')
+            .select('id, name, status, sync_status, mapped_rooms, active_bookings, commission')
+            .order('id'),
+          supabase
+            .from('room_types')
+            .select('id, hotel_id, name, label, bedding_type, max_adults, max_extra, max_children, area_sqft, base_price, extra_bed_price, child_price, amenities, description, notes, is_booking_engine')
+            .eq('hotel_id', hotelId)
+            .order('name'),
+          supabase
+            .from('cab_bookings')
+            .select('id, hotel_id, guest_name, room_number, phone, pickup_location, drop_location, pickup_time, cab_type, driver_name, driver_phone, vehicle_number, fare, payment_status, booking_status, notes, created_at')
+            .eq('hotel_id', hotelId)
+            .order('created_at', { ascending: false })
+            .range(0, FOLIO_PAGE_SIZE - 1),
+          supabase
+            .from('financial_invoices')
+            .select('id, reservation_id, room_number, client_name, client_phone, subtotal, total_amount, paid_amount, notes, created_at')
+            .eq('hotel_id', hotelId)
+            .order('created_at', { ascending: false })
+            .range(0, FOLIO_PAGE_SIZE - 1)
+        ]),
+        { ttlMs: 10000, force: forceRefresh }
+      );
+      lastLoadedAtRef.current = Date.now();
 
       const matchedHotel = hotelRes?.data;
       if (matchedHotel) {
@@ -393,6 +481,7 @@ export function DashboardProvider({ children }) {
           children: Number(r.children) || 0,
           notes: r.notes || ''
         })));
+        setHasMoreReservations(hotelRes.length >= RESERVATION_PAGE_SIZE);
         tablesFound = true;
       }
 
@@ -538,24 +627,107 @@ export function DashboardProvider({ children }) {
     }
   }, [currentHotel?.id, isLoggedIn]);
 
+  const loadMoreReservations = useCallback(async () => {
+    const hotelId = currentHotel?.id;
+    if (!isSupabaseConfigured || !isLoggedIn || !hotelId || isLoadingMoreReservations || !hasMoreReservations) return;
+    setIsLoadingMoreReservations(true);
+    try {
+      const from = reservations.length;
+      const to = from + RESERVATION_PAGE_SIZE - 1;
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('id, hotel_id, guest, guest_email, guest_phone, guest_id_type, guest_id_number, guest_id_city, room, room_number, room_type, check_in, check_out, actual_check_in_time, actual_check_out_time, expected_check_out_time, source, amount, paid, advance_paid, payment_mode, billing_mode, organisation, gstin, status, payment, created_at, rate_plan, adults, children, notes')
+        .eq('hotel_id', hotelId)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      if (!error && Array.isArray(data)) {
+        const mapped = data.map(r => ({
+          id: r.id,
+          hotelId: r.hotel_id || hotelId,
+          guest: r.guest,
+          guestEmail: r.guest_email || '',
+          guest_email: r.guest_email || '',
+          guestPhone: r.guest_phone || '',
+          guest_phone: r.guest_phone || '',
+          room: r.room,
+          room_number: r.room_number || (String(r.room || '').match(/\b(\d+)\b/)?.[1] || ''),
+          room_type: r.room_type || '',
+          checkIn: r.check_in,
+          check_in: r.check_in,
+          checkOut: r.check_out,
+          check_out: r.check_out,
+          actualCheckInTime: r.actual_check_in_time || '',
+          actual_check_in_time: r.actual_check_in_time || '',
+          actualCheckOutTime: r.actual_check_out_time || '',
+          actual_check_out_time: r.actual_check_out_time || '',
+          expectedCheckOutTime: r.expected_check_out_time || '',
+          expected_check_out_time: r.expected_check_out_time || '',
+          idType: r.guest_id_type || '',
+          idNumber: r.guest_id_number || '',
+          idCity: r.guest_id_city || '',
+          source: r.source || 'Direct',
+          amount: Number(r.amount) || 0,
+          paid: Number(r.paid) || (r.payment === 'PAID' ? Number(r.amount) || 0 : 0),
+          paymentMode: r.payment_mode || 'UPI',
+          payment_mode: r.payment_mode || 'UPI',
+          status: r.status || 'CONFIRMED',
+          payment: r.payment || 'PENDING',
+          createdAt: r.created_at,
+          created_at: r.created_at,
+          ratePlan: r.rate_plan || 'EP - Room Only',
+          rate_plan: r.rate_plan || 'EP - Room Only',
+          adults: Number(r.adults) || 2,
+          children: Number(r.children) || 0,
+          notes: r.notes || ''
+        }));
+        setReservations(prev => {
+          const seen = new Set(prev.map(item => String(item.id)));
+          const merged = [...prev];
+          mapped.forEach(item => {
+            if (!seen.has(String(item.id))) merged.push(item);
+          });
+          return merged;
+        });
+        setHasMoreReservations(data.length >= RESERVATION_PAGE_SIZE);
+      }
+    } finally {
+      setIsLoadingMoreReservations(false);
+    }
+  }, [currentHotel?.id, isLoggedIn, isLoadingMoreReservations, hasMoreReservations, reservations.length]);
+
   const scheduleRealtimeRefresh = useCallback(() => {
+    const hotelId = currentHotel?.id;
+    if (hotelId) invalidateCache(`pms:dashboard:${hotelId}`);
     if (syncDebounceRef.current) {
       clearTimeout(syncDebounceRef.current);
     }
     syncDebounceRef.current = setTimeout(() => {
-      loadSupabaseData();
-    }, 300);
-  }, [loadSupabaseData]);
+      loadSupabaseData({ force: true });
+    }, 350);
+  }, [currentHotel?.id, loadSupabaseData]);
 
   useEffect(() => {
     if (!isLoggedIn || !currentHotel?.id) return;
     loadSupabaseData();
-    // Free-Plan optimized fallback safety sync (30s) since WebSocket Realtime pushes instant updates
+
+    // Free-Tier Nano optimized: Realtime WebSockets handle instant updates;
+    // visibility-aware 3-min fallback avoids wasting connections & WAL query bandwidth on idle tabs.
     const pollTimer = setInterval(() => {
-      loadSupabaseData();
-    }, 30000);
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        loadSupabaseData({ force: true });
+      }
+    }, POLL_FALLBACK_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastLoadedAtRef.current > STALE_VISIBLE_MS) {
+        loadSupabaseData({ force: true });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       clearInterval(pollTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (syncDebounceRef.current) clearTimeout(syncDebounceRef.current);
     };
   }, [isLoggedIn, currentHotel?.id, loadSupabaseData]);
@@ -683,94 +855,50 @@ export function DashboardProvider({ children }) {
     };
 
     try {
-      // Primary: Verify via dedicated pms-api Edge Function so browsers never fetch password hashes/values
-      let edgeOffline = false;
-      try {
-        const res = await fetch(PMS_API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: supabaseAnonKey,
-            Authorization: `Bearer ${supabaseAnonKey}`,
-            'x-aavasa-client': 'aurastay-pms'
-          },
-          body: JSON.stringify({
-            action: 'verify_admin_login',
-            email: inputIdent,
-            password: inputPass
-          })
-        });
-        const result = await res.json().catch(() => ({}));
-        if (res.ok && result?.success && result?.hotel) {
-          return completeLoginSession(result.hotel);
-        }
-        if (res.status === 400 || res.status === 401 || res.status === 403) {
-          return {
-            success: false,
-            message: result?.message || 'Invalid email or password. Please verify your credentials and try again.'
-          };
-        }
-        edgeOffline = true;
-      } catch {
-        edgeOffline = true;
-      }
-
-      if (!edgeOffline) {
-        return { success: false, message: 'Unable to verify credentials. Please try again.' };
-      }
-
-      // Fallback when Edge Function is unreachable during cold boot
-      const { data: allHotels, error } = await supabase
-        .from('hotels')
-        .select('id, slug, aiosell_hotel_code, name, short_name, logo_url, owner_name, email, mobile, address, city, total_rooms, currency, currency_symbol, status, password');
-
-      if (error || !Array.isArray(allHotels)) {
-        return { success: false, message: 'Unable to verify credentials. Please try again.' };
-      }
-
-      const validHotels = allHotels.filter(
-        h =>
-          String(h.id || '').toLowerCase() !== 'hotel_aurastay_01' &&
-          String(h.email || '').toLowerCase() !== 'admin@aurastay.com'
-      );
-
-      const hotelData = validHotels.find(h => {
-        const hEmail = String(h.email || '').trim().toLowerCase();
-        const hSlug = String(h.slug || '').trim().toLowerCase();
-        const hId = String(h.id || '').trim().toLowerCase();
-        return hEmail === inputIdent || hSlug === inputIdent || hId === inputIdent;
+      // Server-side cryptographic password verification + Supabase Auth JWT minting
+      const res = await fetch(PMS_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          'x-aavasa-client': 'aurastay-pms'
+        },
+        body: JSON.stringify({
+          action: 'verify_admin_login',
+          email: inputIdent,
+          password: inputPass
+        })
       });
-
-      if (!hotelData) {
-        return {
-          success: false,
-          message: 'Invalid email or password. Please verify your credentials and try again.'
-        };
+      const result = await res.json().catch(() => ({}));
+      if (res.ok && result?.success && result?.hotel) {
+        if (result.session?.access_token && result.session?.refresh_token && supabase) {
+          await supabase.auth.setSession({
+            access_token: result.session.access_token,
+            refresh_token: result.session.refresh_token
+          });
+        }
+        invalidateAllCache();
+        return completeLoginSession(result.hotel);
       }
 
-      if (hotelData.status && hotelData.status !== 'ACTIVE') {
-        return {
-          success: false,
-          message: 'This account is currently suspended. Please contact your platform administrator.'
-        };
-      }
-
-      if (!hotelData.password || hotelData.password !== inputPass) {
-        return {
-          success: false,
-          message: 'Incorrect password. Please try again.'
-        };
-      }
-
-      return completeLoginSession(hotelData);
+      return {
+        success: false,
+        message: result?.message || 'Invalid email or password. Please verify your credentials and try again.'
+      };
     } catch (e) {
-      console.warn('Supabase hotel login query error:', e);
-      return { success: false, message: 'Authentication error. Please try again.' };
+      console.warn('Supabase hotel login error:', e);
+      return { success: false, message: 'Authentication service unavailable. Please check your connection and try again.' };
     }
   };
 
   const logout = () => {
+    invalidateAllCache();
+    if (supabase) {
+      supabase.auth.signOut().catch(() => {});
+    }
     setIsLoggedIn(false);
+    setHasMoreReservations(false);
     setCurrentHotel(DEFAULT_HOTEL);
     setRooms([]);
     setReservations([]);
@@ -856,7 +984,8 @@ export function DashboardProvider({ children }) {
   const refreshData = async () => {
     setIsRefreshing(true);
     try {
-      await loadSupabaseData();
+      if (currentHotel?.id) invalidateCache(`pms:dashboard:${currentHotel.id}`);
+      await loadSupabaseData({ force: true });
     } catch (err) {
       console.warn('Refresh error:', err);
     } finally {
@@ -1063,8 +1192,9 @@ export function DashboardProvider({ children }) {
             ...payload,
             hotel_id: currentHotel.id
           })
-          .select()
+          .select('id, hotel_id, room_number, room_type_id, floor, type, bed, status, housekeeping, price, guest, booking_id, check_out, key_card_no, is_smoking, interconnecting_room, phone_extension')
           .maybeSingle();
+        if (currentHotel?.id) invalidateCache(`pms:dashboard:${currentHotel.id}`);
         if (error) {
           console.warn('Supabase room insert error:', error.message);
         } else if (insertedRoom?.id) {
@@ -1221,7 +1351,10 @@ export function DashboardProvider({ children }) {
 
           let query = supabase.from('rooms').update(directPayload).eq('hotel_id', currentHotel.id);
           query = uuidId ? query.eq('id', uuidId) : query.eq('room_number', origRoomNum);
-          const { data: fallbackData, error: fallbackErr } = await query.select().maybeSingle();
+          const { data: fallbackData, error: fallbackErr } = await query
+            .select('id, hotel_id, room_number, room_type_id, floor, type, bed, status, housekeeping, price, guest, booking_id, check_out, key_card_no, is_smoking, interconnecting_room, phone_extension, is_ota_locked, ota_channel')
+            .maybeSingle();
+          if (currentHotel?.id) invalidateCache(`pms:dashboard:${currentHotel.id}`);
           if (fallbackErr) {
             showNotification(fallbackErr.message || 'Failed to update room.');
             return { success: false, message: fallbackErr.message || 'Failed to update room.' };
@@ -2901,7 +3034,10 @@ export function DashboardProvider({ children }) {
       setIsLoggedIn,
       currentHotel,
       login,
-      logout
+      logout,
+      hasMoreReservations,
+      loadMoreReservations,
+      isLoadingMoreReservations
     }}>
       {children}
     </DashboardContext.Provider>

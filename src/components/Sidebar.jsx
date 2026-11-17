@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDashboard } from '../context/DashboardContext';
-import aavasaLogo from '../assets/aavasa-logo.jpg';
+import aavasaLogo from '../assets/aavasa-logo.webp';
 import {
   Building2,
   CalendarCheck,
@@ -236,12 +236,12 @@ export default function Sidebar() {
               title={currentHotel?.name || 'Hotel PMS'}
             >
               <img
-                src={currentHotel?.logoUrl || aavasaLogo || "./aavasa-logo.jpg"}
+                src={currentHotel?.logoUrl || aavasaLogo || "./aavasa-logo.webp"}
                 alt={currentHotel?.name || 'Property Logo'}
                 className="h-12 w-auto max-w-[190px] object-contain transition group-hover:scale-102 rounded"
                 onError={(e) => {
                   e.currentTarget.onerror = null;
-                  e.currentTarget.src = aavasaLogo || './aavasa-logo.jpg';
+                  e.currentTarget.src = aavasaLogo || './aavasa-logo.webp';
                 }}
               />
             </div>
@@ -252,12 +252,12 @@ export default function Sidebar() {
               title={currentHotel?.name || 'Hotel PMS'}
             >
               <img
-                src={currentHotel?.logoUrl || aavasaLogo || "./aavasa-logo.jpg"}
+                src={currentHotel?.logoUrl || aavasaLogo || "./aavasa-logo.webp"}
                 alt={currentHotel?.name || 'Property Logo'}
                 className="h-9 w-9 object-contain rounded-md"
                 onError={(e) => {
                   e.currentTarget.onerror = null;
-                  e.currentTarget.src = aavasaLogo || './aavasa-logo.jpg';
+                  e.currentTarget.src = aavasaLogo || './aavasa-logo.webp';
                 }}
               />
             </div>

@@ -1158,7 +1158,7 @@ export default function ChannelManagerView() {
                   AIOSELL API LIVE CONSOLE
                 </span>
                 <span className="text-[10px] text-emerald-400 font-bold">
-                  AUTH: Basic {btoa(`${config.username}:***`).slice(0, 10)}...
+                  AUTH: VAULT-PROTECTED (SERVER PROXY)
                 </span>
               </div>
 
@@ -1346,8 +1346,8 @@ export default function ChannelManagerView() {
                   Expected Basic Auth Credentials (Header)
                 </span>
                 <div className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-700 flex items-center justify-between">
-                  <span>username: <strong className="text-indigo-600">{config.username}</strong></span>
-                  <span>password: <strong className="text-indigo-600">{config.password}</strong></span>
+                  <span>username: <strong className="text-indigo-600">{config.username || 'Supabase Vault Secret'}</strong></span>
+                  <span>password: <strong className="text-indigo-600">{config.password ? '••••••••••' : 'Encrypted (Edge Env)'}</strong></span>
                 </div>
               </div>
             </div>
@@ -1556,7 +1556,7 @@ export default function ChannelManagerView() {
                 POST https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook
               </div>
               <div className="text-slate-400 text-[11px] pt-1">
-                Auth Header: <span className="text-amber-300 font-bold">Authorization: Basic {btoa('adminaavasa:admin123')}</span> (username: <span className="text-white">adminaavasa</span>, password: <span className="text-white">admin123</span>)
+                Auth Header: <span className="text-amber-300 font-bold">Authorization: Basic &lt;base64(AAVASA_WEBHOOK_USERNAME:AAVASA_WEBHOOK_PASSWORD)&gt;</span> (Configured via Supabase Secrets)
               </div>
             </div>
           </div>
@@ -1658,7 +1658,7 @@ export default function ChannelManagerView() {
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <span><strong>Webhook HTTP Basic Auth:</strong> username: <code className="font-mono bg-white px-1 rounded">adminaavasa</code>, password: <code className="font-mono bg-white px-1 rounded">admin123</code></span>
+                    <span><strong>Webhook HTTP Basic Auth:</strong> Provisioned via Supabase Vault (<code className="font-mono bg-white px-1 rounded">AAVASA_WEBHOOK_USERNAME</code> / <code className="font-mono bg-white px-1 rounded">AAVASA_WEBHOOK_PASSWORD</code>)</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
@@ -1719,8 +1719,8 @@ export default function ChannelManagerView() {
                       hotelId: currentHotel?.id,
                       hotelCode: config.hotelCode,
                       partnerId: config.partnerId,
-                      username: config.username,
-                      password: config.password,
+                      ...(config.username ? { username: config.username } : {}),
+                      ...(config.password ? { password: config.password } : {}),
                       startDate: pushStartDate,
                       endDate: pushEndDate
                     });

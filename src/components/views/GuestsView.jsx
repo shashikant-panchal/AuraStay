@@ -102,6 +102,15 @@ export default function GuestsView() {
     });
   }, [guestsList, searchQuery, searchBy, hasSearched]);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const totalGuestPages = Math.max(1, Math.ceil(filteredGuests.length / pageSize));
+  const safeGuestPage = Math.min(currentPage, totalGuestPages);
+  const paginatedGuests = useMemo(() => {
+    const start = (safeGuestPage - 1) * pageSize;
+    return filteredGuests.slice(start, start + pageSize);
+  }, [filteredGuests, safeGuestPage, pageSize]);
+
   const handleSearch = (e) => {
     if (e) e.preventDefault();
     setHasSearched(true);
@@ -424,7 +433,7 @@ export default function GuestsView() {
                 </tr>
               ) : (
                 /* Populated Guest Rows */
-                filteredGuests.map((g) => (
+                paginatedGuests.map((g) => (
                   <tr key={g.id} className="border-b border-slate-100 hover:bg-slate-50/70 transition">
                     <td className="py-3.5 px-3 font-mono font-bold text-sky-800">
                       {g.id}
@@ -496,30 +505,61 @@ export default function GuestsView() {
           </table>
         </div>
 
-        {/* Table Pagination (Exact Screenshot) */}
+        {/* Table Pagination */}
         <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
           <div>
-            Showing {filteredGuests.length > 0 ? 1 : 0} to {filteredGuests.length} of {filteredGuests.length} customers
+            Showing {filteredGuests.length > 0 ? (safeGuestPage - 1) * pageSize + 1 : 0} to {Math.min(safeGuestPage * pageSize, filteredGuests.length)} of {filteredGuests.length} customers
           </div>
 
           <div className="flex items-center space-x-1 font-semibold">
-            <button className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-400 disabled:opacity-50">
+            <button
+              type="button"
+              disabled={safeGuestPage <= 1}
+              onClick={() => setCurrentPage(1)}
+              className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer"
+            >
               <ChevronsLeft className="w-3.5 h-3.5" />
             </button>
-            <button className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-400 disabled:opacity-50">
+            <button
+              type="button"
+              disabled={safeGuestPage <= 1}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer"
+            >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <button className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-400 disabled:opacity-50">
+            <span className="px-2.5 py-1 rounded border border-sky-200 bg-sky-50 text-sky-800 font-bold">
+              {safeGuestPage} / {totalGuestPages}
+            </span>
+            <button
+              type="button"
+              disabled={safeGuestPage >= totalGuestPages}
+              onClick={() => setCurrentPage(p => Math.min(totalGuestPages, p + 1))}
+              className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer"
+            >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
-            <button className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-400 disabled:opacity-50">
+            <button
+              type="button"
+              disabled={safeGuestPage >= totalGuestPages}
+              onClick={() => setCurrentPage(totalGuestPages)}
+              className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer"
+            >
               <ChevronsRight className="w-3.5 h-3.5" />
             </button>
 
-            <div className="ml-2 flex items-center border border-slate-200 rounded px-2 py-1 bg-white">
-              <span className="text-slate-700">10</span>
-              <ChevronDown className="w-3 h-3 ml-1 text-slate-400" />
-            </div>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="ml-2 border border-slate-200 rounded px-2 py-1 bg-white text-slate-700 font-semibold outline-none cursor-pointer"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
           </div>
         </div>
 

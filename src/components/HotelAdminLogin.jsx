@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDashboard } from '../context/DashboardContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import aavasaLogo from '../assets/aavasa-logo.jpg';
+import aavasaLogo from '../assets/aavasa-logo.webp';
 import {
   Lock,
   Mail,
@@ -25,16 +25,16 @@ export default function HotelAdminLogin() {
     if (!hotelSlug || !isSupabaseConfigured || !supabase) return;
 
     let active = true;
-    supabase
-      .from('hotels')
-      .select('name, logo_url')
-      .eq('slug', hotelSlug)
-      .maybeSingle()
+    supabase.functions
+      .invoke('pms-api', {
+        body: { action: 'get_public_branding', slug: hotelSlug }
+      })
       .then(({ data }) => {
-        if (active && data) {
-          setBrandHotel(data);
+        if (active && data?.success && data?.hotel) {
+          setBrandHotel(data.hotel);
         }
-      });
+      })
+      .catch(() => {});
 
     return () => {
       active = false;
@@ -71,7 +71,7 @@ export default function HotelAdminLogin() {
   };
 
   const displayName = brandHotel?.name || 'Aavasa';
-  const displayLogo = brandHotel?.logo_url || aavasaLogo || './aavasa-logo.jpg';
+  const displayLogo = brandHotel?.logo_url || aavasaLogo || './aavasa-logo.webp';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#0a2331] to-[#0e4860] flex items-center justify-center p-4 relative overflow-hidden font-sans">
@@ -89,7 +89,7 @@ export default function HotelAdminLogin() {
               className="h-14 w-auto max-w-[160px] object-contain rounded-xl"
               onError={(e) => {
                 e.currentTarget.onerror = null;
-                e.currentTarget.src = aavasaLogo || './aavasa-logo.jpg';
+                e.currentTarget.src = aavasaLogo || './aavasa-logo.webp';
               }}
             />
           </div>

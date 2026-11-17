@@ -5,15 +5,16 @@
  * Edge Function URL: https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook
  */
 
-import { supabase, isSupabaseConfigured, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, supabaseUrl, supabaseAnonKey, getAuthHeaders } from '../lib/supabase';
+import { invalidateCache } from '../lib/queryCache';
 
 export const PMS_API_URL = `${supabaseUrl}/functions/v1/pms-api`;
 
 export const DEFAULT_AIOSELL_CONFIG = {
-  username: 'aiosell',
-  password: 'AIOsell@123',
-  webhookUsername: 'adminaavasa',
-  webhookPassword: 'admin123',
+  username: '',
+  password: '',
+  webhookUsername: '',
+  webhookPassword: '',
   hotelCode: 'sandbox-pms',
   partnerId: 'sample-pms',
   baseUrl: 'https://live.aiosell.com/api/v2/cm',
@@ -23,14 +24,11 @@ export const DEFAULT_AIOSELL_CONFIG = {
   pmsApiUrl: PMS_API_URL
 };
 
-function getPmsApiHeaders() {
-  return {
-    'Content-Type': 'application/json',
+async function getPmsApiHeaders() {
+  return await getAuthHeaders({
     Accept: 'application/json',
-    apikey: supabaseAnonKey,
-    Authorization: `Bearer ${supabaseAnonKey}`,
     'x-aavasa-client': 'aurastay-pms'
-  };
+  });
 }
 
 let inMemoryAiosellConfig = { ...DEFAULT_AIOSELL_CONFIG };
@@ -88,10 +86,30 @@ export async function broadcastCrossDeviceSync(eventPayload = {}) {
 export async function saveHotelAiosellCode(hotelId, aiosellHotelCode) {
   if (!isSupabaseConfigured || !hotelId) return { success: false };
   const cleanCode = String(aiosellHotelCode || '').trim();
+  const headers = await getPmsApiHeaders();
+  try {
+    const res = await fetch(PMS_API_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'update_hotel_aiosell_code',
+        hotelId,
+        aiosellHotelCode: cleanCode || null
+      })
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json?.success) {
+      invalidateCache(`pms:dashboard:${hotelId}`);
+      return { success: true, error: null };
+    }
+  } catch {
+    // Fallback to RLS-scoped authenticated direct update below
+  }
   const { error } = await supabase
     .from('hotels')
     .update({ aiosell_hotel_code: cleanCode || null, updated_at: new Date().toISOString() })
     .eq('id', hotelId);
+  if (!error) invalidateCache(`pms:dashboard:${hotelId}`);
   return { success: !error, error: error?.message || null };
 }
 
@@ -111,9 +129,10 @@ export async function pushHotelInventoryViaBackend({
   if (!hotelId) return { success: false, message: 'hotelId is required.' };
   const config = getAiosellConfig();
   try {
+    const headers = await getPmsApiHeaders();
     const res = await fetch(config.pmsApiUrl || PMS_API_URL, {
       method: 'POST',
-      headers: getPmsApiHeaders(),
+      headers,
       body: JSON.stringify({
         action: 'push_ota_inventory',
         hotelId,
@@ -141,10 +160,28 @@ export async function fetchLiveStateViaEdgeFunction(hotelId = null) {
   }
 
   const [roomsRes, resRes, rtRes, fnbRes] = await Promise.all([
-    supabase.from('rooms').select('*').eq('hotel_id', hotelId).order('room_number', { ascending: true }),
-    supabase.from('reservations').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
-    supabase.from('room_types').select('*').eq('hotel_id', hotelId).order('name', { ascending: true }),
-    supabase.from('fnb_orders').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false })
+    supabase
+      .from('rooms')
+      .select('id, hotel_id, room_number, room_type_id, floor, type, bed, status, price, guest, booking_id, check_out, is_ota_locked, ota_channel')
+      .eq('hotel_id', hotelId)
+      .order('room_number', { ascending: true }),
+    supabase
+      .from('reservations')
+      .select('id, hotel_id, guest, room, room_number, room_type, check_in, check_out, status, payment, amount, paid, source, created_at')
+      .eq('hotel_id', hotelId)
+      .order('created_at', { ascending: false })
+      .range(0, 199),
+    supabase
+      .from('room_types')
+      .select('id, hotel_id, name, label, base_price, is_booking_engine')
+      .eq('hotel_id', hotelId)
+      .order('name', { ascending: true }),
+    supabase
+      .from('fnb_orders')
+      .select('id, hotel_id, room_table, guest, total, status, time, created_at')
+      .eq('hotel_id', hotelId)
+      .order('created_at', { ascending: false })
+      .range(0, 199)
   ]);
 
   return {
@@ -159,15 +196,14 @@ export async function fetchLiveStateViaEdgeFunction(hotelId = null) {
 }
 
 /**
- * Dispatch an inbound Aiosell Webhook event strictly to the dedicated aiosell-webhook Edge Function
- * (Basic Auth verified, date-overlap double-booking protection, hotel_id scoped).
+ * Dispatch an inbound Aiosell Webhook event strictly via authenticated pms-api proxy -> aiosell-webhook Edge Function
+ * (Server Vault Basic Auth verified, date-overlap double-booking protection, hotel_id scoped).
  */
 export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
   const config = getAiosellConfig();
   const parsed = parseAiosellWebhookPayload(payload);
   let edgeResponse = null;
 
-  // Send only the Aiosell-standard payload (plus hotelId hint only if simulator overrides mapping)
   const webhookBody = {
     ...payload,
     hotelCode: payload.hotelCode || config.hotelCode || 'sandbox-pms',
@@ -175,37 +211,39 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
   };
 
   try {
-    const res = await fetch(config.webhookUrl, {
+    const headers = await getPmsApiHeaders();
+    const res = await fetch(config.pmsApiUrl || PMS_API_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        Authorization: getBasicAuthHeader(config.webhookUsername || 'adminaavasa', config.webhookPassword || 'admin123')
-      },
-      body: JSON.stringify(webhookBody)
+      headers,
+      body: JSON.stringify({
+        action: 'simulate_ota_webhook',
+        hotelId: currentHotelId,
+        webhookPayload: webhookBody
+      })
     });
 
-    edgeResponse = await res.json().catch(() => null);
-    if (res.ok && edgeResponse?.success) {
+    const proxyJson = await res.json().catch(() => null);
+    edgeResponse = proxyJson?.edgeResponse || proxyJson;
+    if (res.ok && (proxyJson?.success || edgeResponse?.success)) {
+      if (currentHotelId) invalidateCache(`pms:dashboard:${currentHotelId}`);
       return {
         success: true,
         action: parsed.action,
         bookingId: parsed.bookingId || parsed.reservation?.id,
         channel: parsed.channel || parsed.reservation?.channel,
-        allocatedRoomNumber: edgeResponse.allocatedRoom || null,
-        unlockedRoom: parsed.action === 'cancel' ? (edgeResponse.unlockedRoom || null) : null,
+        allocatedRoomNumber: edgeResponse?.allocatedRoom || null,
+        unlockedRoom: parsed.action === 'cancel' ? (edgeResponse?.unlockedRoom || null) : null,
         reservation: parsed.reservation,
         edgeResponse
       };
     }
 
-    // Respect explicit conflict / auth / hotelCode mapping failures from Edge Function
-    if (res.status === 401 || res.status === 404 || res.status === 409) {
+    if (res.status === 401 || res.status === 403 || res.status === 404 || res.status === 409) {
       return {
         success: false,
         status: res.status,
         action: parsed.action,
-        error: edgeResponse?.message || `Webhook rejected (${res.status}).`,
+        error: edgeResponse?.message || proxyJson?.message || `Webhook rejected (${res.status}).`,
         edgeResponse
       };
     }
@@ -267,8 +305,17 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
       const bookingId = resObj.id;
 
       const [{ data: existingRes }, { data: allRooms }, { data: activeReservations }] = await Promise.all([
-        supabase.from('reservations').select('*').eq('id', bookingId).eq('hotel_id', currentHotelId).maybeSingle(),
-        supabase.from('rooms').select('*').eq('hotel_id', currentHotelId).order('room_number', { ascending: true }),
+        supabase
+          .from('reservations')
+          .select('id, hotel_id, room, room_number, room_type, check_in, check_out, status')
+          .eq('id', bookingId)
+          .eq('hotel_id', currentHotelId)
+          .maybeSingle(),
+        supabase
+          .from('rooms')
+          .select('id, hotel_id, room_number, room_type_id, floor, type, bed, status, price, guest, booking_id, check_out, is_ota_locked, ota_channel')
+          .eq('hotel_id', currentHotelId)
+          .order('room_number', { ascending: true }),
         supabase
           .from('reservations')
           .select('id, room_number, room, status, check_in, check_out')
@@ -373,55 +420,61 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
 }
 
 /**
- * Common request handler with HTTP Basic Auth and error surfacing
+ * Common request handler proxied through pms-api Edge Function (keeps Aiosell Basic Auth in Server Vault)
  */
 async function makeRequest(endpoint, options = {}, customConfig = {}) {
   const config = { ...getAiosellConfig(), ...customConfig };
-  const url = endpoint.startsWith('http') ? endpoint : `${config.baseUrl}${endpoint}`;
-
-  const headers = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    Authorization: getBasicAuthHeader(config.username, config.password),
-    ...(options.headers || {})
-  };
+  const method = String(options.method || 'GET').toUpperCase();
+  let parsedBody;
+  if (method !== 'GET' && options.body !== undefined) {
+    if (typeof options.body === 'string') {
+      try {
+        parsedBody = JSON.parse(options.body);
+      } catch {
+        parsedBody = options.body;
+      }
+    } else {
+      parsedBody = options.body;
+    }
+  }
 
   try {
-    const res = await fetch(url, {
-      ...options,
-      headers
+    const headers = await getPmsApiHeaders();
+    const res = await fetch(config.pmsApiUrl || PMS_API_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'aiosell_proxy',
+        endpoint,
+        method,
+        partnerId: config.partnerId,
+        baseUrl: config.baseUrl,
+        ...(config.hotelId ? { hotelId: config.hotelId } : {}),
+        ...(config.username ? { username: config.username } : {}),
+        ...(config.password ? { password: config.password } : {}),
+        ...(parsedBody !== undefined ? { body: parsedBody } : {})
+      })
     });
 
-    const contentType = res.headers.get('content-type') || '';
-    let data;
-    if (contentType.includes('application/json')) {
-      data = await res.json();
-    } else {
-      const text = await res.text();
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        data = { message: text };
-      }
-    }
-
+    const json = await res.json().catch(() => null);
     if (!res.ok) {
-      const errorMsg = data?.message || data?.error || `HTTP ${res.status}: ${res.statusText}`;
+      const errorMsg = json?.message || json?.error || `HTTP ${res.status}: ${res.statusText}`;
       return {
         success: false,
         status: res.status,
         error: errorMsg,
-        data
+        data: json?.data || json
       };
     }
 
     return {
-      success: true,
-      status: res.status,
-      data
+      success: Boolean(json?.success),
+      status: json?.status || res.status,
+      data: json?.data ?? json,
+      ...(json?.error ? { error: json.error } : {})
     };
   } catch (err) {
-    console.error('Aiosell API Error:', err);
+    console.error('Aiosell Proxy API Error:', err);
     return {
       success: false,
       status: 0,

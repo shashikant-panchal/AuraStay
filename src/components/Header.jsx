@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import aavasaLogo from '../assets/aavasa-logo.jpg';
+import aavasaLogo from '../assets/aavasa-logo.webp';
 import { useDashboard } from '../context/DashboardContext';
 import {
   Menu,
@@ -100,12 +100,12 @@ export default function Header() {
             title={currentHotel?.name || 'Property Dashboard'}
           >
             <img
-              src={currentHotel?.logoUrl || aavasaLogo || "./aavasa-logo.jpg"}
+              src={currentHotel?.logoUrl || aavasaLogo || "./aavasa-logo.webp"}
               alt={currentHotel?.name || 'Property Logo'}
               className="h-8 sm:h-9 w-auto max-w-[140px] object-contain rounded"
               onError={(e) => {
                 e.currentTarget.onerror = null;
-                e.currentTarget.src = aavasaLogo || './aavasa-logo.jpg';
+                e.currentTarget.src = aavasaLogo || './aavasa-logo.webp';
               }}
             />
           </div>
