@@ -15,7 +15,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "
 
 const AIOSELL_USERNAME = Deno.env.get("AIOSELL_API_USERNAME") || "";
 const AIOSELL_PASSWORD = Deno.env.get("AIOSELL_API_PASSWORD") || "";
-const AIOSELL_PARTNER_ID = Deno.env.get("AIOSELL_PARTNER_ID") || "sample-pms";
+const AIOSELL_PARTNER_ID = Deno.env.get("AIOSELL_PARTNER_ID") || "aavasa";
 const AIOSELL_API_BASE = Deno.env.get("AIOSELL_API_BASE") || "https://live.aiosell.com/api/v2/cm";
 
 const WEBHOOK_USERNAME = Deno.env.get("AAVASA_WEBHOOK_USERNAME") || "";
@@ -293,7 +293,7 @@ async function pushOtaInventoryInternal(params: {
   ]);
 
   const hotelCode =
-    String(params.hotelCode || hotelRow?.aiosell_hotel_code || hotelRow?.slug || hotelId || "sandbox-pms").trim();
+    String(params.hotelCode || hotelRow?.aiosell_hotel_code || hotelRow?.slug || hotelId || "ff144346e6").trim();
 
   const categoryCounts = new Map<string, { total: number; free: number }>();
   (rooms || []).forEach((rm: any) => {
@@ -324,8 +324,17 @@ async function pushOtaInventoryInternal(params: {
     }
   });
 
+  const toAiosellRoomCode = (type: string): string => {
+    const norm = String(type || "").toLowerCase();
+    if (norm.includes("penthouse")) return "penthouse";
+    if (norm.includes("exec") || norm.includes("suite")) return "executive";
+    if (norm.includes("delux") || norm.includes("dlx")) return "deluxe";
+    if (norm.includes("std") || norm.includes("standard")) return "standard";
+    return norm || "standard";
+  };
+
   const aiosellRoomsPayload = Array.from(categoryCounts.entries()).map(([roomType, counts]) => ({
-    roomCode: roomType,
+    roomCode: toAiosellRoomCode(roomType),
     available: counts.free,
     stopSell: counts.total > 0 && counts.free === 0
   }));
@@ -1180,23 +1189,6 @@ serve(async (req: Request) => {
     // -------------------------------------------------------------------------
     if (action === "create_guest_booking") {
       const hotelId = String(payload.hotelId || payload.hotel_id || "").trim();
-      const { data: created, error: rpcErr } = await supabaseAdmin.rpc("create_guest_reservation", {
-        p_booking_id: payload.bookingId || null,
-        p_hotel_id: hotelId,
-        p_guest: payload.guest || payload.fullName,
-        p_guest_email: payload.guestEmail || payload.email || null,
-        p_guest_phone: payload.guestPhone || payload.phone || null,
-        p_room_category: payload.roomCategory || payload.roomType || "Standard Room",
-        p_check_in: payload.checkIn,
-        p_check_out: payload.checkOut,
-        p_amount: payload.amount !== undefined ? Number(payload.amount) : null,
-        p_adults: Number(payload.adults) || 2,
-        p_children: Number(payload.children) || 0,
-        p_preferred_room_number: payload.preferredRoomNumber || payload.roomNumber || null,
-        p_special_requests: payload.specialRequests || null,
-        p_source: payload.source || null
-      });
-
       if (rpcErr || !created?.success) {
         return jsonResponse(
           {

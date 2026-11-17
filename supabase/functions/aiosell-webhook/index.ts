@@ -9,6 +9,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const WEBHOOK_USERNAME = Deno.env.get("AAVASA_WEBHOOK_USERNAME") || "";
 const WEBHOOK_PASSWORD = Deno.env.get("AAVASA_WEBHOOK_PASSWORD") || "";
+const AIOSELL_USERNAME = Deno.env.get("AIOSELL_API_USERNAME") || "";
+const AIOSELL_PASSWORD = Deno.env.get("AIOSELL_API_PASSWORD") || "";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -43,7 +45,9 @@ function timingSafeEquals(a: string, b: string): boolean {
 }
 
 function validateBasicAuth(req: Request): boolean {
-  if (!WEBHOOK_USERNAME || !WEBHOOK_PASSWORD) return false;
+  const hasPrimary = Boolean(WEBHOOK_USERNAME && WEBHOOK_PASSWORD);
+  const hasSecondary = Boolean(AIOSELL_USERNAME && AIOSELL_PASSWORD);
+  if (!hasPrimary && !hasSecondary) return false;
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
   if (!authHeader.startsWith("Basic ")) return false;
   try {
@@ -53,7 +57,9 @@ function validateBasicAuth(req: Request): boolean {
     if (sepIdx <= 0) return false;
     const user = decoded.slice(0, sepIdx);
     const pass = decoded.slice(sepIdx + 1);
-    return timingSafeEquals(user, WEBHOOK_USERNAME) && timingSafeEquals(pass, WEBHOOK_PASSWORD);
+    const okPrimary = hasPrimary && timingSafeEquals(user, WEBHOOK_USERNAME) && timingSafeEquals(pass, WEBHOOK_PASSWORD);
+    const okSecondary = hasSecondary && timingSafeEquals(user, AIOSELL_USERNAME) && timingSafeEquals(pass, AIOSELL_PASSWORD);
+    return okPrimary || okSecondary;
   } catch {
     return false;
   }
@@ -111,13 +117,22 @@ async function resolveHotelIdStrict(preferredHotelId?: string, hotelCode?: strin
     );
     if (matched) return matched.id;
 
-    // 2. Sandbox convenience ONLY when single active hotel or sandbox-pms default
-    if (codeNorm === "sandbox-pms") {
+    // 2. Convenience matching for live hotelCode 'ff144346e6' or 'sandbox-pms'
+    if (codeNorm === "ff144346e6" || codeNorm === "sandbox-pms") {
       const activeHotels = validHotels.filter((h: any) => !h.status || h.status === "ACTIVE");
-      if (activeHotels.length === 1) {
+      if (activeHotels.length >= 1) {
         return activeHotels[0].id;
       }
     }
+  }
+
+  // Fallback: If only 1 hotel exists, route to it
+  const activeHotels = validHotels.filter((h: any) => !h.status || h.status === "ACTIVE");
+  if (activeHotels.length === 1) {
+    return activeHotels[0].id;
+  }
+  if (validHotels.length === 1) {
+    return validHotels[0].id;
   }
 
   return null;
@@ -125,6 +140,7 @@ async function resolveHotelIdStrict(preferredHotelId?: string, hotelCode?: strin
 
 function normalizeCategory(rawRoomCode: string): string {
   const code = String(rawRoomCode || "").toLowerCase();
+  if (code.includes("penthouse")) return "Penthouse";
   if (code.includes("suite")) return "Executive Suite";
   if (code.includes("exec")) return "Executive Room";
   if (code.includes("std") || code.includes("standard")) return "Standard Room";
@@ -149,7 +165,10 @@ serve(async (req: Request) => {
     );
   }
 
-  if (!supabase || !WEBHOOK_USERNAME || !WEBHOOK_PASSWORD) {
+  const hasAuthConfig =
+    (WEBHOOK_USERNAME && WEBHOOK_PASSWORD) ||
+    (AIOSELL_USERNAME && AIOSELL_PASSWORD);
+  if (!supabase || !hasAuthConfig) {
     return jsonResponse({ success: false, message: "Server configuration incomplete." }, 503);
   }
 
@@ -424,9 +443,46 @@ serve(async (req: Request) => {
       notes: `OTA Booking ${bookingId} via ${channel} (${checkIn} -> ${checkOut}). Reserved Room ${allocatedRoomNumber}.`
     };
 
-    const { error: upsertErr } = await supabase.from("reservations").upsert(reservationPayload);
+    // Auto-resilient upsert: strips unsupported columns if PostgreSQL schema cache doesn't have them yet
+    let activePayload = { ...reservationPayload };
+    let upsertErr: any = null;
+
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const { error } = await supabase.from("reservations").upsert(activePayload);
+      if (!error) {
+        upsertErr = null;
+        break;
+      }
+      upsertErr = error;
+      const missingColMatch = error.message?.match(/Could not find the '([^']+)' column/i);
+      if (missingColMatch && missingColMatch[1] && activePayload[missingColMatch[1]] !== undefined) {
+        console.warn(`[aiosell-webhook] Schema missing column '${missingColMatch[1]}'. Stripping and retrying upsert.`);
+        delete activePayload[missingColMatch[1]];
+        continue;
+      }
+      break;
+    }
+
     if (upsertErr) {
-      return jsonResponse({ success: false, message: `Reservation save error: ${upsertErr.message}` }, 500);
+      // Minimal fallback to guarantee booking receipt & room lock even on legacy table shapes
+      const minimalPayload = {
+        id: bookingId,
+        hotel_id: resolvedHotelId,
+        guest: guestName,
+        guest_email: guest.email || null,
+        guest_phone: guest.phone || null,
+        room: `Room ${allocatedRoomNumber}`,
+        check_in: checkIn,
+        check_out: checkOut,
+        source: `${channel} (Aiosell Channel Manager)`,
+        amount: totalAmount,
+        status: isAlreadyCheckedIn ? "CHECKED_IN" : "CONFIRMED",
+        payment: isPayAtHotel ? "PENDING" : "PAID"
+      };
+      const { error: fallbackErr } = await supabase.from("reservations").upsert(minimalPayload);
+      if (fallbackErr) {
+        return jsonResponse({ success: false, message: `Reservation save error: ${fallbackErr.message}` }, 500);
+      }
     }
 
     await broadcastRealtimeSync({

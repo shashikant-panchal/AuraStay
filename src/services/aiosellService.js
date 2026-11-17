@@ -10,15 +10,46 @@ import { invalidateCache } from '../lib/queryCache';
 
 export const PMS_API_URL = `${supabaseUrl}/functions/v1/pms-api`;
 
+export const AIOSELL_LIVE_ROOM_IDS = [
+  'standard',
+  'deluxe',
+  'executive',
+  'penthouse'
+];
+
+export const AIOSELL_LIVE_RATE_PLANS = [
+  { code: 'standard-s-cp', name: 'Standard Single CP', roomCode: 'standard' },
+  { code: 'standard-d-cp', name: 'Standard Double CP', roomCode: 'standard' },
+  { code: 'deluxe-s-cp', name: 'Deluxe Single CP', roomCode: 'deluxe' },
+  { code: 'deluxe-d-cp', name: 'Deluxe Double CP', roomCode: 'deluxe' },
+  { code: 'executive-s-cp', name: 'Executive Single CP', roomCode: 'executive' },
+  { code: 'executive-d-cp', name: 'Executive Double CP', roomCode: 'executive' },
+  { code: 'penthouse-s-cp', name: 'Penthouse Single CP', roomCode: 'penthouse' },
+  { code: 'penthouse-d-cp', name: 'Penthouse Double CP', roomCode: 'penthouse' },
+  { code: 'penthouse-t-cp', name: 'Penthouse Triple CP', roomCode: 'penthouse' },
+  { code: 'penthouse-q-cp', name: 'Penthouse Quad CP', roomCode: 'penthouse' },
+  { code: 'penthouse-p-cp', name: 'Penthouse Quintuple CP', roomCode: 'penthouse' },
+  { code: 'penthouse-h-cp', name: 'Penthouse Hex CP', roomCode: 'penthouse' }
+];
+
+export function toAiosellRoomCode(roomType) {
+  const norm = String(roomType || '').toLowerCase();
+  if (norm.includes('penthouse')) return 'penthouse';
+  if (norm.includes('exec') || norm.includes('suite')) return 'executive';
+  if (norm.includes('delux') || norm.includes('dlx')) return 'deluxe';
+  if (norm.includes('std') || norm.includes('standard')) return 'standard';
+  return 'standard';
+}
+
 export const DEFAULT_AIOSELL_CONFIG = {
   username: '',
   password: '',
   webhookUsername: '',
   webhookPassword: '',
-  hotelCode: 'sandbox-pms',
-  partnerId: 'sample-pms',
+  hotelCode: 'ff144346e6',
+  partnerId: 'aavasa',
   baseUrl: 'https://live.aiosell.com/api/v2/cm',
-  isSandbox: true,
+  isSandbox: false,
   autoSync: true,
   webhookUrl: `${supabaseUrl}/functions/v1/aiosell-webhook`,
   pmsApiUrl: PMS_API_URL
@@ -206,7 +237,7 @@ export async function dispatchWebhookToBackend(payload, currentHotelId = null) {
 
   const webhookBody = {
     ...payload,
-    hotelCode: payload.hotelCode || config.hotelCode || 'sandbox-pms',
+    hotelCode: payload.hotelCode || config.hotelCode || 'ff144346e6',
     ...(currentHotelId ? { hotelId: currentHotelId } : {})
   };
 
@@ -735,7 +766,7 @@ export function parseAiosellWebhookPayload(payload) {
       action: 'cancel',
       bookingId,
       channel,
-      hotelCode: payload.hotelCode || 'sandbox-pms'
+      hotelCode: payload.hotelCode || 'ff144346e6'
     };
   }
 
@@ -789,8 +820,10 @@ export function parseAiosellWebhookPayload(payload) {
   // Room type mapping fallback
   const rawRoomCode = String(firstRoom.roomCode || 'executive').toLowerCase();
   let mappedRoomType = 'Deluxe Room';
-  if (rawRoomCode.includes('suite')) mappedRoomType = 'Executive Suite';
+  if (rawRoomCode.includes('penthouse')) mappedRoomType = 'Penthouse';
+  else if (rawRoomCode.includes('suite')) mappedRoomType = 'Executive Suite';
   else if (rawRoomCode.includes('exec')) mappedRoomType = 'Executive Room';
+  else if (rawRoomCode.includes('delux') || rawRoomCode.includes('dlx')) mappedRoomType = 'Deluxe Room';
   else if (rawRoomCode.includes('std') || rawRoomCode.includes('standard')) mappedRoomType = 'Standard Room';
 
   const reservation = {

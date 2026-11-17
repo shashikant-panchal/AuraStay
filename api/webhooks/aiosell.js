@@ -9,6 +9,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const AIOSELL_USERNAME = process.env.AIOSELL_WEBHOOK_USERNAME || process.env.AAVASA_WEBHOOK_USERNAME || '';
 const AIOSELL_PASSWORD = process.env.AIOSELL_WEBHOOK_PASSWORD || process.env.AAVASA_WEBHOOK_PASSWORD || '';
+const AIOSELL_PARTNER_USERNAME = process.env.AIOSELL_API_USERNAME || '';
+const AIOSELL_PARTNER_PASSWORD = process.env.AIOSELL_API_PASSWORD || '';
 
 const supabaseUrl =
   process.env.VITE_SUPABASE_URL ||
@@ -41,7 +43,9 @@ function verifyWebhookAuth(req) {
     return { ok: false, status: 401, message: 'Invalid Bearer token.' };
   }
 
-  if (!AIOSELL_USERNAME || !AIOSELL_PASSWORD) {
+  const hasPrimary = Boolean(AIOSELL_USERNAME && AIOSELL_PASSWORD);
+  const hasSecondary = Boolean(AIOSELL_PARTNER_USERNAME && AIOSELL_PARTNER_PASSWORD);
+  if (!hasPrimary && !hasSecondary) {
     return {
       ok: false,
       status: 503,
@@ -58,7 +62,9 @@ function verifyWebhookAuth(req) {
     const sepIdx = decoded.indexOf(':');
     const user = sepIdx >= 0 ? decoded.slice(0, sepIdx) : decoded;
     const pass = sepIdx >= 0 ? decoded.slice(sepIdx + 1) : '';
-    if (!timingSafeEquals(user, AIOSELL_USERNAME) || !timingSafeEquals(pass, AIOSELL_PASSWORD)) {
+    const okPrimary = hasPrimary && timingSafeEquals(user, AIOSELL_USERNAME) && timingSafeEquals(pass, AIOSELL_PASSWORD);
+    const okSecondary = hasSecondary && timingSafeEquals(user, AIOSELL_PARTNER_USERNAME) && timingSafeEquals(pass, AIOSELL_PARTNER_PASSWORD);
+    if (!okPrimary && !okSecondary) {
       return { ok: false, status: 401, message: 'Invalid Aiosell Webhook credentials.' };
     }
     return { ok: true };
@@ -229,11 +235,14 @@ export default async function handler(req, res) {
           await supabase
             .from('rooms')
             .update({
-              status: 'OCCUPIED',
+              status: 'RESERVED',
               guest: guestName,
               booking_id: bookingId,
-              check_out: checkOut
+              check_out: checkOut,
+              is_ota_locked: true,
+              ota_channel: channel
             })
+            .eq('hotel_id', hotelId)
             .eq('room_number', allocatedRoomNumber);
         }
       }
