@@ -1189,6 +1189,23 @@ serve(async (req: Request) => {
     // -------------------------------------------------------------------------
     if (action === "create_guest_booking") {
       const hotelId = String(payload.hotelId || payload.hotel_id || "").trim();
+      const { data: created, error: rpcErr } = await supabaseAdmin.rpc("create_guest_reservation", {
+        p_booking_id: payload.bookingId || null,
+        p_hotel_id: hotelId,
+        p_guest: payload.guest || payload.fullName,
+        p_guest_email: payload.guestEmail || payload.email || null,
+        p_guest_phone: payload.guestPhone || payload.phone || null,
+        p_room_category: payload.roomCategory || payload.roomType || "Standard Room",
+        p_check_in: payload.checkIn,
+        p_check_out: payload.checkOut,
+        p_amount: payload.amount !== undefined ? Number(payload.amount) : null,
+        p_adults: Number(payload.adults) || 2,
+        p_children: Number(payload.children) || 0,
+        p_preferred_room_number: payload.preferredRoomNumber || payload.roomNumber || null,
+        p_special_requests: payload.specialRequests || null,
+        p_source: payload.source || null
+      });
+
       if (rpcErr || !created?.success) {
         return jsonResponse(
           {
