@@ -34,6 +34,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
   const [activeTab, setActiveTab] = useState(initialTab || 'charges'); // charges | payments | invoice
   const [voucherType, setVoucherType] = useState('BOOKING INVOICE');
   const [discountPercent, setDiscountPercent] = useState(0);
+  const [isGstEnabled, setIsGstEnabled] = useState(false);
 
   // New charge item state
   const [newCategory, setNewCategory] = useState('F&B');
@@ -56,7 +57,15 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
       const roomNum = String(room.room_number || room.roomNumber || room.number || '101');
       const resId = reservation?.id || room?.booking_id || room?.activeReservation?.id || roomNum;
       const checkIn = reservation?.check_in || reservation?.checkIn || '2026-11-04';
-      const roomPrice = Number(room.price || room.tariff || reservation?.price || 2500);
+      
+      // Exact accommodation tariff from backend database
+      const backendRoomAmount = Number(
+        reservation?.amount !== undefined && reservation?.amount !== null
+          ? reservation.amount
+          : (reservation?.total !== undefined && reservation?.total !== null
+              ? reservation.total
+              : (room.price || room.tariff || reservation?.price || 2500))
+      );
 
       const paidAmt = Number(reservation?.paid || reservation?.advance_paid || 0);
       const initialPayments = paidAmt > 0 ? [
@@ -69,12 +78,14 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
         setFolioItems(savedFolio.folioItems);
         setPaymentEntries(savedFolio.paymentEntries?.length ? savedFolio.paymentEntries : initialPayments);
         setDiscountPercent(savedFolio.discountPercent || 0);
+        setIsGstEnabled(Boolean(savedFolio.isGstEnabled));
       } else {
         setFolioItems([
-          { id: 'chg-1', date: checkIn, category: 'Room Tariff', description: `Room #${roomNum} - Accommodation Tariff`, rate: roomPrice, qty: 1, amount: roomPrice, gst: 12 }
+          { id: 'chg-1', date: checkIn, category: 'Room Tariff', description: `Room #${roomNum} - Accommodation Tariff`, rate: backendRoomAmount, qty: 1, amount: backendRoomAmount, gst: 12 }
         ]);
         setPaymentEntries(initialPayments);
         setDiscountPercent(0);
+        setIsGstEnabled(false);
       }
 
       setActiveTab(initialTab || 'charges');
@@ -93,16 +104,22 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
   const phone = reservation?.phone || '+91 98450 12345';
   const checkIn = reservation?.check_in || reservation?.checkIn || '2026-11-04';
   const checkOut = reservation?.check_out || reservation?.checkOut || '2026-11-06';
-  const roomPrice = Number(room.price || room.tariff || reservation?.price || 2500);
+  const backendRoomAmount = Number(
+    reservation?.amount !== undefined && reservation?.amount !== null
+      ? reservation.amount
+      : (reservation?.total !== undefined && reservation?.total !== null
+          ? reservation.total
+          : (room.price || room.tariff || reservation?.price || 2500))
+  );
 
-  // Calculations
+  // Calculations (Exact backend amounts + optional GST)
   const subtotalCharges = folioItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const discountAmount = Math.round((subtotalCharges * discountPercent) / 100);
   const netCharges = subtotalCharges - discountAmount;
   
-  // Tax calculation (CGST + SGST approx 12% blended)
-  const cgstAmount = Math.round(netCharges * 0.06);
-  const sgstAmount = Math.round(netCharges * 0.06);
+  // Tax calculation (CGST + SGST optional 12% blended)
+  const cgstAmount = isGstEnabled ? Math.round(netCharges * 0.06) : 0;
+  const sgstAmount = isGstEnabled ? Math.round(netCharges * 0.06) : 0;
   const grandTotal = netCharges + cgstAmount + sgstAmount;
 
   const totalPaid = paymentEntries.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -142,6 +159,9 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
         folioItems: updatedItems,
         paymentEntries,
         discountPercent,
+        isGstEnabled,
+        cgstAmount,
+        sgstAmount,
         subtotal: updatedItems.reduce((s, it) => s + (Number(it.amount) || 0), 0)
       });
     }
@@ -192,6 +212,9 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
         folioItems,
         paymentEntries: updatedPayments,
         discountPercent,
+        isGstEnabled,
+        cgstAmount,
+        sgstAmount,
         subtotal: subtotalCharges,
         grandTotal,
         totalPaid: updatedPaid,
@@ -344,6 +367,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
             <td style="color:#d97706;">Discount (${discountPercent}%):</td>
             <td style="text-align:right; font-weight:600; color:#d97706;">-₹ ${discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
           </tr>` : ''}
+          ${isGstEnabled ? `
           <tr>
             <td style="color:#64748b;">CGST (6%):</td>
             <td style="text-align:right;">₹ ${cgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
@@ -351,7 +375,11 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
           <tr>
             <td style="color:#64748b;">SGST (6%):</td>
             <td style="text-align:right;">₹ ${sgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-          </tr>
+          </tr>` : `
+          <tr>
+            <td style="color:#64748b;">GST / Taxes (0%):</td>
+            <td style="text-align:right;">₹ 0.00</td>
+          </tr>`}
           <tr class="total-row">
             <td>Grand Total:</td>
             <td style="text-align:right;">₹ ${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
@@ -490,6 +518,19 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
           </div>
 
           <div className="flex items-center space-x-3 text-xs">
+            <button
+              type="button"
+              onClick={() => setIsGstEnabled(!isGstEnabled)}
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition shadow-xs cursor-pointer ${
+                isGstEnabled
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300'
+              }`}
+              title="Toggle optional 12% GST"
+            >
+              <span>{isGstEnabled ? '✓ GST (12%) Added' : '+ Add GST (Optional)'}</span>
+            </button>
+
             <span className="text-slate-500 font-semibold">Balance Due:</span>
             <span className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
               balanceDue > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
@@ -800,8 +841,10 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
                   </div>
                 )}
                 <div className="flex justify-between sm:justify-end space-x-6 text-slate-600">
-                  <span>Taxes (CGST + SGST 12%):</span>
-                  <span className="font-mono font-semibold">₹{(cgstAmount + sgstAmount).toLocaleString('en-IN')}</span>
+                  <span>Taxes {isGstEnabled ? '(CGST + SGST 12%)' : '(GST 0% - Optional)'}:</span>
+                  <span className={`font-mono font-semibold ${isGstEnabled ? 'text-slate-800' : 'text-slate-400'}`}>
+                    ₹{(cgstAmount + sgstAmount).toLocaleString('en-IN')}
+                  </span>
                 </div>
                 <div className="flex justify-between sm:justify-end space-x-6 border-t border-slate-200 pt-1 text-sm font-black text-slate-900">
                   <span>Total Amount:</span>

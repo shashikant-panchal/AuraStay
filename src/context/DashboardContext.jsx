@@ -6,6 +6,7 @@ import { supabase, isSupabaseConfigured, supabaseAnonKey } from '../lib/supabase
 import { cachedQuery, invalidateCache, invalidateAllCache } from '../lib/queryCache';
 import { PMS_API_URL, broadcastCrossDeviceSync, pushHotelInventoryViaBackend } from '../services/aiosellService';
 import { compareCategoryNames, compareRoomsByCategoryAndNumber } from '../utils/roomSort';
+import { playBookingBellSound } from '../utils/audioAlert';
 
 const RESERVATION_PAGE_SIZE = 200;
 const FOLIO_PAGE_SIZE = 200;
@@ -238,6 +239,19 @@ export function DashboardProvider({ children }) {
   const [isMonitoringModalOpen, setIsMonitoringModalOpen] = useState(false);
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [selectedReservationDetails, setSelectedReservationDetails] = useState(null);
+  const [isReservationDetailsOpen, setIsReservationDetailsOpen] = useState(false);
+
+  const openReservationDetails = useCallback((res) => {
+    if (!res) return;
+    setSelectedReservationDetails(res);
+    setIsReservationDetailsOpen(true);
+  }, []);
+
+  const closeReservationDetails = useCallback(() => {
+    setSelectedReservationDetails(null);
+    setIsReservationDetailsOpen(false);
+  }, []);
   const [isCreateReservationModalOpenState, setIsCreateReservationModalOpenState] = useState(false);
   const [reservationPrefill, setReservationPrefill] = useState(null);
   const isCreateReservationModalOpen = isCreateReservationModalOpenState;
@@ -749,6 +763,7 @@ export function DashboardProvider({ children }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations', filter: hotelFilter }, payload => {
         scheduleRealtimeRefresh();
         if (payload.eventType === 'INSERT' && payload.new) {
+          playBookingBellSound();
           showNotification(`New Booking #${payload.new.id} received for ${payload.new.guest || 'Guest'} (${payload.new.room || 'Room'}).`);
         } else if (payload.eventType === 'UPDATE' && payload.new && payload.new.status === 'CANCELLED') {
           showNotification(`Reservation #${payload.new.id} for ${payload.new.guest || 'Guest'} was CANCELLED.`);
@@ -784,6 +799,7 @@ export function DashboardProvider({ children }) {
         if (data?.hotelId && String(data.hotelId) !== String(hotelId)) return;
         scheduleRealtimeRefresh();
         if (data?.bookingId && data?.action === 'book') {
+          playBookingBellSound();
           showNotification(`Real-Time Webhook Sync: Booking #${data.bookingId} (${data.guestName || 'Guest'}) locked Room ${data.allocatedRoom || ''}.`);
         } else if (data?.bookingId && data?.action === 'cancel') {
           showNotification(`Real-Time Webhook Sync: Booking #${data.bookingId} cancelled across all channels.`);
@@ -1752,8 +1768,8 @@ export function DashboardProvider({ children }) {
           client_phone: folioData.phone || '',
           category: 'Room Stay & Folio Ledger',
           subtotal: Number(folioData.subtotal || 0),
-          cgst: Number(folioData.cgstAmount || Math.round(Number(folioData.subtotal || 0) * 0.06)),
-          sgst: Number(folioData.sgstAmount || Math.round(Number(folioData.subtotal || 0) * 0.06)),
+          cgst: folioData.isGstEnabled ? Number(folioData.cgstAmount || 0) : 0,
+          sgst: folioData.isGstEnabled ? Number(folioData.sgstAmount || 0) : 0,
           total_amount: Number(folioData.grandTotal || 0),
           paid_amount: Number(folioData.totalPaid || 0),
           payment_mode: folioData.paymentEntries?.[folioData.paymentEntries.length - 1]?.mode || 'UPI',
@@ -1761,7 +1777,8 @@ export function DashboardProvider({ children }) {
           notes: JSON.stringify({
             folioItems: folioData.folioItems || [],
             paymentEntries: folioData.paymentEntries || [],
-            discountPercent: folioData.discountPercent || 0
+            discountPercent: folioData.discountPercent || 0,
+            isGstEnabled: Boolean(folioData.isGstEnabled)
           }),
           updated_at: new Date().toISOString()
         });
@@ -2328,6 +2345,7 @@ export function DashboardProvider({ children }) {
     };
 
     setReservations(prev => [reservation, ...(prev || [])]);
+    playBookingBellSound();
     showNotification(`Reservation ${resId} confirmed for ${reservation.guest}`);
     setIsCreateReservationModalOpen(false);
 
@@ -3035,6 +3053,12 @@ export function DashboardProvider({ children }) {
       currentHotel,
       login,
       logout,
+      selectedReservationDetails,
+      isReservationDetailsOpen,
+      openReservationDetails,
+      closeReservationDetails,
+      playBookingBellSound,
+      playBookingSound: playBookingBellSound,
       hasMoreReservations,
       loadMoreReservations,
       isLoadingMoreReservations

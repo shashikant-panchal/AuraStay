@@ -43,13 +43,25 @@ import CreateReservationModal from './components/modals/CreateReservationModal';
 import CreateRoomModal from './components/modals/CreateRoomModal';
 import CreateRoomTypeModal from './components/modals/CreateRoomTypeModal';
 import DeleteRoomModal from './components/modals/DeleteRoomModal';
+import ReservationDetailsModal from './components/modals/ReservationDetailsModal';
+import FolioBillingModal from './components/modals/FolioBillingModal';
 import NotificationToast from './components/NotificationToast';
 import ErrorBoundary from './components/ErrorBoundary';
 import HotelAdminLogin from './components/HotelAdminLogin';
 import { LogOut } from 'lucide-react';
 
 export default function App() {
-  const { currentView, activeTab, showNotification, isLoggedIn } = useDashboard();
+  const {
+    currentView,
+    activeTab,
+    showNotification,
+    isLoggedIn,
+    selectedReservationDetails,
+    isReservationDetailsOpen,
+    closeReservationDetails,
+    rooms
+  } = useDashboard();
+  const [globalFolioModal, setGlobalFolioModal] = React.useState({ isOpen: false, reservation: null, initialTab: 'charges' });
 
   if (!isLoggedIn) {
     return (
@@ -171,6 +183,22 @@ export default function App() {
           <CreateRoomModal />
           <CreateRoomTypeModal />
           <DeleteRoomModal />
+          <ReservationDetailsModal
+            isOpen={isReservationDetailsOpen}
+            onClose={closeReservationDetails}
+            reservation={selectedReservationDetails}
+            onOpenFolio={(res) => setGlobalFolioModal({ isOpen: true, reservation: res, initialTab: 'charges' })}
+            onOpenInvoice={(res) => setGlobalFolioModal({ isOpen: true, reservation: res, initialTab: 'invoice' })}
+          />
+          {globalFolioModal.isOpen && (
+            <FolioBillingModal
+              isOpen={globalFolioModal.isOpen}
+              onClose={() => setGlobalFolioModal({ isOpen: false, reservation: null, initialTab: 'charges' })}
+              room={rooms?.find(r => String(r.room_number || r.roomNumber) === String(globalFolioModal.reservation?.room_number || globalFolioModal.reservation?.rooms?.[0] || '')) || { room_number: globalFolioModal.reservation?.room_number || '101' }}
+              reservation={globalFolioModal.reservation}
+              initialTab={globalFolioModal.initialTab}
+            />
+          )}
           <NotificationToast />
         </ErrorBoundary>
       </div>

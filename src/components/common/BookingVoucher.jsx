@@ -153,29 +153,40 @@ export default function BookingVoucher({
   const hotelEmail = currentHotel?.email || 'N/A';
   const hotelWebsite = currentHotel?.website || '';
 
-  // --- DETAILED FINANCIAL CALCULATIONS ---
-  // 1. Room Tariff
-  const derivedReservationRate = Number(reservation?.amount) > 0
-    ? Math.round((Number(reservation.amount) / Math.max(1, nights)) * 100) / 100
-    : 0;
-  const baseRatePerNight = Number(room?.tariff || room?.price || reservation?.price || derivedReservationRate || 2500);
+  // --- DETAILED FINANCIAL CALCULATIONS (Backend-Accurate with Optional GST) ---
+  // Optional GST toggle state (default: false / 0% GST, matching backend exact amount)
+  const [isGstEnabled, setIsGstEnabled] = useState(false);
+
+  // 1. Exact Room Accommodation Tariff from Database
+  // Check reservation.amount first (Supabase column), then reservation.total, fallback to room tariff
+  const backendAmount = Number(
+    reservation?.amount !== undefined && reservation?.amount !== null
+      ? reservation.amount
+      : (reservation?.total !== undefined && reservation?.total !== null
+          ? reservation.total
+          : (room?.price || room?.tariff || reservation?.price || 0))
+  );
+
+  const baseRatePerNight = nights > 0 ? Math.round((backendAmount / nights) * 100) / 100 : backendAmount;
   const extraChargePerNight = 0.00;
   const roomDiscountPerNight = discountPercent > 0 ? (baseRatePerNight * discountPercent) / 100 : 0.00;
   const taxableRoomRate = baseRatePerNight - roomDiscountPerNight;
-  const roomTaxRatePercent = 5; // standard 5% tax
-  const roomTaxPerNight = (taxableRoomRate * roomTaxRatePercent) / 100;
+  
+  // Optional GST: 0% when disabled; 12% (6% CGST + 6% SGST) when enabled
+  const roomTaxRatePercent = isGstEnabled ? 12 : 0;
+  const roomTaxPerNight = isGstEnabled ? (taxableRoomRate * roomTaxRatePercent) / 100 : 0.00;
   const totalPerNight = taxableRoomRate + roomTaxPerNight;
-  const totalRoomStayAmount = totalPerNight * nights;
-  const totalBaseTariffAllNights = baseRatePerNight * nights;
+  const totalBaseTariffAllNights = backendAmount;
+  const totalRoomStayAmount = isGstEnabled ? totalPerNight * nights : (taxableRoomRate * nights);
 
   // 2. Additional Charges & Incidentals (F&B, Laundry, etc.)
   const additionalItems = folioItems.filter(item => item.category !== 'Room Tariff');
   const additionalChargesGross = additionalItems.reduce((sum, item) => sum + (Number(item.amount || item.rate) || 0), 0);
-  const additionalTaxesTotal = additionalItems.reduce((sum, item) => {
+  const additionalTaxesTotal = isGstEnabled ? additionalItems.reduce((sum, item) => {
     const amt = Number(item.amount || item.rate) || 0;
-    const gstRate = Number(item.gst) || 5;
+    const gstRate = Number(item.gst) || 12;
     return sum + (amt * gstRate) / 100;
-  }, 0);
+  }, 0) : 0;
 
   // 3. Overall Totals
   const combinedSubtotal = totalBaseTariffAllNights + additionalChargesGross;
@@ -183,14 +194,14 @@ export default function BookingVoucher({
   const netTaxableAmount = combinedSubtotal - totalDiscountAmount;
 
   // CGST & SGST Split
-  const totalRoomTax = roomTaxPerNight * nights;
-  const totalTaxCombined = totalRoomTax + additionalTaxesTotal;
-  const cgstAmount = totalTaxCombined / 2;
-  const sgstAmount = totalTaxCombined / 2;
+  const totalRoomTax = isGstEnabled ? (roomTaxPerNight * nights) : 0;
+  const totalTaxCombined = isGstEnabled ? (totalRoomTax + additionalTaxesTotal) : 0;
+  const cgstAmount = isGstEnabled ? Math.round((totalTaxCombined / 2) * 100) / 100 : 0;
+  const sgstAmount = isGstEnabled ? Math.round((totalTaxCombined / 2) * 100) / 100 : 0;
 
   const grandTotal = Math.round(netTaxableAmount + totalTaxCombined);
 
-  // Print helper variables (ensure all referenced totals exist in print template)
+  // Print helper variables
   const tariffRate = baseRatePerNight;
   const subtotalCharges = combinedSubtotal;
   const discountAmount = totalDiscountAmount;
@@ -335,14 +346,19 @@ export default function BookingVoucher({
             <td style="color:#d97706;">Discount (${discountPercent}%):</td>
             <td style="text-align:right; font-weight:600; color:#d97706;">-${selectedCurrency} ${fmt(discountAmount)}</td>
           </tr>` : ''}
+          ${isGstEnabled ? `
           <tr>
-            <td style="color:#64748b;">CGST (Tax Split):</td>
+            <td style="color:#64748b;">CGST (6%):</td>
             <td style="text-align:right;">${selectedCurrency} ${fmt(cgst)}</td>
           </tr>
           <tr>
-            <td style="color:#64748b;">SGST (Tax Split):</td>
+            <td style="color:#64748b;">SGST (6%):</td>
             <td style="text-align:right;">${selectedCurrency} ${fmt(sgst)}</td>
-          </tr>
+          </tr>` : `
+          <tr>
+            <td style="color:#64748b;">GST / Taxes (0%):</td>
+            <td style="text-align:right;">${selectedCurrency} 0.00</td>
+          </tr>`}
           <tr class="total-row">
             <td>Grand Total (Incl. Taxes):</td>
             <td style="text-align:right;">${selectedCurrency} ${fmt(grandTotal)}</td>
@@ -400,6 +416,19 @@ export default function BookingVoucher({
           >
             <Printer className="w-3.5 h-3.5" />
             <span>Print {displayDocType.toLowerCase().includes('tax') ? 'Tax Invoice' : 'Booking Invoice'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsGstEnabled(!isGstEnabled)}
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition shadow-xs cursor-pointer ${
+              isGstEnabled
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+            }`}
+            title="Optional GST (12%: 6% CGST + 6% SGST)"
+          >
+            <span>{isGstEnabled ? '✓ GST (12%) Added' : '+ Add GST (Optional)'}</span>
           </button>
         </div>
 
@@ -694,8 +723,8 @@ export default function BookingVoucher({
 
           {/* Taxes & Levies (CGST + SGST) */}
           <div className="flex justify-between items-center px-3 py-1.5 text-slate-700">
-            <span>Taxes & Levies (GST / CGST+SGST)</span>
-            <span className="font-mono font-semibold">
+            <span>Taxes & Levies {isGstEnabled ? '(GST 12% Active)' : '(GST 0% - Optional)'}</span>
+            <span className={`font-mono font-semibold ${isGstEnabled ? 'text-slate-800' : 'text-slate-400'}`}>
               +{selectedCurrency} {fmt(totalTaxCombined)}
             </span>
           </div>

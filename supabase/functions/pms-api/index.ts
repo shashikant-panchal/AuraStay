@@ -1221,7 +1221,10 @@ serve(async (req: Request) => {
         action: "book",
         hotelId: created.hotelId,
         bookingId: created.bookingId,
-        roomNumber: created.roomNumber
+        roomNumber: created.roomNumber,
+        allocatedRoom: created.roomNumber,
+        guestName: payload.guestName || payload.guest || "Guest",
+        amount: payload.amount
       });
 
       // Trigger outbound OTA availability sync server-side cleanly

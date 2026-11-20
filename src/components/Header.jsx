@@ -52,7 +52,10 @@ export default function Header() {
     currentHotel,
     logout,
     workingDate,
-    showNotification
+    showNotification,
+    reservations = [],
+    openReservationDetails,
+    playBookingBellSound
   } = useDashboard();
 
   const { property } = data;
@@ -60,15 +63,96 @@ export default function Header() {
   const [isQuickLinksOpen, setIsQuickLinksOpen] = useState(false);
   const quickLinksRef = useRef(null);
 
+  // Notification center state
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = useRef(null);
+  const [clearedNotifIds, setClearedNotifIds] = useState(() => {
+    try {
+      const storageKey = `aurastay_cleared_notifs_${currentHotel?.id || 'default'}`;
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Re-sync cleared IDs when hotel changes
+  useEffect(() => {
+    try {
+      const storageKey = `aurastay_cleared_notifs_${currentHotel?.id || 'default'}`;
+      const saved = localStorage.getItem(storageKey);
+      setClearedNotifIds(saved ? JSON.parse(saved) : []);
+    } catch {
+      setClearedNotifIds([]);
+    }
+  }, [currentHotel?.id]);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (quickLinksRef.current && !quickLinksRef.current.contains(e.target)) {
         setIsQuickLinksOpen(false);
       }
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setIsNotifOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleDismissNotif = (resId, e) => {
+    if (e) e.stopPropagation();
+    if (!resId) return;
+    setClearedNotifIds(prev => {
+      const updated = Array.from(new Set([...prev, String(resId)]));
+      try {
+        const storageKey = `aurastay_cleared_notifs_${currentHotel?.id || 'default'}`;
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Failed to save dismissed notification:', err);
+      }
+      return updated;
+    });
+  };
+
+  const handleClearAllNotifs = (e) => {
+    if (e) e.stopPropagation();
+    const allIds = activeNotifications.map(n => String(n.id));
+    setClearedNotifIds(prev => {
+      const updated = Array.from(new Set([...prev, ...allIds]));
+      try {
+        const storageKey = `aurastay_cleared_notifs_${currentHotel?.id || 'default'}`;
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Failed to clear notifications:', err);
+      }
+      return updated;
+    });
+  };
+
+  const todayStr = workingDate || new Date().toISOString().split('T')[0];
+  const threeDaysAgoStr = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  const activeNotifications = (reservations || []).filter(res => {
+    if (!res || !res.id) return false;
+    const resId = String(res.id);
+    if (clearedNotifIds.includes(resId)) return false;
+
+    const checkOut = String(res.check_out || res.checkOut || '');
+    const status = String(res.status || 'CONFIRMED').toUpperCase();
+
+    // Upcoming or In-House stays: shown until stay is over
+    if (checkOut >= todayStr || status === 'CONFIRMED' || status === 'RESERVED' || status === 'CHECKED_IN' || status === 'OCCUPIED') {
+      return true;
+    }
+
+    // Past stays (checkout before today): show only within 3 days, auto-clear older than 3 days
+    if (checkOut && checkOut >= threeDaysAgoStr) {
+      return true;
+    }
+
+    return false;
+  });
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -264,6 +348,121 @@ export default function Header() {
               Ctrl+K
             </kbd>
           </button>
+
+          {/* Booking Notifications Center */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition shadow-xs cursor-pointer border border-slate-200"
+              title="Booking Notifications & Alerts"
+            >
+              <Bell className="w-4 h-4 text-slate-700" />
+              {activeNotifications.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-600 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow-xs animate-pulse">
+                  {activeNotifications.length > 99 ? '99+' : activeNotifications.length}
+                </span>
+              )}
+            </button>
+
+            {isNotifOpen && (
+              <div className="absolute right-0 top-11 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 py-3 z-50 text-xs font-medium text-slate-700 animate-in fade-in duration-150">
+                {/* Header */}
+                <div className="px-4 pb-2.5 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-black text-slate-900 text-sm">Notifications</span>
+                    <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full">
+                      {activeNotifications.length} Active
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <button
+                      onClick={() => playBookingBellSound?.()}
+                      className="px-2 py-1 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-800 rounded-lg text-[10px] font-bold text-slate-600 transition flex items-center space-x-1 cursor-pointer"
+                      title="Play 3s chime alert"
+                    >
+                      <span>🔔 Test Chime</span>
+                    </button>
+                    {activeNotifications.length > 0 && (
+                      <button
+                        onClick={handleClearAllNotifs}
+                        className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                        title="Clear all active notifications"
+                      >
+                        Clear All
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Notifications List */}
+                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 py-1">
+                  {activeNotifications.length === 0 ? (
+                    <div className="py-8 px-4 text-center">
+                      <Bell className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <p className="font-bold text-slate-600 text-xs">No active notifications</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Upcoming bookings and recent stays will appear here.</p>
+                    </div>
+                  ) : (
+                    activeNotifications.slice(0, 50).map((res) => {
+                      const resId = res.id || 'N/A';
+                      const guestName = res.guest || res.name || 'Valued Guest';
+                      const roomNum = res.room_number || (res.rooms && res.rooms[0]) || (String(res.room || '').match(/\b(\d+)\b/)?.[1]) || 'Unassigned';
+                      const roomCategory = res.room_type || res.roomType || 'Standard Room';
+                      const checkIn = res.check_in || res.checkIn || 'N/A';
+                      const checkOut = res.check_out || res.checkOut || 'N/A';
+                      const amount = Number(res.amount !== undefined ? res.amount : (res.total || 0));
+                      const isUpcoming = checkOut >= todayStr;
+
+                      return (
+                        <div
+                          key={resId}
+                          onClick={() => {
+                            setIsNotifOpen(false);
+                            openReservationDetails(res);
+                          }}
+                          className="p-3 hover:bg-slate-50 transition cursor-pointer flex items-start justify-between gap-2 group"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-1.5 mb-1">
+                              <span className={`w-2 h-2 rounded-full ${isUpcoming ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                              <span className="font-bold text-slate-900 truncate text-xs">{guestName}</span>
+                              <span className="text-[10px] font-mono text-slate-400">#{resId}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-600">
+                              Room #{roomNum} ({roomCategory})
+                            </p>
+                            <div className="flex items-center space-x-2 text-[10px] text-slate-400 mt-1 font-mono">
+                              <span>{checkIn} → {checkOut}</span>
+                              <span>•</span>
+                              <span className="font-bold text-slate-800">₹{amount.toLocaleString('en-IN')}</span>
+                              <span>•</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                isUpcoming ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600'
+                              }`}>
+                                {isUpcoming ? 'Upcoming / In-House' : 'Past (3-Day Retention)'}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => handleDismissNotif(resId, e)}
+                            className="p-1 rounded-lg text-slate-300 hover:text-slate-600 hover:bg-slate-200 transition shrink-0 opacity-80 group-hover:opacity-100"
+                            title="Dismiss notification"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Footer Note */}
+                <div className="px-4 pt-2 border-t border-slate-100 text-[10px] text-slate-400 text-center">
+                  Upcoming stays remain active until checkout. Past stays auto-clear in 3 days.
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Active Client Property Badge (Tenant-Isolated) */}
           <div
