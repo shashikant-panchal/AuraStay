@@ -1007,7 +1007,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
           }}
           room={rooms.find(r => String(r.roomNumber || r.room_number) === String(folioActiveRsvn.room_number) || (folioActiveRsvn.rooms && folioActiveRsvn.rooms.includes(r.roomNumber))) || {
             room_number: folioActiveRsvn.room_number || folioActiveRsvn.rooms?.[0] || '101',
-            price: Number(folioActiveRsvn.total) || 2500,
+            price: Number(folioActiveRsvn.amount !== undefined ? folioActiveRsvn.amount : folioActiveRsvn.total) || 2500,
             guest: folioActiveRsvn.guest
           }}
           reservation={{
@@ -1020,7 +1020,9 @@ export default function ReservationManagementView({ isSubTab = false }) {
             check_out: folioActiveRsvn.checkOut || 'Upcoming',
             actualCheckInTime: folioActiveRsvn.actualCheckInTime,
             actualCheckOutTime: folioActiveRsvn.actualCheckOutTime,
-            price: Number(folioActiveRsvn.total) || 2500,
+            amount: Number(folioActiveRsvn.amount !== undefined ? folioActiveRsvn.amount : folioActiveRsvn.total) || 2500,
+            total: Number(folioActiveRsvn.amount !== undefined ? folioActiveRsvn.amount : folioActiveRsvn.total) || 2500,
+            price: Number(folioActiveRsvn.amount !== undefined ? folioActiveRsvn.amount : folioActiveRsvn.total) || 2500,
             paid: Number(folioActiveRsvn.paid) || 0,
             payment: folioActiveRsvn.due <= 0 ? 'PAID' : 'PENDING',
             rate_plan: folioActiveRsvn.ratePlan || 'EP - European Plan'

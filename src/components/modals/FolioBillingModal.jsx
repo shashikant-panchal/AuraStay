@@ -59,24 +59,22 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
       const resId = reservation?.id || room?.booking_id || room?.activeReservation?.id || roomNum;
       const checkIn = reservation?.check_in || reservation?.checkIn || '2026-11-04';
       
-      // Exact accommodation tariff from backend database (matches what was paid)
-      const paidAmt = Number(
-        reservation?.paid !== undefined && reservation?.paid !== null
-          ? reservation.paid
-          : (reservation?.advance_paid !== undefined && reservation?.advance_paid !== null
-              ? reservation.advance_paid
-              : 0)
+      // Exact accommodation tariff from backend database (Channel Manager / reservations)
+      const backendRoomAmount = Number(
+        reservation?.amount !== undefined && reservation?.amount !== null && !isNaN(Number(reservation.amount))
+          ? reservation.amount
+          : (reservation?.total !== undefined && reservation?.total !== null && !isNaN(Number(reservation.total))
+              ? reservation.total
+              : (reservation?.paid || room.price || room.tariff || 0))
       );
 
-      const backendRoomAmount = paidAmt > 0
-        ? paidAmt
-        : Number(
-            reservation?.amount !== undefined && reservation?.amount !== null
-              ? reservation.amount
-              : (reservation?.total !== undefined && reservation?.total !== null
-                  ? reservation.total
-                  : (room.price || room.tariff || reservation?.price || 0))
-          );
+      const paidAmt = Number(
+        reservation?.paid !== undefined && reservation?.paid !== null && !isNaN(Number(reservation.paid))
+          ? reservation.paid
+          : (reservation?.advance_paid !== undefined && reservation?.advance_paid !== null && !isNaN(Number(reservation.advance_paid))
+              ? reservation.advance_paid
+              : backendRoomAmount)
+      );
 
       const initialPayments = [
         {
@@ -92,7 +90,13 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
       const savedFolio = getFolio ? (getFolio(resId) || getFolio(roomNum)) : null;
 
       if (savedFolio && savedFolio.folioItems && savedFolio.folioItems.length > 0) {
-        setFolioItems(savedFolio.folioItems);
+        // Ensure Room Tariff strictly matches backendRoomAmount
+        const syncedItems = savedFolio.folioItems.map(item =>
+          item.category === 'Room Tariff'
+            ? { ...item, rate: backendRoomAmount, amount: backendRoomAmount }
+            : item
+        );
+        setFolioItems(syncedItems);
         setPaymentEntries(savedFolio.paymentEntries?.length ? savedFolio.paymentEntries : initialPayments);
         setDiscountPercent(savedFolio.discountPercent || 0);
         setIsGstEnabled(Boolean(savedFolio.isGstEnabled));
@@ -121,22 +125,20 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
   const phone = reservation?.phone || '+91 98450 12345';
   const checkIn = reservation?.check_in || reservation?.checkIn || '2026-11-04';
   const checkOut = reservation?.check_out || reservation?.checkOut || '2026-11-06';
-  const paidAmt = Number(
-    reservation?.paid !== undefined && reservation?.paid !== null
-      ? reservation.paid
-      : (reservation?.advance_paid !== undefined && reservation?.advance_paid !== null
-          ? reservation.advance_paid
-          : 0)
+  const backendRoomAmount = Number(
+    reservation?.amount !== undefined && reservation?.amount !== null && !isNaN(Number(reservation.amount))
+      ? reservation.amount
+      : (reservation?.total !== undefined && reservation?.total !== null && !isNaN(Number(reservation.total))
+          ? reservation.total
+          : (reservation?.paid || room?.price || room?.tariff || 0))
   );
-  const backendRoomAmount = paidAmt > 0
-    ? paidAmt
-    : Number(
-        reservation?.amount !== undefined && reservation?.amount !== null
-          ? reservation.amount
-          : (reservation?.total !== undefined && reservation?.total !== null
-              ? reservation.total
-              : (room.price || room.tariff || reservation?.price || 0))
-      );
+  const paidAmt = Number(
+    reservation?.paid !== undefined && reservation?.paid !== null && !isNaN(Number(reservation.paid))
+      ? reservation.paid
+      : (reservation?.advance_paid !== undefined && reservation?.advance_paid !== null && !isNaN(Number(reservation.advance_paid))
+          ? reservation.advance_paid
+          : backendRoomAmount)
+  );
 
   // Calculations (Exact backend amounts + optional GST)
   const subtotalCharges = folioItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -795,6 +797,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
                   reservation={{
                     ...reservation,
                     amount: backendRoomAmount,
+                    total: backendRoomAmount,
                     paid: backendRoomAmount
                   }}
                   folioItems={folioItems}
@@ -819,6 +822,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
                 reservation={{
                   ...reservation,
                   amount: backendRoomAmount,
+                  total: backendRoomAmount,
                   paid: backendRoomAmount
                 }}
                 folioItems={folioItems}

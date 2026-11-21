@@ -157,24 +157,16 @@ export default function BookingVoucher({
   // Optional GST toggle state (default: false / 0% GST, matching backend exact amount)
   const [isGstEnabled, setIsGstEnabled] = useState(false);
 
-  // 1. Exact Amount Paid from Backend (Invoice strictly matches paid amount)
-  const paidFromBackend = Number(
-    reservation?.paid !== undefined && reservation?.paid !== null
-      ? reservation.paid
-      : (reservation?.advance_paid !== undefined && reservation?.advance_paid !== null
-          ? reservation.advance_paid
-          : 0)
-  );
-
-  const fallbackAmount = Number(
-    reservation?.amount !== undefined && reservation?.amount !== null
+  // 1. Exact Amount from Backend (Channel manager & database reservations)
+  const backendAmount = Number(
+    reservation?.amount !== undefined && reservation?.amount !== null && !isNaN(Number(reservation.amount))
       ? reservation.amount
-      : (reservation?.total !== undefined && reservation?.total !== null
+      : (reservation?.total !== undefined && reservation?.total !== null && !isNaN(Number(reservation.total))
           ? reservation.total
-          : (room?.price || room?.tariff || reservation?.price || 0))
+          : (reservation?.paid || room?.price || room?.tariff || 0))
   );
 
-  const effectiveInvoiceAmount = paidFromBackend > 0 ? paidFromBackend : fallbackAmount;
+  const effectiveInvoiceAmount = backendAmount;
   const baseRatePerNight = nights > 0 ? Math.round((effectiveInvoiceAmount / nights) * 100) / 100 : effectiveInvoiceAmount;
   const totalBaseTariffAllNights = effectiveInvoiceAmount;
 
