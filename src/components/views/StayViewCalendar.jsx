@@ -95,6 +95,7 @@ export default function StayViewCalendar() {
     openCreateReservationModal,
     openEditRoomModal,
     checkOutReservation,
+    requestCheckout,
     scheduleRealtimeRefresh,
     rooms = [],
     reservations = []
@@ -1468,10 +1469,24 @@ export default function StayViewCalendar() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (checkOutReservation) {
+                    const rNum = selectedBooking.room_number || selectedBooking.room;
+                    const rObj = rooms.find(rm => String(rm.roomNumber || rm.room_number) === String(rNum));
+                    if (requestCheckout) {
+                      requestCheckout({
+                        room: rObj || { roomNumber: rNum, category: selectedBooking.room_type },
+                        reservation: selectedBooking,
+                        balanceDue: Math.max(0, Number(selectedBooking.amount || 0) - Number(selectedBooking.paid || 0)),
+                        onConfirm: async () => {
+                          if (checkOutReservation) {
+                            await checkOutReservation(selectedBooking.id);
+                          }
+                          setSelectedBooking(null);
+                        }
+                      });
+                    } else if (checkOutReservation) {
                       checkOutReservation(selectedBooking.id);
+                      setSelectedBooking(null);
                     }
-                    setSelectedBooking(null);
                   }}
                   className="flex-1 min-w-[120px] py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
                 >

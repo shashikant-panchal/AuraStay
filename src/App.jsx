@@ -43,6 +43,7 @@ import CreateReservationModal from './components/modals/CreateReservationModal';
 import CreateRoomModal from './components/modals/CreateRoomModal';
 import CreateRoomTypeModal from './components/modals/CreateRoomTypeModal';
 import DeleteRoomModal from './components/modals/DeleteRoomModal';
+import CheckoutConfirmationModal from './components/modals/CheckoutConfirmationModal';
 import ReservationDetailsModal from './components/modals/ReservationDetailsModal';
 import FolioBillingModal from './components/modals/FolioBillingModal';
 import NotificationToast from './components/NotificationToast';
@@ -59,7 +60,11 @@ export default function App() {
     selectedReservationDetails,
     isReservationDetailsOpen,
     closeReservationDetails,
-    rooms
+    rooms,
+    isCheckoutConfirmOpen,
+    checkoutConfirmData,
+    closeCheckoutConfirmModal,
+    checkoutRoom
   } = useDashboard();
   const [globalFolioModal, setGlobalFolioModal] = React.useState({ isOpen: false, reservation: null, initialTab: 'charges' });
 
@@ -183,6 +188,22 @@ export default function App() {
           <CreateRoomModal />
           <CreateRoomTypeModal />
           <DeleteRoomModal />
+          <CheckoutConfirmationModal
+            isOpen={isCheckoutConfirmOpen}
+            onClose={closeCheckoutConfirmModal}
+            onConfirm={async () => {
+              if (checkoutConfirmData?.onConfirm) {
+                await checkoutConfirmData.onConfirm();
+              } else if (checkoutConfirmData?.room || checkoutConfirmData?.roomNumber) {
+                const rNum = checkoutConfirmData.room?.roomNumber || checkoutConfirmData.room?.room_number || checkoutConfirmData.roomNumber;
+                const resId = checkoutConfirmData.reservation?.id || checkoutConfirmData.resId;
+                await checkoutRoom(rNum, resId);
+              }
+            }}
+            room={checkoutConfirmData?.room}
+            reservation={checkoutConfirmData?.reservation}
+            balanceDue={checkoutConfirmData?.balanceDue}
+          />
           <ReservationDetailsModal
             isOpen={isReservationDetailsOpen}
             onClose={closeReservationDetails}

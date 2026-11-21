@@ -344,7 +344,7 @@ export default function CreateRoomModal() {
               <p className="text-xs text-indigo-200/80">
                 {isEditMode
                   ? 'Update saved room number, category, tariff, floor & hardware details'
-                  : 'Exceed HMS Room Numbers & Types Setup'}
+                  : 'Property Room Numbers & Category Setup'}
               </p>
             </div>
           </div>

@@ -174,19 +174,21 @@ export default function RoomActionsModal({ isOpen, onClose, room, onAction }) {
                   </p>
                 )}
               </div>
-              <div className="shrink-0">
-                <span
-                  className={`px-2.5 py-1 rounded-xl text-[11px] font-mono font-black ${
-                    room.balanceDue > 0
-                      ? 'bg-rose-500/25 border border-rose-400/40 text-rose-200'
-                      : 'bg-emerald-500/25 border border-emerald-400/40 text-emerald-200'
-                  }`}
-                >
-                  {room.balanceDue > 0
-                    ? `Due: ₹${Number(room.balanceDue).toLocaleString('en-IN')}`
-                    : 'Folio Settled ✓'}
-                </span>
-              </div>
+              {isOccupied && (
+                <div className="shrink-0">
+                  <span
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-mono font-black ${
+                      room.balanceDue > 0
+                        ? 'bg-rose-500/25 border border-rose-400/40 text-rose-200'
+                        : 'bg-emerald-500/25 border border-emerald-400/40 text-emerald-200'
+                    }`}
+                  >
+                    {room.balanceDue > 0
+                      ? `Due: ₹${Number(room.balanceDue).toLocaleString('en-IN')}`
+                      : 'Folio Settled ✓'}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>

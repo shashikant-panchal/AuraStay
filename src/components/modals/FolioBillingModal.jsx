@@ -25,6 +25,7 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
   const { 
     showNotification, 
     checkoutRoom, 
+    requestCheckout,
     updateReservationPayment, 
     getFolio,
     saveFolio,
@@ -226,13 +227,19 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
   };
 
   const handleCheckoutAndClose = async () => {
-    if (balanceDue > 0) {
-      if (!window.confirm(`There is an outstanding balance of ₹${balanceDue.toLocaleString('en-IN')}. Are you sure you want to proceed with Checkout?`)) {
-        return;
-      }
-    }
-
     const resId = reservation?.id || room.booking_id || room.bookingId || room.activeReservation?.id;
+    if (requestCheckout) {
+      onClose();
+      requestCheckout({
+        room,
+        reservation,
+        balanceDue,
+        onConfirm: async () => {
+          await checkoutRoom(roomNum, resId);
+        }
+      });
+      return;
+    }
     await checkoutRoom(roomNum, resId);
     onClose();
   };

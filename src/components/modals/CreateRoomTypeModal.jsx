@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import {
   X,
@@ -19,15 +19,24 @@ import {
 export default function CreateRoomTypeModal({ isOpen, onClose }) {
   const {
     addRoomType,
+    updateRoomType,
+    editingRoomType,
+    setEditingRoomType,
     showNotification,
     isCreateRoomTypeModalOpen,
     setIsCreateRoomTypeModalOpen
   } = useDashboard();
 
   const isModalVisible = isOpen !== undefined ? isOpen : isCreateRoomTypeModalOpen;
-  const handleModalClose = onClose || (() => setIsCreateRoomTypeModalOpen && setIsCreateRoomTypeModalOpen(false));
+  const handleModalClose = () => {
+    if (setEditingRoomType) setEditingRoomType(null);
+    if (onClose) onClose();
+    else if (setIsCreateRoomTypeModalOpen) setIsCreateRoomTypeModalOpen(false);
+  };
 
-  // Exceed form fields
+  const isEditMode = Boolean(editingRoomType);
+
+  // Form fields
   const [name, setName] = useState('');
   const [label, setLabel] = useState('Room');
   const [beddingType, setBeddingType] = useState('King Bed');
@@ -43,7 +52,7 @@ export default function CreateRoomTypeModal({ isOpen, onClose }) {
   const [isBookingEngine, setIsBookingEngine] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Exceed standard facility chips
+  // Standard facility chips
   const standardFacilities = [
     'Air conditioning',
     'Free High-Speed Wi-Fi',
@@ -70,6 +79,51 @@ export default function CreateRoomTypeModal({ isOpen, onClose }) {
     'Daily housekeeping'
   ]);
 
+  useEffect(() => {
+    if (!isModalVisible) return;
+    if (editingRoomType) {
+      setName(editingRoomType.name || '');
+      setLabel(editingRoomType.label || 'Room');
+      setBeddingType(editingRoomType.beddingType || editingRoomType.bedding_type || 'King Bed');
+      setMaxAdults(Number(editingRoomType.maxAdults || editingRoomType.max_adults) || 2);
+      setMaxExtra(Number(editingRoomType.maxExtra || editingRoomType.max_extra) || 1);
+      setMaxChildren(Number(editingRoomType.maxChildren || editingRoomType.max_children) || 1);
+      setAreaSqft(Number(editingRoomType.areaSqft || editingRoomType.area_sqft) || 350);
+      setBasePrice(Number(editingRoomType.basePrice || editingRoomType.base_price) || 2500);
+      setExtraBedPrice(Number(editingRoomType.extraBedPrice || editingRoomType.extra_bed_price) || 800);
+      setChildPrice(Number(editingRoomType.childPrice || editingRoomType.child_price) || 400);
+      setDescription(editingRoomType.description || '');
+      setNotes(editingRoomType.notes || '');
+      setIsBookingEngine(editingRoomType.isBookingEngine !== false && editingRoomType.is_booking_engine !== false);
+      setSelectedFacilities(
+        Array.isArray(editingRoomType.amenities) && editingRoomType.amenities.length > 0
+          ? editingRoomType.amenities
+          : standardFacilities.slice(0, 5)
+      );
+    } else {
+      setName('');
+      setLabel('Room');
+      setBeddingType('King Bed');
+      setMaxAdults(2);
+      setMaxExtra(1);
+      setMaxChildren(1);
+      setAreaSqft(350);
+      setBasePrice(2500);
+      setExtraBedPrice(800);
+      setChildPrice(400);
+      setDescription('');
+      setNotes('');
+      setIsBookingEngine(true);
+      setSelectedFacilities([
+        'Air conditioning',
+        'Free High-Speed Wi-Fi',
+        'Flat-screen Smart TV',
+        'Private bathroom',
+        'Daily housekeeping'
+      ]);
+    }
+  }, [isModalVisible, editingRoomType]);
+
   if (!isModalVisible) return null;
 
   const toggleFacility = (facility) => {
@@ -88,7 +142,7 @@ export default function CreateRoomTypeModal({ isOpen, onClose }) {
     setIsSubmitting(true);
     try {
       const payload = {
-        id: `rt-${Date.now().toString().slice(-4)}`,
+        id: isEditMode ? editingRoomType.id : `rt-${Date.now().toString().slice(-4)}`,
         name: name.trim(),
         label,
         beddingType,
@@ -105,12 +159,14 @@ export default function CreateRoomTypeModal({ isOpen, onClose }) {
         isBookingEngine
       };
 
-      if (addRoomType) {
+      if (isEditMode && updateRoomType) {
+        await updateRoomType(editingRoomType.id, payload);
+      } else if (addRoomType) {
         await addRoomType(payload);
       }
       handleModalClose();
     } catch (err) {
-      showNotification('Failed to create room category.', 'error');
+      showNotification(`Failed to ${isEditMode ? 'update' : 'create'} room category.`, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -127,8 +183,12 @@ export default function CreateRoomTypeModal({ isOpen, onClose }) {
               <Layers className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-black tracking-wide">Create Room Category / Type</h3>
-              <p className="text-xs text-indigo-200/80">Exceed HMS Room Category Master & Occupancy Setup</p>
+              <h3 className="text-base font-black tracking-wide">
+                {isEditMode ? `Edit Room Category — ${editingRoomType.name}` : 'Create Room Category / Type'}
+              </h3>
+              <p className="text-xs text-indigo-200/80">
+                {isEditMode ? 'Update category rates, capacity, and amenities' : 'AuraStay Room Category Master & Occupancy Setup'}
+              </p>
             </div>
           </div>
           <button
@@ -222,7 +282,7 @@ export default function CreateRoomTypeModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {/* 3. Occupancy Rules (Exceed Max Guests) */}
+          {/* 3. Occupancy Rules */}
           <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 space-y-3">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
               Occupancy Policy
@@ -403,7 +463,7 @@ export default function CreateRoomTypeModal({ isOpen, onClose }) {
               className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-900 to-slate-900 hover:from-indigo-950 hover:to-slate-950 text-white font-bold text-xs shadow-md shadow-indigo-900/20 flex items-center space-x-1.5 transition-all"
             >
               <Check className="w-4 h-4" />
-              <span>{isSubmitting ? 'Saving Category...' : 'Save Room Category'}</span>
+              <span>{isSubmitting ? 'Saving Category...' : (isEditMode ? 'Update Room Category' : 'Save Room Category')}</span>
             </button>
           </div>
 

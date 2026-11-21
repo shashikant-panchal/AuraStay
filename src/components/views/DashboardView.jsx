@@ -56,7 +56,8 @@ export default function DashboardView() {
     openEditRoomModal,
     requestDeleteRoom,
     updateHousekeepingCleanliness,
-    checkoutRoom
+    checkoutRoom,
+    requestCheckout
   } = useDashboard();
 
   // Active filters
@@ -315,7 +316,15 @@ export default function DashboardView() {
         updateHousekeepingCleanliness(room.roomNumber, 'DIRTY');
         break;
       case 'checkout':
-        checkoutRoom(room.roomNumber, room.activeReservation?.id || room.booking_id);
+        if (requestCheckout) {
+          requestCheckout({
+            room,
+            reservation: room.activeReservation || reservations.find(r => r.id === (room.activeReservation?.id || room.booking_id)),
+            balanceDue: room.balanceDue
+          });
+        } else {
+          checkoutRoom(room.roomNumber, room.activeReservation?.id || room.booking_id);
+        }
         break;
       case 'book':
         setIsCreateReservationModalOpen(true);
@@ -764,9 +773,9 @@ export default function DashboardView() {
                                 </div>
 
                                 <div className="flex items-center justify-between text-xs bg-violet-50/80 p-2 rounded-xl border border-violet-100">
-                                  <span className="text-[10px] font-bold text-violet-700 uppercase">Balance:</span>
-                                  <span className={`font-mono font-black text-[11px] ${room.balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                    {room.balanceDue > 0 ? `Due ₹${room.balanceDue.toLocaleString('en-IN')}` : 'Prepaid ✓'}
+                                  <span className="text-[10px] font-bold text-violet-700 uppercase">Status:</span>
+                                  <span className="font-bold text-[11px] text-violet-900">
+                                    Awaiting Arrival
                                   </span>
                                 </div>
                               </div>

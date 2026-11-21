@@ -453,7 +453,7 @@ export default function BanquetEventsView() {
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
                 BANQUETS & CONVENTIONS
               </span>
-              <span className="text-xs text-purple-200/80 font-mono">• Exceed HMS Module</span>
+              <span className="text-xs text-purple-200/80 font-mono">• AuraStay Module</span>
             </div>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mt-1">
                 Banquets, Events & Catering

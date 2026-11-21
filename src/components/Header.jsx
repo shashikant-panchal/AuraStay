@@ -194,7 +194,7 @@ export default function Header() {
             />
           </div>
 
-          {/* Exceed Software Quick Links Mega Dropdown */}
+          {/* AuraStay Quick Links Mega Dropdown */}
           <div className="relative" ref={quickLinksRef}>
             <button
               onClick={() => setIsQuickLinksOpen(!isQuickLinksOpen)}
@@ -208,7 +208,7 @@ export default function Header() {
             {isQuickLinksOpen && (
               <div className="absolute left-0 top-11 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2.5 z-50 text-xs font-medium text-slate-700 animate-in fade-in duration-150">
                 <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                  Exceed Quick Actions
+                  Quick Actions
                 </div>
                 
                 <div className="py-1">
@@ -231,7 +231,7 @@ export default function Header() {
                     className="w-full px-3.5 py-2 text-left hover:bg-indigo-50 hover:text-indigo-900 flex items-center space-x-2.5 transition"
                   >
                     <Building2 className="w-4 h-4 text-sky-600" />
-                    <span>Add Room Number (Exceed Master)</span>
+                    <span>Add Room Number</span>
                   </button>
 
                   <button
@@ -242,7 +242,7 @@ export default function Header() {
                     className="w-full px-3.5 py-2 text-left hover:bg-indigo-50 hover:text-indigo-900 flex items-center space-x-2.5 transition"
                   >
                     <Layers className="w-4 h-4 text-indigo-600" />
-                    <span>Create Room Category (Exceed Master)</span>
+                    <span>Create Room Category</span>
                   </button>
 
                   <button
@@ -327,7 +327,7 @@ export default function Header() {
         {/* Right: Operational Date, Property Selector, Search, Avatar */}
         <div className="flex items-center space-x-3 sm:space-x-3.5">
           
-          {/* Exceed Operational Date Badge */}
+          {/* Operational Date Badge */}
           <div
             onClick={() => navigateTo('dashboard')}
             className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 cursor-pointer transition shadow-xs"

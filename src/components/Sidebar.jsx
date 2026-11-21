@@ -56,7 +56,7 @@ export default function Sidebar() {
     }
   });
 
-  // Sections open/collapsed state matching Exceed Software
+  // Sections open/collapsed state matching AuraStay PMS
   const [openSections, setOpenSections] = useState(() => {
     try {
       const saved = localStorage.getItem('aurastay_sidebar_sections_v2');
@@ -114,7 +114,7 @@ export default function Sidebar() {
     return true;
   };
 
-  // Section items configuration exactly matching Exceed Software
+  // Section items configuration for AuraStay
   const menuGroups = [
     {
       key: 'frontOffice',
@@ -314,7 +314,7 @@ export default function Sidebar() {
             </button>
           )}
 
-          {/* Exceed Software Functional Modules Accordion */}
+          {/* AuraStay Functional Modules Accordion */}
           {menuGroups.map(group => {
             const isOpen = openSections[group.key];
             const hasActiveView = group.items.some(item => isSubItemActive(item, group));

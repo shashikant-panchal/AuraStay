@@ -36,6 +36,8 @@ export default function RatePlansView() {
     setIsCreateRoomModalOpen,
     openEditRoomModal,
     setIsCreateRoomTypeModalOpen,
+    openCreateRoomTypeModal,
+    openEditRoomTypeModal,
     isCreateRoomModalOpen,
     isCreateRoomTypeModalOpen,
     showNotification,
@@ -133,7 +135,7 @@ export default function RatePlansView() {
         {/* Master Actions */}
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <button
-            onClick={() => setIsCreateRoomTypeModalOpen(true)}
+            onClick={() => (openCreateRoomTypeModal ? openCreateRoomTypeModal() : setIsCreateRoomTypeModalOpen(true))}
             className="h-10 px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 font-bold text-xs inline-flex items-center space-x-2 transition shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4 text-emerald-600" />
@@ -284,7 +286,7 @@ export default function RatePlansView() {
               <p className="text-xs text-slate-500 mt-0.5">Each room category carries meal plans (EP, CP, MAP, AP), guest capacity, and amenities.</p>
             </div>
             <button
-              onClick={() => setIsCreateRoomTypeModalOpen(true)}
+              onClick={() => (openCreateRoomTypeModal ? openCreateRoomTypeModal() : setIsCreateRoomTypeModalOpen(true))}
               className="px-4 py-2 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition self-start sm:self-auto cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -304,7 +306,7 @@ export default function RatePlansView() {
                 </p>
               </div>
               <button
-                onClick={() => setIsCreateRoomTypeModalOpen(true)}
+                onClick={() => (openCreateRoomTypeModal ? openCreateRoomTypeModal() : setIsCreateRoomTypeModalOpen(true))}
                 className="px-5 py-2.5 rounded-xl bg-[#0e4860] hover:bg-[#135d7c] text-white font-bold text-xs inline-flex items-center gap-2 shadow-sm cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
@@ -347,6 +349,14 @@ export default function RatePlansView() {
                       </div>
 
                       <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => openEditRoomTypeModal && openEditRoomTypeModal(rt)}
+                          className="p-1.5 text-slate-500 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition cursor-pointer flex items-center gap-1 text-xs font-semibold px-2"
+                          title="Edit Room Category"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
                         <button
                           onClick={() => {
                             if (deleteRoomType) deleteRoomType(rt.id);

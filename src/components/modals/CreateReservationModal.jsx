@@ -56,6 +56,8 @@ export default function CreateReservationModal() {
 
   // Commercials & Billing
   const [tariffRate, setTariffRate] = useState(2500);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [isGstEnabled, setIsGstEnabled] = useState(false);
   const [advancePaid, setAdvancePaid] = useState(1000);
   const [paymentMode, setPaymentMode] = useState('UPI');
   const [billingMode, setBillingMode] = useState('Guest Direct');
@@ -125,9 +127,11 @@ export default function CreateReservationModal() {
   const nightsCount = calculateNights();
 
   // Commercials
-  const subtotal = tariffRate * nightsCount;
-  const taxes = Math.round(subtotal * 0.12);
-  const totalTariff = subtotal + taxes;
+  const grossSubtotal = Number(tariffRate || 0) * nightsCount;
+  const netSubtotal = Math.max(0, grossSubtotal - Number(discountAmount || 0));
+  const taxes = isGstEnabled ? Math.round(netSubtotal * 0.12) : 0;
+  const totalTariff = netSubtotal + taxes;
+  const balanceRemaining = Math.max(0, totalTariff - Number(advancePaid || 0));
 
   // Conflict validation
   const activeConflict = useMemo(() => {
@@ -194,6 +198,10 @@ export default function CreateReservationModal() {
         rate_plan: ratePlan,
         source: 'Front Desk Direct Booking',
         amount: totalTariff,
+        tariff: Number(tariffRate) || 0,
+        discount: Number(discountAmount) || 0,
+        is_gst_enabled: isGstEnabled,
+        gst_amount: taxes,
         paid: Number(advancePaid) || 0,
         advance_paid: Number(advancePaid) || 0,
         payment_mode: paymentMode,
@@ -229,7 +237,7 @@ export default function CreateReservationModal() {
             </div>
             <div>
               <h2 className="text-base font-black tracking-wide">
-                Exceed HMS Reservation Create & Room Booking
+                Front Desk Reservation & Room Booking
               </h2>
               <p className="text-xs text-indigo-200/80">
                 Front desk guest registration, KYC identity proof & room allocation
@@ -444,37 +452,83 @@ export default function CreateReservationModal() {
           <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-wider text-amber-900">
-                Commercials, Taxes & Advance Settlement
+                Commercials, Custom Tariff & Advance Settlement
               </span>
               <span className="text-[11px] font-bold text-amber-800">
                 {nightsCount} Night{nightsCount > 1 ? 's' : ''} Stay
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
               <div>
-                <span className="text-[10px] text-slate-500 font-bold uppercase block">Daily Tariff</span>
-                <span className="font-mono font-bold text-slate-900">₹{tariffRate.toLocaleString('en-IN')}</span>
+                <label className="text-[10px] text-slate-700 font-bold uppercase block mb-1">
+                  Daily Tariff (₹) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={tariffRate}
+                  onChange={(e) => setTariffRate(Math.max(0, Number(e.target.value) || 0))}
+                  className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white font-bold font-mono text-xs outline-none focus:border-amber-500"
+                  placeholder="2500"
+                />
               </div>
+
               <div>
-                <span className="text-[10px] text-slate-500 font-bold uppercase block">Room Subtotal</span>
-                <span className="font-mono font-bold text-slate-900">₹{subtotal.toLocaleString('en-IN')}</span>
+                <label className="text-[10px] text-slate-700 font-bold uppercase block mb-1">
+                  Discount (₹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={discountAmount}
+                  onChange={(e) => setDiscountAmount(Math.max(0, Number(e.target.value) || 0))}
+                  className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white font-bold font-mono text-xs outline-none focus:border-amber-500"
+                  placeholder="0"
+                />
               </div>
+
               <div>
-                <span className="text-[10px] text-slate-500 font-bold uppercase block">GST (12%)</span>
-                <span className="font-mono font-bold text-slate-900">₹{taxes.toLocaleString('en-IN')}</span>
+                <label className="text-[10px] text-slate-700 font-bold uppercase block mb-1">
+                  Optional GST (12%)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsGstEnabled(!isGstEnabled)}
+                  className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center justify-between cursor-pointer ${
+                    isGstEnabled
+                      ? 'bg-emerald-600 text-white border-emerald-700'
+                      : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>{isGstEnabled ? 'GST Applied' : 'Add GST'}</span>
+                  <span className="font-mono text-[11px]">
+                    {isGstEnabled ? `₹${taxes.toLocaleString('en-IN')}` : 'Optional'}
+                  </span>
+                </button>
               </div>
-              <div>
-                <span className="text-[10px] text-indigo-700 font-bold uppercase block">Total Amount</span>
-                <span className="font-mono font-black text-indigo-950 text-sm">₹{totalTariff.toLocaleString('en-IN')}</span>
+
+              <div className="bg-amber-100/80 border border-amber-300/80 rounded-xl p-2 flex flex-col justify-center">
+                <span className="text-[10px] text-amber-900 font-bold uppercase block">Net Total</span>
+                <span className="font-mono font-black text-indigo-950 text-base">₹{totalTariff.toLocaleString('en-IN')}</span>
+                {discountAmount > 0 && (
+                  <span className="text-[9px] text-emerald-700 font-semibold truncate">
+                    Saved ₹{Number(discountAmount).toLocaleString('en-IN')}
+                  </span>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-amber-200/60">
               <div>
-                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
-                  Advance Payment Amount (₹)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] font-bold text-slate-700 uppercase">
+                    Advance Payment Amount (₹)
+                  </label>
+                  <span className="text-[10px] font-mono text-slate-500 font-semibold">
+                    Balance: ₹{balanceRemaining.toLocaleString('en-IN')}
+                  </span>
+                </div>
                 <input
                   type="number"
                   min="0"

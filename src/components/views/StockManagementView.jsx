@@ -432,7 +432,7 @@ export default function StockManagementView() {
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                           CENTRAL STORES & INVENTORY
                         </span>
-                        <span className="text-xs text-emerald-200/80 font-mono">• Exceed HMS Module</span>
+                        <span className="text-xs text-emerald-200/80 font-mono">• AuraStay Module</span>
                       </div>
                       <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mt-1">
                         Stock, Requisitions & Procurement

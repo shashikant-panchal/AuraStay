@@ -50,6 +50,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
     addReservation,
     updateReservationPayment,
     checkOutReservation,
+    requestCheckout,
     currentHotel,
     rooms = [],
     hasMoreReservations = false,
@@ -753,7 +754,24 @@ export default function ReservationManagementView({ isSubTab = false }) {
                               <span>Folio</span>
                             </button>
                             <button
-                              onClick={() => checkOutReservation && checkOutReservation(res.id)}
+                              onClick={() => {
+                                const rNum = res.room_number || res.room;
+                                const rObj = rooms.find(rm => String(rm.roomNumber || rm.room_number) === String(rNum));
+                                if (requestCheckout) {
+                                  requestCheckout({
+                                    room: rObj || { roomNumber: rNum, category: res.room_type },
+                                    reservation: res,
+                                    balanceDue: Math.max(0, Number(res.amount || 0) - Number(res.paid || 0)),
+                                    onConfirm: async () => {
+                                      if (checkOutReservation) {
+                                        await checkOutReservation(res.id);
+                                      }
+                                    }
+                                  });
+                                } else if (checkOutReservation) {
+                                  checkOutReservation(res.id);
+                                }
+                              }}
                               className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10.5px] font-bold flex items-center space-x-1 transition shadow-xs cursor-pointer"
                               title="Check Out Guest & Capture Departure Time"
                             >

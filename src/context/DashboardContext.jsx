@@ -212,6 +212,17 @@ export function DashboardProvider({ children }) {
   // Rooms & Operations state - driven by Supabase Backend Database
   const [roomTypes, setRoomTypes] = useState([]);
   const [isCreateRoomTypeModalOpen, setIsCreateRoomTypeModalOpen] = useState(false);
+  const [editingRoomType, setEditingRoomType] = useState(null);
+
+  const openCreateRoomTypeModal = () => {
+    setEditingRoomType(null);
+    setIsCreateRoomTypeModalOpen(true);
+  };
+
+  const openEditRoomTypeModal = (roomType) => {
+    setEditingRoomType(roomType);
+    setIsCreateRoomTypeModalOpen(true);
+  };
 
   const [rooms, setRooms] = useState([]);
   const [reservations, setReservations] = useState([]);
@@ -241,6 +252,21 @@ export function DashboardProvider({ children }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedReservationDetails, setSelectedReservationDetails] = useState(null);
   const [isReservationDetailsOpen, setIsReservationDetailsOpen] = useState(false);
+
+  // Checkout Confirmation Modal State
+  const [checkoutConfirmData, setCheckoutConfirmData] = useState(null);
+  const [isCheckoutConfirmOpen, setIsCheckoutConfirmOpen] = useState(false);
+
+  const requestCheckout = useCallback((data) => {
+    if (!data) return;
+    setCheckoutConfirmData(data);
+    setIsCheckoutConfirmOpen(true);
+  }, []);
+
+  const closeCheckoutConfirmModal = useCallback(() => {
+    setIsCheckoutConfirmOpen(false);
+    setCheckoutConfirmData(null);
+  }, []);
 
   const openReservationDetails = useCallback((res) => {
     if (!res) return;
@@ -1074,7 +1100,7 @@ export function DashboardProvider({ children }) {
     }
   };
 
-  // Room Categories (Exceed HMS Room Category Master) CRUD
+  // Room Categories (AuraStay Room Category Master) CRUD
   const addRoomType = async (newType) => {
     const typeObj = {
       ...newType,
@@ -1118,14 +1144,37 @@ export function DashboardProvider({ children }) {
   };
 
   const updateRoomType = async (id, updatedType) => {
+    const cleanObj = {
+      ...updatedType,
+      id
+    };
     setRoomTypes(prev =>
-      (prev || []).map(t => t.id === id ? { ...t, ...updatedType } : t)
+      (prev || []).map(t => t.id === id ? { ...t, ...cleanObj } : t)
         .sort((a, b) => compareCategoryNames(a.name, b.name))
     );
-    showNotification('Room category updated.');
+    showNotification(`Room category ${updatedType.name || ''} updated successfully.`);
+    setIsCreateRoomTypeModalOpen(false);
+    setEditingRoomType(null);
+
     if (isSupabaseConfigured && currentHotel?.id) {
       try {
-        await supabase.from('room_types').update(updatedType).eq('id', id).eq('hotel_id', currentHotel.id);
+        const payload = {
+          name: updatedType.name,
+          label: updatedType.label || 'Room',
+          bedding_type: updatedType.beddingType || updatedType.bedding_type || 'King Bed',
+          max_adults: Number(updatedType.maxAdults || updatedType.max_adults) || 2,
+          max_extra: Number(updatedType.maxExtra || updatedType.max_extra) || 1,
+          max_children: Number(updatedType.maxChildren || updatedType.max_children) || 1,
+          area_sqft: Number(updatedType.areaSqft || updatedType.area_sqft) || 350,
+          base_price: Number(updatedType.basePrice || updatedType.base_price) || 2500,
+          extra_bed_price: Number(updatedType.extraBedPrice || updatedType.extra_bed_price) || 800,
+          child_price: Number(updatedType.childPrice || updatedType.child_price) || 400,
+          amenities: updatedType.amenities || [],
+          description: updatedType.description || '',
+          notes: updatedType.notes || '',
+          is_booking_engine: updatedType.isBookingEngine !== false
+        };
+        await supabase.from('room_types').update(payload).eq('id', id).eq('hotel_id', currentHotel.id);
         await broadcastCrossDeviceSync({ action: 'room_type_update', id });
       } catch (err) {
         console.warn('Supabase update room type error:', err);
@@ -2304,7 +2353,7 @@ export function DashboardProvider({ children }) {
     return updatedRes;
   };
 
-  // Add reservation (Full Exceed HMS Schema Synchronization)
+  // Add reservation (AuraStay Schema Synchronization)
   const addReservation = async (newRes) => {
     const resId = newRes.id || `RES-${Date.now().toString().slice(-4)}`;
     const cleanRoomNum = String(newRes.room_number || String(newRes.room).match(/\b(\d+)\b/)?.[1] || '');
@@ -2453,7 +2502,7 @@ export function DashboardProvider({ children }) {
   };
 
   // =========================================================================
-  // EXCEED-INSPIRED HOTEL OPERATIONAL LOGIC & WORKFLOWS
+  // AURASTAY HOTEL OPERATIONAL LOGIC & WORKFLOWS
   // =========================================================================
 
   // Hotel Operational Working Date
@@ -3022,6 +3071,10 @@ export function DashboardProvider({ children }) {
       deleteRoomType,
       isCreateRoomTypeModalOpen,
       setIsCreateRoomTypeModalOpen,
+      editingRoomType,
+      setEditingRoomType,
+      openCreateRoomTypeModal,
+      openEditRoomTypeModal,
       isCreateRoomModalOpen,
       setIsCreateRoomModalOpen,
       editingRoom,
@@ -3044,6 +3097,10 @@ export function DashboardProvider({ children }) {
       shiftRoom,
       extendStay,
       checkoutRoom,
+      checkoutConfirmData,
+      isCheckoutConfirmOpen,
+      requestCheckout,
+      closeCheckoutConfirmModal,
       blockRoom,
       unblockRoom,
       updateHousekeepingCleanliness,

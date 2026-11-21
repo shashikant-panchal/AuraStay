@@ -417,7 +417,7 @@ export default function HousekeepingView() {
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
               OPERATIONS & HYGIENE
             </span>
-            <span className="text-xs text-sky-200/80 font-mono">• Exceed HMS Module</span>
+            <span className="text-xs text-sky-200/80 font-mono">• AuraStay Module</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-serif font-black tracking-wide text-white mt-1">
             Housekeeping & Maintenance
