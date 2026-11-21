@@ -944,8 +944,8 @@ export default function ReservationManagementView({ isSubTab = false }) {
 
               <div className="flex items-center justify-between p-3 bg-sky-50 rounded-xl border border-sky-200 text-sky-900">
                 <div>
-                  <span className="font-bold block">Folio Balance: ₹{inspectedReservation.total.toLocaleString()}</span>
-                  <span className="text-[11px] text-sky-700">Paid: ₹{inspectedReservation.paid.toLocaleString()} | Due: ₹{inspectedReservation.due.toLocaleString()}</span>
+                  <span className="font-bold block">Total Tariff: ₹{inspectedReservation.total.toLocaleString()}</span>
+                  <span className="text-[11px] text-sky-700">Paid: ₹{inspectedReservation.paid.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button

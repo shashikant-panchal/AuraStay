@@ -367,10 +367,6 @@ export default function BookingVoucher({
             <td style="color:#059669; font-weight:700;">Total Paid / Advance:</td>
             <td style="text-align:right; font-weight:700; color:#059669;">${selectedCurrency} ${fmt(totalPaid)}</td>
           </tr>
-          <tr style="font-weight:800; font-size:12.5px; border-top:1px dashed #cbd5e1; color:${balanceDue > 0 ? '#dc2626' : '#059669'};">
-            <td>Balance Due:</td>
-            <td style="text-align:right;">${selectedCurrency} ${fmt(balanceDue)}</td>
-          </tr>
         </table>
 
         <div class="terms">
@@ -742,14 +738,6 @@ export default function BookingVoucher({
             <span>Total Advances / Paid</span>
             <span className="font-mono font-bold">
               {selectedCurrency} {fmt(totalPaid)}
-            </span>
-          </div>
-
-          {/* Est. Balance / Remaining Due Highlighted in Deep Blue */}
-          <div className="flex justify-between items-center px-3 py-2 bg-[#034a7f] text-white">
-            <span className="font-black uppercase tracking-wider text-[11px]">Est. Balance</span>
-            <span className="font-mono font-black text-sm">
-              {selectedCurrency} {fmt(balanceDue)}
             </span>
           </div>
         </div>

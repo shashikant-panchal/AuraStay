@@ -306,7 +306,7 @@ export default function CheckInModal({ isOpen, onClose, reservation }) {
               </label>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-center bg-white p-2.5 rounded-xl border border-slate-200">
+            <div className="grid grid-cols-2 gap-2 text-center bg-white p-2.5 rounded-xl border border-slate-200">
               <div>
                 <span className="text-[10px] text-slate-400 font-bold uppercase">Total Tariff</span>
                 <p className="font-mono font-bold text-slate-900 mt-0.5">₹{totalTariff.toLocaleString()}</p>
@@ -314,10 +314,6 @@ export default function CheckInModal({ isOpen, onClose, reservation }) {
               <div>
                 <span className="text-[10px] text-slate-400 font-bold uppercase">Already Paid</span>
                 <p className="font-mono font-bold text-emerald-600 mt-0.5">₹{alreadyPaid.toLocaleString()}</p>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase">Balance Due</span>
-                <p className="font-mono font-bold text-rose-600 mt-0.5">₹{remainingDue.toLocaleString()}</p>
               </div>
             </div>
 

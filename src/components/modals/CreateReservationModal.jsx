@@ -521,14 +521,9 @@ export default function CreateReservationModal() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-amber-200/60">
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">
-                    Advance Payment Amount (₹)
-                  </label>
-                  <span className="text-[10px] font-mono text-slate-500 font-semibold">
-                    Balance: ₹{balanceRemaining.toLocaleString('en-IN')}
-                  </span>
-                </div>
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Advance Payment Amount (₹)
+                </label>
                 <input
                   type="number"
                   min="0"

@@ -395,10 +395,6 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
             <td style="color:#059669; font-weight:700;">Payments Recorded:</td>
             <td style="text-align:right; font-weight:700; color:#059669;">₹ ${totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
           </tr>
-          <tr style="font-weight:800; font-size:12.5px; border-top:1px dashed #cbd5e1; color:${balanceDue > 0 ? '#dc2626' : '#059669'};">
-            <td>Balance Due:</td>
-            <td style="text-align:right;">₹ ${balanceDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-          </tr>
         </table>
 
         ${paymentEntries.length > 0 ? `
@@ -537,13 +533,6 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
             >
               <span>{isGstEnabled ? '✓ GST (12%) Added' : '+ Add GST (Optional)'}</span>
             </button>
-
-            <span className="text-slate-500 font-semibold">Balance Due:</span>
-            <span className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
-              balanceDue > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
-            }`}>
-              ₹{balanceDue.toLocaleString('en-IN')}
-            </span>
           </div>
         </div>
 

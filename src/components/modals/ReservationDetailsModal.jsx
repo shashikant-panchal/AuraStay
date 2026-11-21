@@ -197,7 +197,7 @@ export default function ReservationDetailsModal({
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="grid grid-cols-2 gap-3 text-center">
               <div className="bg-white p-3 rounded-xl border border-indigo-100 shadow-2xs">
                 <span className="text-[10px] text-slate-500 block">Booking Total</span>
                 <span className="text-base font-black text-slate-900 font-mono">₹{fmt(totalAmount)}</span>
@@ -205,14 +205,6 @@ export default function ReservationDetailsModal({
               <div className="bg-white p-3 rounded-xl border border-emerald-100 shadow-2xs">
                 <span className="text-[10px] text-slate-500 block">Paid / Advance</span>
                 <span className="text-base font-black text-emerald-700 font-mono">₹{fmt(paidAmount)}</span>
-              </div>
-              <div className={`bg-white p-3 rounded-xl shadow-2xs border ${status === 'RESERVED' ? 'border-slate-200' : 'border-rose-100'}`}>
-                <span className="text-[10px] text-slate-500 block">
-                  {status === 'RESERVED' ? 'Payable on Check-In' : 'Balance Due'}
-                </span>
-                <span className={`text-base font-black font-mono ${status === 'RESERVED' ? 'text-slate-800' : (balanceDue > 0 ? 'text-rose-700' : 'text-emerald-700')}`}>
-                  ₹{fmt(balanceDue)}
-                </span>
               </div>
             </div>
           </div>
