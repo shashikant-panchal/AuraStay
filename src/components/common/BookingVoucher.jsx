@@ -157,9 +157,16 @@ export default function BookingVoucher({
   // Optional GST toggle state (default: false / 0% GST, matching backend exact amount)
   const [isGstEnabled, setIsGstEnabled] = useState(false);
 
-  // 1. Exact Room Accommodation Tariff from Database
-  // Check reservation.amount first (Supabase column), then reservation.total, fallback to room tariff
-  const backendAmount = Number(
+  // 1. Exact Amount Paid from Backend (Invoice strictly matches paid amount)
+  const paidFromBackend = Number(
+    reservation?.paid !== undefined && reservation?.paid !== null
+      ? reservation.paid
+      : (reservation?.advance_paid !== undefined && reservation?.advance_paid !== null
+          ? reservation.advance_paid
+          : 0)
+  );
+
+  const fallbackAmount = Number(
     reservation?.amount !== undefined && reservation?.amount !== null
       ? reservation.amount
       : (reservation?.total !== undefined && reservation?.total !== null
@@ -167,55 +174,26 @@ export default function BookingVoucher({
           : (room?.price || room?.tariff || reservation?.price || 0))
   );
 
-  const baseRatePerNight = nights > 0 ? Math.round((backendAmount / nights) * 100) / 100 : backendAmount;
-  const extraChargePerNight = 0.00;
-  const roomDiscountPerNight = discountPercent > 0 ? (baseRatePerNight * discountPercent) / 100 : 0.00;
-  const taxableRoomRate = baseRatePerNight - roomDiscountPerNight;
-  
-  // Optional GST: 0% when disabled; 12% (6% CGST + 6% SGST) when enabled
-  const roomTaxRatePercent = isGstEnabled ? 12 : 0;
-  const roomTaxPerNight = isGstEnabled ? (taxableRoomRate * roomTaxRatePercent) / 100 : 0.00;
-  const totalPerNight = taxableRoomRate + roomTaxPerNight;
-  const totalBaseTariffAllNights = backendAmount;
-  const totalRoomStayAmount = isGstEnabled ? totalPerNight * nights : (taxableRoomRate * nights);
+  const effectiveInvoiceAmount = paidFromBackend > 0 ? paidFromBackend : fallbackAmount;
+  const baseRatePerNight = nights > 0 ? Math.round((effectiveInvoiceAmount / nights) * 100) / 100 : effectiveInvoiceAmount;
+  const totalBaseTariffAllNights = effectiveInvoiceAmount;
 
-  // 2. Additional Charges & Incidentals (F&B, Laundry, etc.)
-  const additionalItems = folioItems.filter(item => item.category !== 'Room Tariff');
-  const additionalChargesGross = additionalItems.reduce((sum, item) => sum + (Number(item.amount || item.rate) || 0), 0);
-  const additionalTaxesTotal = isGstEnabled ? additionalItems.reduce((sum, item) => {
-    const amt = Number(item.amount || item.rate) || 0;
-    const gstRate = Number(item.gst) || 12;
-    return sum + (amt * gstRate) / 100;
-  }, 0) : 0;
+  // Optional GST
+  const taxableRoomRate = isGstEnabled ? Math.round((effectiveInvoiceAmount / 1.12) * 100) / 100 : effectiveInvoiceAmount;
+  const gstAmount = isGstEnabled ? Math.round((effectiveInvoiceAmount - taxableRoomRate) * 100) / 100 : 0;
+  const cgstAmount = isGstEnabled ? Math.round((gstAmount / 2) * 100) / 100 : 0;
+  const sgstAmount = isGstEnabled ? Math.round((gstAmount / 2) * 100) / 100 : 0;
 
-  // 3. Overall Totals
-  const combinedSubtotal = totalBaseTariffAllNights + additionalChargesGross;
-  const totalDiscountAmount = (totalBaseTariffAllNights * discountPercent) / 100;
-  const netTaxableAmount = combinedSubtotal - totalDiscountAmount;
-
-  // CGST & SGST Split
-  const totalRoomTax = isGstEnabled ? (roomTaxPerNight * nights) : 0;
-  const totalTaxCombined = isGstEnabled ? (totalRoomTax + additionalTaxesTotal) : 0;
-  const cgstAmount = isGstEnabled ? Math.round((totalTaxCombined / 2) * 100) / 100 : 0;
-  const sgstAmount = isGstEnabled ? Math.round((totalTaxCombined / 2) * 100) / 100 : 0;
-
-  const grandTotal = Math.round(netTaxableAmount + totalTaxCombined);
+  const grandTotal = effectiveInvoiceAmount;
+  const totalPaid = effectiveInvoiceAmount;
+  const balanceDue = 0;
 
   // Print helper variables
   const tariffRate = baseRatePerNight;
-  const subtotalCharges = combinedSubtotal;
-  const discountAmount = totalDiscountAmount;
+  const subtotalCharges = isGstEnabled ? taxableRoomRate : effectiveInvoiceAmount;
+  const discountAmount = 0;
   const cgst = cgstAmount;
   const sgst = sgstAmount;
-
-  // 4. Advances & Payments Paid
-  const fallbackPaid = Number(reservation?.paid || 0);
-  const totalPaid = paymentEntries.length > 0
-    ? paymentEntries.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
-    : fallbackPaid;
-
-  // 5. Remaining Balance
-  const balanceDue = Math.max(0, grandTotal - totalPaid);
 
   // Formatter helper
   const fmt = (val) => Number(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -322,30 +300,14 @@ export default function BookingVoucher({
               <td style="text-align:right;">${selectedCurrency} ${fmt(tariffRate)}</td>
               <td style="text-align:right; font-weight:700;">${selectedCurrency} ${fmt(totalBaseTariffAllNights)}</td>
             </tr>
-            ${additionalItems.map((item) => {
-              const iRate = Number(item.rate || item.amount) || 0;
-              return `
-                <tr>
-                  <td><strong>${item.description || 'Additional Charge'}</strong><br/><small style="color:#64748b;">${item.category || 'Incidentals'}</small></td>
-                  <td style="text-align:center;">1</td>
-                  <td style="text-align:right;">${selectedCurrency} ${fmt(iRate)}</td>
-                  <td style="text-align:right; font-weight:700;">${selectedCurrency} ${fmt(iRate)}</td>
-                </tr>
-              `;
-            }).join('')}
           </tbody>
         </table>
 
         <table class="totals-table">
           <tr>
-            <td style="color:#64748b;">Subtotal Tariff & Charges:</td>
+            <td style="color:#64748b;">Room Accommodation Tariff:</td>
             <td style="text-align:right; font-weight:600;">${selectedCurrency} ${fmt(subtotalCharges)}</td>
           </tr>
-          ${discountAmount > 0 ? `
-          <tr>
-            <td style="color:#d97706;">Discount (${discountPercent}%):</td>
-            <td style="text-align:right; font-weight:600; color:#d97706;">-${selectedCurrency} ${fmt(discountAmount)}</td>
-          </tr>` : ''}
           ${isGstEnabled ? `
           <tr>
             <td style="color:#64748b;">CGST (6%):</td>
@@ -354,18 +316,14 @@ export default function BookingVoucher({
           <tr>
             <td style="color:#64748b;">SGST (6%):</td>
             <td style="text-align:right;">${selectedCurrency} ${fmt(sgst)}</td>
-          </tr>` : `
-          <tr>
-            <td style="color:#64748b;">GST / Taxes (0%):</td>
-            <td style="text-align:right;">${selectedCurrency} 0.00</td>
-          </tr>`}
+          </tr>` : ''}
           <tr class="total-row">
-            <td>Grand Total (Incl. Taxes):</td>
+            <td>Invoice Total (Paid):</td>
             <td style="text-align:right;">${selectedCurrency} ${fmt(grandTotal)}</td>
           </tr>
           <tr>
-            <td style="color:#059669; font-weight:700;">Total Paid / Advance:</td>
-            <td style="text-align:right; font-weight:700; color:#059669;">${selectedCurrency} ${fmt(totalPaid)}</td>
+            <td style="color:#059669; font-weight:700;">Payment Status:</td>
+            <td style="text-align:right; font-weight:700; color:#059669;">PAID IN FULL ✓</td>
           </tr>
         </table>
 
@@ -588,19 +546,16 @@ export default function BookingVoucher({
         </div>
       </div>
 
-      {/* 3. Itemized Charges Table (Tariff, Additional Charges, Taxes) */}
+      {/* 3. Itemized Charges Table (Tariff & Room Accommodation) */}
       <div className="mt-3 overflow-hidden border border-slate-300">
         <table className="w-full text-left border-collapse text-xs">
           <thead>
             <tr className="bg-[#0c4a6e] text-white uppercase text-[10px] tracking-wider font-bold">
               <th className="py-2 px-2 text-center border-r border-[#083d63] w-8">#</th>
-              <th className="py-2 px-3 border-r border-[#083d63]">Room Type & Plan</th>
-              <th className="py-2 px-2 text-right border-r border-[#083d63]">Rate</th>
-              <th className="py-2 px-2 text-right border-r border-[#083d63]">Extra Charge</th>
-              <th className="py-2 px-2 text-right border-r border-[#083d63]">Discount</th>
-              <th className="py-2 px-2 text-right border-r border-[#083d63]">Tax</th>
-              <th className="py-2 px-2 text-right border-r border-[#083d63]">Total / Night</th>
-              <th className="py-2 px-3 text-right">Amount</th>
+              <th className="py-2 px-3 border-r border-[#083d63]">Room Type & Details</th>
+              <th className="py-2 px-3 text-center border-r border-[#083d63]">Duration</th>
+              <th className="py-2 px-3 text-right border-r border-[#083d63]">Tariff / Night</th>
+              <th className="py-2 px-3 text-right">Total Amount ({selectedCurrency})</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
@@ -617,71 +572,19 @@ export default function BookingVoucher({
                   Plan: {reservation?.ratePlan || reservation?.rate_plan || reservation?.plan || 'EP - Room Only'}
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  Adult: {reservation?.adults || 1} | Child: {reservation?.children || 0}
+                  Room #{roomNum} • Adults: {reservation?.adults || 1} | Children: {reservation?.children || 0}
                 </p>
               </td>
-              <td className="py-2.5 px-2 text-right font-mono font-medium text-slate-700 border-r border-slate-200">
+              <td className="py-2.5 px-3 text-center font-semibold text-slate-700 border-r border-slate-200 text-xs">
+                {nights} {nights === 1 ? 'Night' : 'Nights'}
+              </td>
+              <td className="py-2.5 px-3 text-right font-mono font-medium text-slate-700 border-r border-slate-200 text-xs">
                 {fmt(baseRatePerNight)}
               </td>
-              <td className="py-2.5 px-2 text-right font-mono text-slate-600 border-r border-slate-200">
-                {fmt(extraChargePerNight)}
-              </td>
-              <td className="py-2.5 px-2 text-right font-mono text-slate-600 border-r border-slate-200">
-                {fmt(roomDiscountPerNight)}
-              </td>
-              <td className="py-2.5 px-2 text-right font-mono text-slate-600 border-r border-slate-200">
-                {fmt(roomTaxPerNight)}
-              </td>
-              <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-800 border-r border-slate-200">
-                {fmt(totalPerNight)}
-              </td>
-              <td className="py-2.5 px-3 text-right">
-                <p className="font-mono font-black text-slate-900 text-xs">
-                  {fmt(totalRoomStayAmount)}
-                </p>
-                <p className="text-[9px] text-slate-400 font-mono mt-0.5">
-                  ({fmt(totalPerNight)} x 1 Room x {nights} {nights === 1 ? 'Night' : 'Nights'})
-                </p>
+              <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 text-xs">
+                {selectedCurrency} {fmt(effectiveInvoiceAmount)}
               </td>
             </tr>
-
-            {/* Additional Charges / Incidentals Rows (F&B, Laundry, etc.) */}
-            {additionalItems.map((item, idx) => {
-              const itemRate = Number(item.rate || item.amount) || 0;
-              const itemTaxRate = Number(item.gst) || 5;
-              const itemTax = (itemRate * itemTaxRate) / 100;
-              const itemTotal = itemRate + itemTax;
-
-              return (
-                <tr key={item.id || idx} className="align-top hover:bg-slate-50/50">
-                  <td className="py-2.5 px-2 text-center font-bold text-slate-700 border-r border-slate-200">
-                    {idx + 2}
-                  </td>
-                  <td className="py-2.5 px-3 border-r border-slate-200">
-                    <p className="font-bold text-slate-800 text-xs">{item.description}</p>
-                    <p className="text-[10px] text-slate-500">{item.category}</p>
-                  </td>
-                  <td className="py-2.5 px-2 text-right font-mono text-slate-700 border-r border-slate-200">
-                    {fmt(itemRate)}
-                  </td>
-                  <td className="py-2.5 px-2 text-right font-mono text-slate-600 border-r border-slate-200">
-                    0.00
-                  </td>
-                  <td className="py-2.5 px-2 text-right font-mono text-slate-600 border-r border-slate-200">
-                    0.00
-                  </td>
-                  <td className="py-2.5 px-2 text-right font-mono text-slate-600 border-r border-slate-200">
-                    {fmt(itemTax)}
-                  </td>
-                  <td className="py-2.5 px-2 text-right font-mono text-slate-800 border-r border-slate-200">
-                    {fmt(itemTotal)}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                    {fmt(itemTotal)}
-                  </td>
-                </tr>
-              );
-            })}
           </tbody>
         </table>
       </div>
@@ -689,55 +592,41 @@ export default function BookingVoucher({
       {/* 4. Complete Detailed Totals & Settlements Summary Box (Aligned Right) */}
       <div className="flex justify-end mt-3">
         <div className="w-80 border border-slate-300 text-xs divide-y divide-slate-200">
-          {/* Base Room Tariff Subtotal */}
           <div className="flex justify-between items-center px-3 py-1.5 text-slate-700">
-            <span>Room Tariff ({nights} Nights)</span>
+            <span>Room Accommodation Tariff</span>
             <span className="font-mono font-semibold">
-              {selectedCurrency} {fmt(totalBaseTariffAllNights)}
+              {selectedCurrency} {fmt(isGstEnabled ? taxableRoomRate : effectiveInvoiceAmount)}
             </span>
           </div>
 
-          {/* Additional Charges (if any) */}
-          {additionalChargesGross > 0 && (
-            <div className="flex justify-between items-center px-3 py-1.5 text-slate-700">
-              <span>Additional Services (F&B / Laundry)</span>
-              <span className="font-mono font-semibold">
-                {selectedCurrency} {fmt(additionalChargesGross)}
-              </span>
-            </div>
+          {isGstEnabled && (
+            <>
+              <div className="flex justify-between items-center px-3 py-1.5 text-slate-700">
+                <span>CGST (6%)</span>
+                <span className="font-mono font-semibold">
+                  {selectedCurrency} {fmt(cgstAmount)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center px-3 py-1.5 text-slate-700">
+                <span>SGST (6%)</span>
+                <span className="font-mono font-semibold">
+                  {selectedCurrency} {fmt(sgstAmount)}
+                </span>
+              </div>
+            </>
           )}
 
-          {/* Manager / Promotional Discount */}
-          {totalDiscountAmount > 0 && (
-            <div className="flex justify-between items-center px-3 py-1.5 text-amber-700">
-              <span>Discount ({discountPercent}%)</span>
-              <span className="font-mono font-semibold">
-                -{selectedCurrency} {fmt(totalDiscountAmount)}
-              </span>
-            </div>
-          )}
-
-          {/* Taxes & Levies (CGST + SGST) */}
-          <div className="flex justify-between items-center px-3 py-1.5 text-slate-700">
-            <span>Taxes & Levies {isGstEnabled ? '(GST 12% Active)' : '(GST 0% - Optional)'}</span>
-            <span className={`font-mono font-semibold ${isGstEnabled ? 'text-slate-800' : 'text-slate-400'}`}>
-              +{selectedCurrency} {fmt(totalTaxCombined)}
-            </span>
-          </div>
-
-          {/* Grand Total */}
           <div className="flex justify-between items-center px-3 py-2 bg-slate-50 font-bold text-slate-900">
-            <span>Grand Total</span>
+            <span>Invoice Total (Paid)</span>
             <span className="font-mono font-black text-sm text-slate-900">
-              {selectedCurrency} {fmt(grandTotal)}
+              {selectedCurrency} {fmt(effectiveInvoiceAmount)}
             </span>
           </div>
 
-          {/* Total Advances / Payments Received */}
-          <div className="flex justify-between items-center px-3 py-1.5 text-emerald-800 font-medium">
-            <span>Total Advances / Paid</span>
-            <span className="font-mono font-bold">
-              {selectedCurrency} {fmt(totalPaid)}
+          <div className="flex justify-between items-center px-3 py-1.5 text-emerald-800 font-semibold bg-emerald-50/50">
+            <span>Payment Status</span>
+            <span className="font-bold uppercase tracking-wider text-[11px] text-emerald-700">
+              PAID IN FULL ✓
             </span>
           </div>
         </div>

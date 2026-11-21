@@ -59,19 +59,35 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
       const resId = reservation?.id || room?.booking_id || room?.activeReservation?.id || roomNum;
       const checkIn = reservation?.check_in || reservation?.checkIn || '2026-11-04';
       
-      // Exact accommodation tariff from backend database
-      const backendRoomAmount = Number(
-        reservation?.amount !== undefined && reservation?.amount !== null
-          ? reservation.amount
-          : (reservation?.total !== undefined && reservation?.total !== null
-              ? reservation.total
-              : (room.price || room.tariff || reservation?.price || 2500))
+      // Exact accommodation tariff from backend database (matches what was paid)
+      const paidAmt = Number(
+        reservation?.paid !== undefined && reservation?.paid !== null
+          ? reservation.paid
+          : (reservation?.advance_paid !== undefined && reservation?.advance_paid !== null
+              ? reservation.advance_paid
+              : 0)
       );
 
-      const paidAmt = Number(reservation?.paid || reservation?.advance_paid || 0);
-      const initialPayments = paidAmt > 0 ? [
-        { id: 'pay-1', date: checkIn, mode: reservation?.payment_method || 'UPI', ref: reservation?.transaction_id || 'ADV-PAY', amount: paidAmt, note: 'Advance / Booking Payment' }
-      ] : [];
+      const backendRoomAmount = paidAmt > 0
+        ? paidAmt
+        : Number(
+            reservation?.amount !== undefined && reservation?.amount !== null
+              ? reservation.amount
+              : (reservation?.total !== undefined && reservation?.total !== null
+                  ? reservation.total
+                  : (room.price || room.tariff || reservation?.price || 0))
+          );
+
+      const initialPayments = [
+        {
+          id: 'pay-1',
+          date: checkIn,
+          mode: reservation?.payment_mode || reservation?.payment_method || 'UPI',
+          ref: reservation?.transaction_id || reservation?.id || 'ADV-PAY',
+          amount: backendRoomAmount,
+          note: 'Accommodation Tariff Payment'
+        }
+      ];
 
       const savedFolio = getFolio ? (getFolio(resId) || getFolio(roomNum)) : null;
 
@@ -105,13 +121,22 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
   const phone = reservation?.phone || '+91 98450 12345';
   const checkIn = reservation?.check_in || reservation?.checkIn || '2026-11-04';
   const checkOut = reservation?.check_out || reservation?.checkOut || '2026-11-06';
-  const backendRoomAmount = Number(
-    reservation?.amount !== undefined && reservation?.amount !== null
-      ? reservation.amount
-      : (reservation?.total !== undefined && reservation?.total !== null
-          ? reservation.total
-          : (room.price || room.tariff || reservation?.price || 2500))
+  const paidAmt = Number(
+    reservation?.paid !== undefined && reservation?.paid !== null
+      ? reservation.paid
+      : (reservation?.advance_paid !== undefined && reservation?.advance_paid !== null
+          ? reservation.advance_paid
+          : 0)
   );
+  const backendRoomAmount = paidAmt > 0
+    ? paidAmt
+    : Number(
+        reservation?.amount !== undefined && reservation?.amount !== null
+          ? reservation.amount
+          : (reservation?.total !== undefined && reservation?.total !== null
+              ? reservation.total
+              : (room.price || room.tariff || reservation?.price || 0))
+      );
 
   // Calculations (Exact backend amounts + optional GST)
   const subtotalCharges = folioItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -767,15 +792,19 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
               <div className="border border-slate-300 rounded-2xl overflow-hidden shadow-sm bg-white">
                 <BookingVoucher
                   room={room}
-                  reservation={reservation}
+                  reservation={{
+                    ...reservation,
+                    amount: backendRoomAmount,
+                    paid: backendRoomAmount
+                  }}
                   folioItems={folioItems}
                   paymentEntries={paymentEntries}
-                  subtotalCharges={subtotalCharges}
-                  discountAmount={discountAmount}
-                  discountPercent={discountPercent}
-                  grandTotal={grandTotal}
-                  totalPaid={totalPaid}
-                  balanceDue={balanceDue}
+                  subtotalCharges={backendRoomAmount}
+                  discountAmount={0}
+                  discountPercent={0}
+                  grandTotal={backendRoomAmount}
+                  totalPaid={backendRoomAmount}
+                  balanceDue={0}
                   currentHotel={currentHotel}
                   voucherType={voucherType}
                   voucherNo={reservation?.id || `00${roomNum}46`}
@@ -787,15 +816,19 @@ export default function FolioBillingModal({ isOpen, onClose, room, reservation, 
             <div className="hidden print:block">
               <BookingVoucher
                 room={room}
-                reservation={reservation}
+                reservation={{
+                  ...reservation,
+                  amount: backendRoomAmount,
+                  paid: backendRoomAmount
+                }}
                 folioItems={folioItems}
                 paymentEntries={paymentEntries}
-                subtotalCharges={subtotalCharges}
-                discountAmount={discountAmount}
-                discountPercent={discountPercent}
-                grandTotal={grandTotal}
-                totalPaid={totalPaid}
-                balanceDue={balanceDue}
+                subtotalCharges={backendRoomAmount}
+                discountAmount={0}
+                discountPercent={0}
+                grandTotal={backendRoomAmount}
+                totalPaid={backendRoomAmount}
+                balanceDue={0}
                 currentHotel={currentHotel}
                 voucherType={voucherType}
                 voucherNo={reservation?.id || `00${roomNum}46`}
