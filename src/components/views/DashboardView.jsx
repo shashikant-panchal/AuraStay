@@ -803,14 +803,6 @@ export default function DashboardView() {
                                   <span className="text-[10px] font-bold text-slate-400 uppercase">Tariff:</span>
                                   <span className="font-mono font-bold text-slate-800">₹{room.tariff.toLocaleString('en-IN')}/n</span>
                                 </div>
-
-                                <div className="flex items-center justify-between text-xs bg-slate-50 p-2 rounded-xl border border-slate-100">
-                                  <span className="text-[10px] font-bold text-slate-500 uppercase">Folio:</span>
-                                  <span className={`font-mono font-black text-[11px] ${room.balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'
-                                    }`}>
-                                    {room.balanceDue > 0 ? `Due ₹${room.balanceDue.toLocaleString('en-IN')}` : 'Settled ✓'}
-                                  </span>
-                                </div>
                               </div>
                             ) : isVacant ? (
                               <div className="space-y-2 py-1">
