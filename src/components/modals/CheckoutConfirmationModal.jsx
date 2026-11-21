@@ -2,14 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
   X,
   LogOut,
-  AlertTriangle,
-  CheckCircle2,
-  KeyRound,
   Sparkles,
   Calendar,
-  User,
-  BedDouble,
-  Receipt
+  BedDouble
 } from 'lucide-react';
 
 export default function CheckoutConfirmationModal({
@@ -40,12 +35,6 @@ export default function CheckoutConfirmationModal({
   const guestName = reservation?.guest || room?.guestName || room?.guest || 'Guest';
   const checkInDate = reservation?.check_in || reservation?.checkIn || room?.checkIn || 'N/A';
   const checkOutDate = reservation?.check_out || reservation?.checkOut || room?.checkOut || 'Today';
-
-  const numericDue = Number(
-    balanceDue !== undefined
-      ? balanceDue
-      : (room?.balanceDue !== undefined ? room.balanceDue : 0)
-  );
 
   const handleConfirmCheckout = async () => {
     setIsSubmitting(true);
@@ -137,32 +126,6 @@ export default function CheckoutConfirmationModal({
             </div>
           </div>
 
-          {/* Dues Status Banner */}
-          {numericDue > 0 ? (
-            <div className="bg-amber-50 rounded-2xl p-3.5 border border-amber-200 flex items-start space-x-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-bold text-amber-950 text-xs">
-                  Outstanding Folio Balance: ₹{numericDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </h4>
-                <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
-                  Guest has an unpaid balance. Confirm payment has been collected via cash, UPI, card, or transferred to company ledger.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-emerald-50 rounded-2xl p-3.5 border border-emerald-200 flex items-center space-x-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-              <div>
-                <h4 className="font-bold text-emerald-950 text-xs">
-                  All Folio Charges Settled (₹0.00 Due)
-                </h4>
-                <p className="text-[11px] text-emerald-800">
-                  Guest folio has no outstanding dues. Ready for checkout.
-                </p>
-              </div>
-            </div>
-          )}
 
           {/* Turnover Checklist */}
           <div className="bg-slate-50/60 rounded-xl p-3 border border-slate-200/60 space-y-2">
