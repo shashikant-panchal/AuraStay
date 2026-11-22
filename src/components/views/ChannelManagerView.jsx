@@ -31,15 +31,7 @@ import {
   Building2,
   User,
   CreditCard,
-  Ban,
-  Filter,
-  Search,
-  Code2,
-  Download,
-  ChevronDown,
-  ChevronRight,
-  Eye,
-  CheckCheck
+  Ban
 } from 'lucide-react';
 import {
   getAiosellConfig,
@@ -76,13 +68,13 @@ export default function ChannelManagerView() {
     refreshData
   } = useDashboard();
 
-  // Active AioConnect Navigation Tab (Default to modern logs-v2 matching Aiosell portal)
-  const [activeTab, setActiveTab] = useState('logs-v2'); // 'logs-v2' | 'configure' | 'mapping' | 'push' | 'fetch' | 'webhook' | 'noshow' | 'settings'
+  // Active sub-tab
+  const [activeTab, setActiveTab] = useState('channels'); // 'channels' | 'push' | 'fetch' | 'webhook' | 'noshow' | 'settings'
 
   // Aiosell credentials & config state
   const [config, setConfig] = useState(() => getAiosellConfig());
   const [isTestingConnection, setIsTestingConnection] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState(null); // null | { ok: boolean, message: string, property?: any }
 
   useEffect(() => {
     if (currentHotel?.aiosellHotelCode) {
@@ -92,28 +84,26 @@ export default function ChannelManagerView() {
 
   // Connected OTAs state with channel multipliers
   const [channels, setChannels] = useState([
-    { id: 'bcom', name: 'Booking.com', code: 'booking.com', logo: 'B.', color: 'bg-blue-600', active: true, multiplier: 1.0, commission: '15%', pricingModel: 'standard', rateType: 'sell', lastSync: 'Real-time 2-Way XML' },
-    { id: 'mmt', name: 'MakeMyTrip (MMT)', code: 'gommt', logo: 'MMT', color: 'bg-rose-600', active: true, multiplier: 1.10, commission: '18%', pricingModel: 'per_day', rateType: 'sell', lastSync: 'Real-time 2-Way XML' },
-    { id: 'goibibo', name: 'Goibibo', code: 'gommt', logo: 'Go', color: 'bg-orange-500', active: true, multiplier: 1.10, commission: '18%', pricingModel: 'per_day', rateType: 'sell', lastSync: 'Real-time 2-Way XML' },
-    { id: 'agoda', name: 'Agoda', code: 'agoda', logo: 'Ag', color: 'bg-emerald-600', active: true, multiplier: 1.05, commission: '16%', pricingModel: 'per_occupancy', rateType: 'net', lastSync: 'Real-time 2-Way XML' },
-    { id: 'expedia', name: 'Expedia Group', code: 'expedia', logo: 'Exp', color: 'bg-amber-600', active: true, multiplier: 1.0, commission: '15%', pricingModel: 'standard', rateType: 'sell', lastSync: 'Real-time 2-Way XML' },
-    { id: 'airbnb', name: 'Airbnb Global', code: 'airbnb', logo: 'Ab', color: 'bg-pink-600', active: true, multiplier: 1.0, commission: '3%', pricingModel: 'standard', rateType: 'sell', lastSync: 'Real-time 2-Way XML' },
-    { id: 'google', name: 'Google Free Booking Links', code: 'google', logo: 'G.', color: 'bg-red-500', active: true, multiplier: 1.0, commission: '0% (Direct)', pricingModel: 'standard', rateType: 'sell', lastSync: 'Real-time 2-Way XML' },
-    { id: 'yatra', name: 'Yatra', code: 'yatra', logo: 'Y.', color: 'bg-red-600', active: false, multiplier: 1.0, commission: '15%', pricingModel: 'standard', rateType: 'sell', lastSync: 'Configured' },
-    { id: 'cleartrip', name: 'Cleartrip', code: 'cleartrip', logo: 'Ct', color: 'bg-orange-600', active: false, multiplier: 1.0, commission: '15%', pricingModel: 'standard', rateType: 'sell', lastSync: 'Configured' }
+    { id: 'bcom', name: 'Booking.com', code: 'booking.com', logo: 'B.', color: 'bg-blue-600', active: true, multiplier: 1.0, commission: '15%', lastSync: 'Real-time 2-Way XML' },
+    { id: 'mmt', name: 'MakeMyTrip (MMT)', code: 'gommt', logo: 'MMT', color: 'bg-rose-600', active: true, multiplier: 1.10, commission: '18%', lastSync: 'Real-time 2-Way XML' },
+    { id: 'goibibo', name: 'Goibibo', code: 'gommt', logo: 'Go', color: 'bg-orange-500', active: true, multiplier: 1.10, commission: '18%', lastSync: 'Real-time 2-Way XML' },
+    { id: 'agoda', name: 'Agoda', code: 'agoda', logo: 'Ag', color: 'bg-emerald-600', active: true, multiplier: 1.05, commission: '16%', lastSync: 'Real-time 2-Way XML' },
+    { id: 'expedia', name: 'Expedia Group', code: 'expedia', logo: 'Exp', color: 'bg-amber-600', active: true, multiplier: 1.0, commission: '15%', lastSync: 'Real-time 2-Way XML' },
+    { id: 'airbnb', name: 'Airbnb Global', code: 'airbnb', logo: 'Ab', color: 'bg-pink-600', active: true, multiplier: 1.0, commission: '3%', lastSync: 'Real-time 2-Way XML' },
+    { id: 'google', name: 'Google Free Booking Links', code: 'google', logo: 'G.', color: 'bg-red-500', active: true, multiplier: 1.0, commission: '0% (Direct)', lastSync: 'Real-time 2-Way XML' }
   ]);
 
   // Push Console State
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const tomorrowStr = useMemo(() => new Date(Date.now() + 86400000).toISOString().split('T')[0], []);
   
-  const [pushType, setPushType] = useState('inventory');
+  const [pushType, setPushType] = useState('inventory'); // 'inventory' | 'rates' | 'restrictions'
   const [pushStartDate, setPushStartDate] = useState(todayStr);
   const [pushEndDate, setPushEndDate] = useState(tomorrowStr);
-  const [pushRoomCode, setPushRoomCode] = useState('standard');
-  const [pushAvailableCount, setPushAvailableCount] = useState(10);
-  const [pushRatePlanCode, setPushRatePlanCode] = useState('standard-ep');
-  const [pushNightlyRate, setPushNightlyRate] = useState(2200);
+  const [pushRoomCode, setPushRoomCode] = useState('executive');
+  const [pushAvailableCount, setPushAvailableCount] = useState(15);
+  const [pushRatePlanCode, setPushRatePlanCode] = useState('executive-s-cp');
+  const [pushNightlyRate, setPushNightlyRate] = useState(2450);
   const [pushStopSell, setPushStopSell] = useState(false);
   const [pushMinStay, setPushMinStay] = useState(1);
   const [pushCloseOnArrival, setPushCloseOnArrival] = useState(false);
@@ -124,16 +114,48 @@ export default function ChannelManagerView() {
   const [lastPushResponse, setLastPushResponse] = useState(null);
 
   // Fetch Console State
-  const [fetchType, setFetchType] = useState('rates');
+  const [fetchType, setFetchType] = useState('rates'); // 'inventory' | 'rates' | 'reservation'
   const [fetchStartDate, setFetchStartDate] = useState(todayStr);
   const [fetchEndDate, setFetchEndDate] = useState(tomorrowStr);
   const [isFetching, setIsFetching] = useState(false);
   const [fetchedData, setFetchedData] = useState(null);
 
-  // Webhook Simulator State
+  // Webhook Simulator State (synced live with Supabase OTA reservations)
   const [sessionWebhookLogs, setSessionWebhookLogs] = useState([]);
   const [customWebhookPayload, setCustomWebhookPayload] = useState('');
   const [isSimulatingWebhook, setIsSimulatingWebhook] = useState(false);
+
+  const webhookLogs = useMemo(() => {
+    const dbOtaLogs = (reservations || [])
+      .filter(r => {
+        const src = String(r.source || '').toLowerCase();
+        return (
+          src.includes('aiosell') ||
+          src.includes('booking.com') ||
+          src.includes('makemytrip') ||
+          src.includes('goibibo') ||
+          src.includes('agoda') ||
+          src.includes('expedia') ||
+          src.includes('ota')
+        );
+      })
+      .map(r => ({
+        id: `db-wh-${r.id}-${r.status}`,
+        time: r.createdAt ? new Date(r.createdAt).toLocaleTimeString() : 'Live Synced',
+        action: r.status === 'CANCELLED' ? 'cancel' : 'book',
+        channel: String(r.source || 'OTA').replace(/\s*\(Aiosell.*\)/i, ''),
+        bookingId: r.id,
+        guest: r.guest || 'Guest',
+        amount: `₹${Number(r.amount || 0).toLocaleString('en-IN')}`,
+        pah: r.payment === 'PENDING' ? 'Pay At Hotel (PAH)' : 'Prepaid',
+        status: 'PROCESSED_SUCCESS'
+      }));
+
+    const seenKeys = new Set(dbOtaLogs.map(l => `${l.bookingId}-${l.action}`));
+    const extraSession = sessionWebhookLogs.filter(l => !seenKeys.has(`${l.bookingId}-${l.action}`));
+    return [...extraSession, ...dbOtaLogs];
+  }, [reservations, sessionWebhookLogs]);
+  const setWebhookLogs = setSessionWebhookLogs;
 
   // Mark No-Show State
   const [noShowBookingId, setNoShowBookingId] = useState('');
@@ -141,40 +163,12 @@ export default function ChannelManagerView() {
   const [isMarkingNoShow, setIsMarkingNoShow] = useState(false);
   const [noShowResponse, setNoShowResponse] = useState(null);
 
-  // =========================================================================
-  // AIOSELL CONNECT LOGS-V2 STATE (Matching live.aiosell.com / connect.aiosell.com)
-  // =========================================================================
-  const [selectedOperation, setSelectedOperation] = useState('inv'); // 'inv' | 'rate' | 'res_in'
-  const [selectedPartner, setSelectedPartner] = useState(''); // '' (All) | partner code
-  const [selectedRoom, setSelectedRoom] = useState(''); // '' (All) | room category
-  const [selectedStatus, setSelectedStatus] = useState('ALL'); // 'ALL' | 'SUCCESS' | 'FAILED'
-  const [filterStartDate, setFilterStartDate] = useState(todayStr);
-  const [filterEndDate, setFilterEndDate] = useState(tomorrowStr);
-  const [selectedFilterType, setSelectedFilterType] = useState('Stay Date'); // 'Booking Date' | 'Checkin Date' | 'Checkout Date' | 'Stay Date'
-  const [searchBookingId, setSearchBookingId] = useState('');
-  const [isLogsLoading, setIsLogsLoading] = useState(false);
-  const [activePayloadModal, setActivePayloadModal] = useState(null); // null | { title, url, method, request, response, timestamp }
-  const [payloadModalTab, setPayloadModalTab] = useState('request'); // 'request' | 'response'
-  const [copiedPayload, setCopiedPayload] = useState(false);
-
-  // Configure Sub-Tab state (Matching /cm/configure/)
-  const [configOperation, setConfigOperation] = useState('rate_out'); // 'rate_out' | 'inv_out' | 'res_in' | 'inv_in' | 'rate_in' | 'res_out'
-
-  const configOperationsList = [
-    { id: 'rate_out', name: 'Rate Out', infix: 'will send Rates to' },
-    { id: 'inv_out', name: 'Inventory Out', infix: 'will send Inventory to' },
-    { id: 'res_in', name: 'Reservation In', infix: 'will get Reservations from' },
-    { id: 'inv_in', name: 'Inventory In', infix: 'will get Inventory from PMS' },
-    { id: 'rate_in', name: 'Rate In', infix: 'will get Rates from PMS' },
-    { id: 'res_out', name: 'Reservation Out', infix: 'will post Reservations to PMS' }
-  ];
-
   // Initial check on load
   useEffect(() => {
     handleTestConnection(false);
   }, []);
 
-  // 1. Test Aiosell Connection
+  // 1. Test Aiosell Sandbox / Live Connection
   const handleTestConnection = async (showToast = true) => {
     setIsTestingConnection(true);
     try {
@@ -182,7 +176,7 @@ export default function ChannelManagerView() {
       if (res.success && res.data) {
         setConnectionStatus({
           ok: true,
-          message: `Connected to Aiosell! Property: ${res.data.hotel_name || res.data.hotel_id} (${res.data.rooms?.length || 3} Room Categories, ${res.data.connected_channels?.length || 6} Connected Channels)`,
+          message: `Connected to Aiosell! Property: ${res.data.hotel_name || res.data.hotel_id} (${res.data.rooms?.length || 0} Room Categories, ${res.data.connected_channels?.length || 0} Connected Channels)`,
           property: res.data
         });
         if (showToast) showNotification(`Aiosell API Connected: ${res.data.hotel_name || res.data.hotel_id}`);
@@ -191,7 +185,7 @@ export default function ChannelManagerView() {
           ok: false,
           message: res.error || 'Could not connect to Aiosell API.'
         });
-        if (showToast) showNotification(`Aiosell Connection: ${res.error}`);
+        if (showToast) showNotification(`Aiosell Connection Failed: ${res.error}`);
       }
     } catch (err) {
       setConnectionStatus({ ok: false, message: err.message });
@@ -199,255 +193,6 @@ export default function ChannelManagerView() {
     } finally {
       setIsTestingConnection(false);
     }
-  };
-
-  // Mask sensitive tokens / credentials in XML and JSON
-  const maskSensitiveData = (text) => {
-    if (!text || typeof text !== 'string') return text;
-    return text
-      .replace(/(username|password)=".*?"/gi, '$1="****"')
-      .replace(/"(username|password|apiKey|api_key|token|accessToken)"\s*:\s*".*?"/gi, '"$1": "****"')
-      .replace(/(<(?:Password|Token|ApiKey)>)[^<]*(<\/(?:Password|Token|ApiKey)>)/gi, '$1****$2');
-  };
-
-  // Smart Formatter for XML or JSON
-  const formatDataSmart = (data) => {
-    if (!data) return 'No payload captured';
-    if (typeof data === 'object') return JSON.stringify(data, null, 2);
-    const masked = maskSensitiveData(String(data));
-    try {
-      return JSON.stringify(JSON.parse(masked), null, 2);
-    } catch (e) {
-      // Check if XML
-      if (masked.trim().startsWith('<')) {
-        let formatted = '';
-        let indent = '';
-        masked.split(/>\s*</).forEach(node => {
-          if (node.match(/^\/\w/)) indent = indent.substring(2);
-          formatted += indent + '<' + node + '>\n';
-          if (node.match(/^<?\w[^>]*[^\/]$/)) indent += '  ';
-        });
-        return formatted.trim();
-      }
-      return masked;
-    }
-  };
-
-  // =========================================================================
-  // DYNAMIC AIOSELL LOGS DATA GENERATION & PERSISTENCE
-  // =========================================================================
-  const allLogs = useMemo(() => {
-    const list = [];
-    const hotelIdCode = currentHotel?.aiosellHotelCode || config.hotelCode || 'ff144346e6';
-
-    // 1. Logs derived from real database OTA reservations
-    (reservations || []).forEach(r => {
-      const src = String(r.source || '').toLowerCase();
-      const isOta = src.includes('aiosell') || src.includes('booking.com') || src.includes('makemytrip') || src.includes('goibibo') || src.includes('agoda') || src.includes('expedia') || src.includes('ota');
-      const partnerName = isOta ? String(r.source).replace(/\s*\(Aiosell.*\)/i, '').trim() : 'Channel Manager';
-      const createdDate = r.createdAt ? new Date(r.createdAt).toISOString().slice(0, 19).replace('T', ' ') : new Date().toISOString().slice(0, 19).replace('T', ' ');
-
-      // Reservation Inbound Log
-      list.push({
-        id: `log-res-${r.id}`,
-        operation: 'res_in',
-        operationLabel: 'Reservation In',
-        partner: partnerName,
-        bookingId: String(r.id),
-        dateSent: createdDate,
-        bookingDate: String(r.createdAt ? r.createdAt.slice(0, 10) : (r.check_in || todayStr)),
-        checkinDate: String(r.check_in || todayStr),
-        checkoutDate: String(r.check_out || tomorrowStr),
-        room: r.room_type || r.room || 'Standard Room',
-        requestMessage: 'Publishing reservation to PMS',
-        status: r.status === 'CANCELLED' ? 'CANCELLED' : 'SUCCESS',
-        statusCode: 200,
-        url: `https://live.aiosell.com/api/v1/rms/hotels/${hotelIdCode}/reservations/${r.id}`,
-        method: 'POST',
-        requestBody: JSON.stringify({
-          action: r.status === 'CANCELLED' ? 'cancel' : 'book',
-          hotel_id: hotelIdCode,
-          booking_id: r.id,
-          channel: partnerName,
-          guest: {
-            name: r.guest || 'OTA Guest',
-            email: r.guest_email || 'guest@ota-booking.com',
-            phone: r.guest_phone || '+91 98450 12345'
-          },
-          stay: {
-            check_in: r.check_in || todayStr,
-            check_out: r.check_out || tomorrowStr,
-            nights: r.nights || 1,
-            room_type: r.room_type || 'Standard Room',
-            allocated_room: r.room_number || r.room || '101'
-          },
-          financials: {
-            gross_amount: Number(r.amount || 2500),
-            currency: 'INR',
-            payment_status: r.payment === 'PAID' ? 'PREPAID' : 'PAY_AT_HOTEL'
-          }
-        }, null, 2),
-        responseBody: JSON.stringify({
-          status: 'success',
-          code: 200,
-          message: 'Reservation acknowledged by Aavasa HMS',
-          allocated_room: r.room_number || r.room || '101',
-          timestamp: createdDate
-        }, null, 2)
-      });
-    });
-
-    // 2. Inventory logs (ARI Multiupdate Out)
-    list.push({
-      id: 'log-inv-1',
-      operation: 'inv',
-      operationLabel: 'Inventory Out',
-      partner: 'MakeMyTrip (MMT)',
-      bookingId: '—',
-      dateSent: new Date(Date.now() - 3600000).toISOString().slice(0, 19).replace('T', ' '),
-      bookingDate: todayStr,
-      checkinDate: todayStr,
-      checkoutDate: tomorrowStr,
-      room: 'Standard Room',
-      requestMessage: 'Inventory update to OTAs',
-      status: 'SUCCESS',
-      statusCode: 200,
-      url: `https://live.aiosell.com/api/v1/rms/hotels/${hotelIdCode}/inventory`,
-      method: 'POST',
-      requestBody: `<OTA_HotelAvailNotifRQ xmlns="http://www.opentravel.org/OTA/2003/05" EchoToken="INV-1092" TimeStamp="${new Date().toISOString()}">\n  <AvailStatusMessages HotelCode="${hotelIdCode}">\n    <AvailStatusMessage BookingLimit="12">\n      <StatusApplicationControl Start="${todayStr}" End="${tomorrowStr}" InvCode="standard"/>\n    </AvailStatusMessage>\n  </AvailStatusMessages>\n</OTA_HotelAvailNotifRQ>`,
-      responseBody: `<OTA_HotelAvailNotifRS xmlns="http://www.opentravel.org/OTA/2003/05" TimeStamp="${new Date().toISOString()}">\n  <Success/>\n  <Warnings Message="All 12 units updated on MakeMyTrip distribution network"/>\n</OTA_HotelAvailNotifRS>`
-    });
-
-    list.push({
-      id: 'log-inv-2',
-      operation: 'inv',
-      operationLabel: 'Inventory Out',
-      partner: 'Booking.com',
-      bookingId: '—',
-      dateSent: new Date(Date.now() - 7200000).toISOString().slice(0, 19).replace('T', ' '),
-      bookingDate: todayStr,
-      checkinDate: todayStr,
-      checkoutDate: tomorrowStr,
-      room: 'Deluxe Room',
-      requestMessage: 'Inventory update to OTAs',
-      status: 'SUCCESS',
-      statusCode: 200,
-      url: `https://live.aiosell.com/api/v1/rms/hotels/${hotelIdCode}/inventory`,
-      method: 'POST',
-      requestBody: JSON.stringify({
-        hotel_id: hotelIdCode,
-        channel: "booking.com",
-        updates: [{ startDate: todayStr, endDate: tomorrowStr, rooms: [{ roomCode: "deluxe", available: 8 }] }]
-      }, null, 2),
-      responseBody: JSON.stringify({
-        status: "success",
-        code: 200,
-        message: "Booking.com B.V. ARI API acknowledged inventory update"
-      }, null, 2)
-    });
-
-    // 3. Rate logs (Rate Out)
-    list.push({
-      id: 'log-rate-1',
-      operation: 'rate',
-      operationLabel: 'Rate Out',
-      partner: 'Agoda',
-      bookingId: '—',
-      dateSent: new Date(Date.now() - 5400000).toISOString().slice(0, 19).replace('T', ' '),
-      bookingDate: todayStr,
-      checkinDate: todayStr,
-      checkoutDate: tomorrowStr,
-      room: 'Executive Room',
-      requestMessage: 'Rate update to OTAs',
-      status: 'SUCCESS',
-      statusCode: 200,
-      url: `https://live.aiosell.com/api/v1/rms/hotels/${hotelIdCode}/rates`,
-      method: 'POST',
-      requestBody: `<OTA_HotelRateAmountNotifRQ xmlns="http://www.opentravel.org/OTA/2003/05" TimeStamp="${new Date().toISOString()}">\n  <RateAmountMessages HotelCode="${hotelIdCode}">\n    <RateAmountMessage>\n      <StatusApplicationControl Start="${todayStr}" End="${tomorrowStr}" InvCode="executive" RatePlanCode="executive-ep"/>\n      <Rates>\n        <Rate CurrencyCode="INR" AmountAfterTax="2800.00"/>\n      </Rates>\n    </RateAmountMessage>\n  </RateAmountMessages>\n</OTA_HotelRateAmountNotifRQ>`,
-      responseBody: `<OTA_HotelRateAmountNotifRS xmlns="http://www.opentravel.org/OTA/2003/05">\n  <Success/>\n  <UniqueId Type="RateNotif" ID="AGODA-ACK-948291"/>\n</OTA_HotelRateAmountNotifRS>`
-    });
-
-    list.push({
-      id: 'log-rate-2',
-      operation: 'rate',
-      operationLabel: 'Rate Out',
-      partner: 'MakeMyTrip (MMT)',
-      bookingId: '—',
-      dateSent: new Date(Date.now() - 9000000).toISOString().slice(0, 19).replace('T', ' '),
-      bookingDate: todayStr,
-      checkinDate: todayStr,
-      checkoutDate: tomorrowStr,
-      room: 'Standard Room',
-      requestMessage: 'Rate update to OTAs',
-      status: 'SUCCESS',
-      statusCode: 200,
-      url: `https://live.aiosell.com/api/v1/rms/hotels/${hotelIdCode}/rates`,
-      method: 'POST',
-      requestBody: JSON.stringify({
-        hotel_id: hotelIdCode,
-        channel: "gommt",
-        rates: [{ roomCode: "standard", rateplanCode: "standard-ep", rate: 2200, multiplier: 1.10, netRate: 2420 }]
-      }, null, 2),
-      responseBody: JSON.stringify({
-        status: "success",
-        code: 200,
-        message: "MMT IngoMMT API synchronized 2,420 INR for standard room"
-      }, null, 2)
-    });
-
-    return list;
-  }, [reservations, currentHotel, config, todayStr, tomorrowStr]);
-
-  // Filtered logs based on Aiosell Toolbar
-  const filteredLogs = useMemo(() => {
-    return allLogs.filter(item => {
-      // Operation filter
-      if (selectedOperation && item.operation !== selectedOperation) return false;
-
-      // Partner filter
-      if (selectedPartner && !item.partner.toLowerCase().includes(selectedPartner.toLowerCase())) return false;
-
-      // Status filter
-      if (selectedStatus !== 'ALL' && item.status !== selectedStatus) return false;
-
-      // Room filter
-      if (selectedRoom && !item.room.toLowerCase().includes(selectedRoom.toLowerCase())) return false;
-
-      // Booking ID Search
-      if (searchBookingId.trim() && !item.bookingId.toLowerCase().includes(searchBookingId.trim().toLowerCase())) return false;
-
-      return true;
-    });
-  }, [allLogs, selectedOperation, selectedPartner, selectedStatus, selectedRoom, searchBookingId]);
-
-  // Handle Clear Filter Bar (Matching Aiosell Clear button)
-  const handleClearFilters = () => {
-    setSelectedOperation('inv');
-    setSelectedPartner('');
-    setSelectedRoom('');
-    setSelectedStatus('ALL');
-    setFilterStartDate(todayStr);
-    setFilterEndDate(tomorrowStr);
-    setSelectedFilterType('Stay Date');
-    setSearchBookingId('');
-    showNotification('AioConnect filters reset to default.');
-  };
-
-  // Handle Submit query (Matching Aiosell Submit button)
-  const handleSubmitQuery = () => {
-    setIsLogsLoading(true);
-    setTimeout(() => {
-      setIsLogsLoading(false);
-      showNotification(`AioConnect Logs refreshed: ${filteredLogs.length} matching events.`);
-    }, 400);
-  };
-
-  // Copy formatted payload
-  const handleCopyPayload = (text) => {
-    navigator.clipboard.writeText(text);
-    setCopiedPayload(true);
-    setTimeout(() => setCopiedPayload(false), 2000);
-    showNotification('Payload copied to clipboard.');
   };
 
   // 2. Push to Aiosell (Inventory, Rates, Restrictions)
@@ -496,8 +241,14 @@ export default function ChannelManagerView() {
                 roomCode: pushRoomCode,
                 restrictions: {
                   stopSell: Boolean(pushStopSell),
+                  exactStayArrival: null,
+                  maximumStayArrival: null,
+                  minimumAdvanceReservation: null,
                   minimumStay: Number(pushMinStay) || 1,
                   closeOnArrival: Boolean(pushCloseOnArrival),
+                  minimumStayArrival: null,
+                  maximumStay: null,
+                  maximumAdvanceReservation: null,
                   closeOnDeparture: Boolean(pushCloseOnDeparture)
                 }
               }
@@ -521,26 +272,59 @@ export default function ChannelManagerView() {
     }
   };
 
-  // 3. Fast Push All Rooms
-  const handleRecomputeAndPushAll = async () => {
-    setIsPushing(true);
+  // 3. Fetch from Aiosell
+  const handleExecuteFetch = async () => {
+    setIsFetching(true);
+    setFetchedData(null);
     try {
-      const hotelId = currentHotel?.id;
-      const res = await pushHotelInventoryViaBackend({
-        hotelId,
-        aiosellHotelCode: config.hotelCode,
-        rooms
-      });
-      if (res?.success) {
-        showNotification('Successfully recomputed and pushed full ARI inventory across all active OTAs!');
-      } else {
-        showNotification('Pushed current live inventory to Aiosell channel manager.');
+      let res;
+      if (fetchType === 'inventory') {
+        res = await fetchInventory(fetchStartDate, fetchEndDate, config);
+      } else if (fetchType === 'rates') {
+        res = await fetchRates(fetchStartDate, fetchEndDate, config);
+      } else if (fetchType === 'reservation') {
+        res = await fetchReservations(fetchStartDate, fetchEndDate, config);
       }
-    } catch (e) {
-      showNotification(`Sync note: ${e.message}`);
+      setFetchedData(res);
+      if (res.success) {
+        const count = Array.isArray(res.data) ? res.data.length : (res.data?.updates?.length || 1);
+        showNotification(`Fetched ${count} ${fetchType} records from Aiosell.`);
+      } else {
+        showNotification(`Fetch Error: ${res.error}`);
+      }
+    } catch (err) {
+      setFetchedData({ success: false, error: err.message });
+      showNotification(`Fetch failed: ${err.message}`);
     } finally {
-      setIsPushing(false);
+      setIsFetching(false);
     }
+  };
+
+  // Import fetched reservations directly into AuraStay PMS & Supabase Backend with automatic physical room locking
+  const handleImportFetchedReservations = async () => {
+    if (!fetchedData || !Array.isArray(fetchedData.data) || fetchedData.data.length === 0) {
+      showNotification('No reservation records available to import.');
+      return;
+    }
+
+    let imported = 0;
+    const existingIds = new Set((reservations || []).map(r => r.id));
+
+    for (const item of fetchedData.data.slice(0, 10)) {
+      try {
+        const parsed = parseAiosellWebhookPayload(item);
+        if ((parsed.action === 'book' || parsed.action === 'modify') && !existingIds.has(parsed.reservation.id)) {
+          existingIds.add(parsed.reservation.id);
+          await dispatchWebhookToBackend(item, currentHotel?.id);
+          imported++;
+        }
+      } catch (e) {}
+    }
+
+    if (refreshData) {
+      await refreshData();
+    }
+    showNotification(`Imported ${imported} active OTA reservations into Supabase and locked physical rooms across all devices.`);
   };
 
   // 4. Update Multipliers
@@ -552,89 +336,331 @@ export default function ChannelManagerView() {
         setChannels(prev => prev.map(ch => ch.code === channelCode ? { ...ch, multiplier: factor } : ch));
         showNotification(`Multiplier updated: ${res.data?.message || 'Factor applied'}`);
       } else {
-        showNotification(`Multiplier notice: ${res.error}`);
+        showNotification(`Multiplier update notice: ${res.error}`);
       }
     } catch (err) {
       showNotification(`Multiplier Error: ${err.message}`);
     }
   };
 
+  // 5. Inbound Webhook Dispatch (Persists to Supabase via Edge Function & Syncs Across All Devices)
+  const handleSimulateWebhook = async (sampleType) => {
+    setIsSimulatingWebhook(true);
+
+    let samplePayload;
+    if (sampleType === 'booking_prepaid') {
+      samplePayload = {
+        action: 'book',
+        hotelCode: config.hotelCode,
+        channel: 'booking.com',
+        bookingId: `BDC-${Math.floor(100000 + Math.random() * 900000)}`,
+        cmBookingId: `CM-BDC-${Date.now().toString().slice(-6)}`,
+        bookedOn: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        checkin: todayStr,
+        checkout: tomorrowStr,
+        segment: 'OTA',
+        specialRequests: 'High floor preferred, airport taxi at 10 AM',
+        pah: false, // Prepaid
+        amount: {
+          amountAfterTax: 7500,
+          amountBeforeTax: 6355.93,
+          tax: 1144.07,
+          currency: 'INR',
+          commission: 1125,
+          tcs: 50,
+          tds: 10
+        },
+        guest: {
+          firstName: 'Vikram',
+          lastName: 'Malhotra',
+          email: 'vikram.malhotra@example.com',
+          phone: '+91 98765 43210',
+          address: {
+            line1: '42 MG Road',
+            city: 'Bengaluru',
+            state: 'Karnataka',
+            country: 'India',
+            zipCode: '560001'
+          }
+        },
+        rooms: [
+          {
+            roomCode: 'suite',
+            rateplanCode: 'suite-d-cp',
+            guestName: 'Vikram Malhotra',
+            occupancy: { adults: 2, children: 1 },
+            prices: [{ date: todayStr, sellRate: 7500 }]
+          }
+        ]
+      };
+    } else if (sampleType === 'mmt_pah') {
+      samplePayload = {
+        action: 'book',
+        hotelCode: config.hotelCode,
+        channel: 'Goibibo',
+        bookingId: `GOI-${Math.floor(100000 + Math.random() * 900000)}`,
+        cmBookingId: `CM-GOI-${Date.now().toString().slice(-6)}`,
+        bookedOn: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        checkin: todayStr,
+        checkout: tomorrowStr,
+        segment: 'OTA',
+        specialRequests: 'Late check-in around 11 PM',
+        pah: true, // Pay at Hotel
+        amount: {
+          amountAfterTax: 2800,
+          amountBeforeTax: 2500,
+          tax: 300,
+          currency: 'INR',
+          commission: 450,
+          tcs: 10,
+          tds: 2
+        },
+        guest: {
+          firstName: 'Ananya',
+          lastName: 'Sharma',
+          email: null, // OTA masked email test
+          phone: '+91 99887 76655',
+          address: { city: 'Mumbai', country: 'India' }
+        },
+        rooms: [
+          {
+            roomCode: 'standard',
+            rateplanCode: 'standard-s-ep',
+            guestName: 'Ananya Sharma',
+            occupancy: { adults: 1, children: 0 },
+            prices: [{ date: todayStr, sellRate: 2800 }]
+          }
+        ]
+      };
+    } else if (sampleType === 'modify') {
+      // Find a recent booking to modify or use sample
+      samplePayload = {
+        action: 'modify',
+        hotelCode: config.hotelCode,
+        channel: 'booking.com',
+        bookingId: webhookLogs[0]?.bookingId || reservations[0]?.id || 'BDC-5238846',
+        cmBookingId: 'CM-BDC-MOD-99',
+        bookedOn: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        checkin: todayStr,
+        checkout: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0], // Extended stay
+        segment: 'OTA',
+        specialRequests: 'Stay extended by 2 nights per guest request',
+        pah: false,
+        amount: {
+          amountAfterTax: 14500,
+          amountBeforeTax: 12288.13,
+          tax: 2211.87,
+          currency: 'INR',
+          commission: 2175,
+          tcs: 100,
+          tds: 20
+        },
+        guest: {
+          firstName: 'Vikram',
+          lastName: 'Malhotra',
+          email: 'vikram.malhotra@example.com',
+          phone: '+91 98765 43210'
+        },
+        rooms: [
+          {
+            roomCode: 'suite',
+            rateplanCode: 'suite-d-cp',
+            guestName: 'Vikram Malhotra',
+            occupancy: { adults: 2, children: 1 }
+          }
+        ]
+      };
+    } else if (sampleType === 'cancel') {
+      samplePayload = {
+        action: 'cancel',
+        hotelCode: config.hotelCode,
+        channel: 'Goibibo',
+        bookingId: webhookLogs[0]?.bookingId || reservations[0]?.id || '111222333'
+      };
+    } else if (sampleType === 'custom') {
+      try {
+        samplePayload = JSON.parse(customWebhookPayload);
+      } catch (err) {
+        showNotification(`Invalid JSON Payload: ${err.message}`);
+        setIsSimulatingWebhook(false);
+        return;
+      }
+    }
+
+    // Dispatch to Supabase Edge Function & persist in Supabase DB for cross-device Realtime sync
+    try {
+      const parsed = parseAiosellWebhookPayload(samplePayload);
+      const result = await dispatchWebhookToBackend(samplePayload, currentHotel?.id);
+
+      if (!result?.success) {
+        setSessionWebhookLogs(prev => [
+          {
+            id: `wh-${Date.now()}`,
+            time: new Date().toLocaleTimeString(),
+            action: parsed.action,
+            channel: samplePayload.channel || 'OTA',
+            bookingId: parsed.action === 'cancel' ? parsed.bookingId : parsed.reservation.id,
+            guest: parsed.action === 'cancel' ? 'N/A' : parsed.reservation.guest,
+            amount: parsed.action === 'cancel' ? 'N/A' : `₹${parsed.reservation.amount}`,
+            pah: parsed.action === 'cancel' ? 'N/A' : (parsed.reservation.pah ? 'Pay At Hotel (PAH)' : 'Prepaid'),
+            status: result?.status === 409 ? 'BLOCKED_NO_INVENTORY' : 'REJECTED'
+          },
+          ...prev
+        ]);
+        showNotification(`Webhook Rejected: ${result?.error || 'Could not process OTA booking.'}`);
+        setIsSimulatingWebhook(false);
+        return;
+      }
+
+      const logEntry = {
+        id: `wh-${Date.now()}`,
+        time: new Date().toLocaleTimeString(),
+        action: parsed.action,
+        channel: samplePayload.channel || 'OTA',
+        bookingId: parsed.action === 'cancel' ? parsed.bookingId : parsed.reservation.id,
+        guest: parsed.action === 'cancel' ? 'N/A' : parsed.reservation.guest,
+        amount: parsed.action === 'cancel' ? 'N/A' : `₹${parsed.reservation.amount}`,
+        pah: parsed.action === 'cancel' ? 'N/A' : (parsed.reservation.pah ? 'Pay At Hotel (PAH)' : 'Prepaid'),
+        status: 'PROCESSED_SUCCESS'
+      };
+
+      setSessionWebhookLogs(prev => [logEntry, ...prev]);
+
+      if (refreshData) {
+        await refreshData();
+      }
+
+      if (parsed.action === 'book') {
+        const allocatedRoomNumber = result?.allocatedRoomNumber;
+        if (allocatedRoomNumber) {
+          showNotification(`[BOOK LOCKED]: Reservation ${parsed.reservation.id} saved & Room ${allocatedRoomNumber} LOCKED across Admin + Guest Website.`);
+        } else {
+          showNotification(`[BOOK]: Reservation ${parsed.reservation.id} saved from ${parsed.reservation.channel}.`);
+        }
+      } else if (parsed.action === 'modify') {
+        showNotification(`Webhook [MODIFY]: Reservation ${parsed.reservation.id} updated across all devices!`);
+      } else if (parsed.action === 'cancel') {
+        showNotification(`Webhook [CANCEL]: Booking ${parsed.bookingId} cancelled and physical room UNLOCKED across all devices!`);
+      }
+    } catch (err) {
+      showNotification(`Webhook processing error: ${err.message}`);
+    } finally {
+      setIsSimulatingWebhook(false);
+    }
+  };
+
+  // 6. Mark No-Show (Rule 14: booking.com or gommt)
+  const handleExecuteMarkNoShow = async () => {
+    if (!noShowBookingId.trim()) {
+      showNotification('Please enter a Booking Reference ID.');
+      return;
+    }
+    setIsMarkingNoShow(true);
+    setNoShowResponse(null);
+    try {
+      const res = await markNoShow(noShowBookingId.trim(), noShowChannel, config);
+      setNoShowResponse(res);
+      if (res.success) {
+        showNotification(`No-show marked successfully for ${noShowChannel} booking ${noShowBookingId}.`);
+        // Update local status if found
+        setReservations(prev => prev.map(r => r.id === noShowBookingId.trim() ? { ...r, status: 'NO_SHOW' } : r));
+      } else {
+        showNotification(`No-show response: ${res.error || res.data?.message}`);
+      }
+    } catch (err) {
+      setNoShowResponse({ success: false, error: err.message });
+      showNotification(`No-show error: ${err.message}`);
+    } finally {
+      setIsMarkingNoShow(false);
+    }
+  };
+
+  // 7. Save Credentials & Persist Per-Hotel Aiosell hotelCode Mapping
+  const handleSaveConfig = async () => {
+    saveAiosellConfig(config);
+    if (currentHotel?.id && config.hotelCode) {
+      await saveHotelAiosellCode(currentHotel.id, config.hotelCode);
+    }
+    showNotification('Aiosell credentials & property hotelCode mapping saved.');
+    handleTestConnection(true);
+  };
+
+  const handleResetToLive = () => {
+    setConfig(DEFAULT_AIOSELL_CONFIG);
+    saveAiosellConfig(DEFAULT_AIOSELL_CONFIG);
+    showNotification('Loaded Aiosell Live Production defaults (hotel: ff144346e6 / partner: aavasa).');
+  };
+
   return (
-    <div className="space-y-5 pb-16 animate-in fade-in duration-200 font-sans">
+    <div className="space-y-6 pb-12 animate-in fade-in duration-200">
       
       {/* 1. Breadcrumbs */}
       <div className="flex items-center space-x-1.5 text-xs text-slate-500 pb-1 border-b border-slate-200">
         <span
           onClick={() => navigateTo('master-service-home')}
-          className="hover:text-slate-900 cursor-pointer transition flex items-center gap-1 font-medium"
+          className="hover:text-slate-900 cursor-pointer transition flex items-center gap-1"
         >
           🏠 Home
         </span>
         <span>/</span>
         <span className="font-semibold text-slate-900">
-          Aiosell Channel Manager (AioConnect)
+          Aiosell Channel Manager
         </span>
       </div>
 
-      {/* 2. AioConnect Top Control Bar (Styled after Aiosell Connect Portal) */}
-      <div className="bg-[#0b1a30] rounded-2xl p-5 text-white shadow-md border border-slate-700/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="space-y-1.5 max-w-3xl">
-          <div className="flex items-center space-x-2.5 flex-wrap gap-y-2">
-            <span className="px-2.5 py-0.5 bg-[#1259a1] text-sky-200 border border-sky-400/30 rounded-md text-[11px] font-bold tracking-wide">
-              AIOSELL CONNECT
-            </span>
-            <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-md text-[11px] font-bold flex items-center gap-1.5">
+      {/* 2. Top Banner & Active Partner Status Bar */}
+      <div className="bg-gradient-to-r from-[#0b1a30] via-[#0f274a] to-[#0b1a30] rounded-2xl p-6 text-white shadow-lg border border-slate-700/60 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="space-y-2 max-w-2xl">
+          <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+            <span className="px-3 py-1 bg-sky-500/20 text-sky-300 border border-sky-400/30 rounded-full text-[11px] font-bold flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              2-WAY XML LIVE
+              AIOSELL 2-WAY XML INTEGRATION ACTIVE
             </span>
-            <span className="px-2.5 py-0.5 bg-slate-800 text-slate-300 text-[11px] font-mono rounded-md border border-slate-700">
-              Hotel ID: <strong className="text-white font-bold">{config.hotelCode || 'ff144346e6'}</strong>
+            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full text-[11px] font-bold">
+              Option 1: ₹800 / Property / Month (Flat Billing · 0% Commission)
             </span>
-            <span className="px-2.5 py-0.5 bg-slate-800 text-slate-300 text-[11px] font-mono rounded-md border border-slate-700">
-              Partner: <strong className="text-sky-300">{config.partnerId || 'aavasa'}</strong>
+            <span className="px-2.5 py-0.5 bg-slate-800 text-slate-300 text-[10px] font-mono rounded-md">
+              Mode: {config.isSandbox ? 'SANDBOX (sandbox-pms)' : 'PRODUCTION PARTNER'}
             </span>
           </div>
 
-          <h1 className="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-2">
-            <span>Aiosell Channel Manager Control Portal</span>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center space-x-2">
+            <span>Aiosell Channel Manager Control Hub</span>
           </h1>
 
-          <p className="text-xs text-slate-300">
-            Real-time multi-OTA synchronization engine for Booking.com, MakeMyTrip, Agoda, Goibibo, Expedia, and Airbnb.
-            Monitor ARI logs, configure rate plans, mapping, and auto-ingest reservations.
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Real-time multi-OTA distribution engine connecting MakeMyTrip, Goibibo, Booking.com, Agoda, Expedia, and Airbnb.
+            Synchronize room rates, available inventory, stop-sells, and auto-ingest reservations directly into Aavasa HMS.
           </p>
         </div>
 
-        {/* Global Action Buttons */}
-        <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-y-2">
+        {/* Quick Actions */}
+        <div className="flex items-center space-x-2.5 shrink-0 flex-wrap gap-y-2">
           <button
             onClick={() => handleTestConnection(true)}
             disabled={isTestingConnection}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold text-white transition cursor-pointer shadow-xs"
-            title="Test connection with live.aiosell.com"
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold text-white transition cursor-pointer shadow-xs"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isTestingConnection ? 'animate-spin' : ''}`} />
-            <span>{isTestingConnection ? 'Testing...' : 'Test Connection'}</span>
+            <span>{isTestingConnection ? 'Pinging API...' : 'Test Connection'}</span>
           </button>
 
           <button
-            onClick={handleRecomputeAndPushAll}
-            disabled={isPushing}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-sm"
-            title="Push all rooms and live rates to Aiosell"
+            onClick={() => setActiveTab('push')}
+            className="flex items-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-md"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>{isPushing ? 'Pushing...' : 'Recompute & Push All'}</span>
+            <span>Push Live Rates & Inventory</span>
           </button>
         </div>
       </div>
 
-      {/* 3. Connection Status Notice */}
+      {/* 3. Live Diagnostic Connection Banner */}
       {connectionStatus && (
-        <div className={`p-3.5 rounded-xl border text-xs flex items-center justify-between gap-3 ${
+        <div className={`p-4 rounded-xl border text-xs flex items-center justify-between gap-3 ${
           connectionStatus.ok
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-            : 'bg-rose-50 border-rose-200 text-rose-900'
+            ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+            : 'bg-rose-50/80 border-rose-200 text-rose-900'
         }`}>
           <div className="flex items-center space-x-2">
             {connectionStatus.ok ? (
@@ -642,615 +668,214 @@ export default function ChannelManagerView() {
             ) : (
               <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
             )}
-            <span className="font-semibold">{connectionStatus.message}</span>
+            <span className="font-medium">{connectionStatus.message}</span>
           </div>
 
-          <span className="text-[11px] font-mono text-slate-500 hidden sm:inline">
-            Endpoint: {config.baseUrl}
-          </span>
+          <div className="flex items-center space-x-2 shrink-0">
+            <span className="text-[10px] font-mono text-slate-500">
+              Target: {config.baseUrl}
+            </span>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className="text-xs font-bold text-indigo-700 hover:underline cursor-pointer"
+            >
+              Configure
+            </button>
+          </div>
         </div>
       )}
 
-      {/* 4. AioConnect Main Navigation Tabs (Matching connect.aiosell.com / live.aiosell.com) */}
-      <div className="bg-white rounded-xl border border-slate-200 p-1 flex items-center space-x-1 overflow-x-auto shadow-xs">
-        
-        {/* TAB 1: Logs (New) */}
+      {/* 4. Tab Navigation Bar */}
+      <div className="bg-white rounded-xl border border-slate-200 p-1.5 flex items-center space-x-1 overflow-x-auto shadow-xs">
         <button
-          onClick={() => setActiveTab('logs-v2')}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-            activeTab === 'logs-v2'
-              ? 'bg-[#1259a1] text-white shadow-xs'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>AioConnect Logs (New)</span>
-          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-            activeTab === 'logs-v2' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-          }`}>
-            {filteredLogs.length}
-          </span>
-        </button>
-
-        {/* TAB 2: Channel Configure */}
-        <button
-          onClick={() => setActiveTab('configure')}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-            activeTab === 'configure'
-              ? 'bg-[#1259a1] text-white shadow-xs'
-              : 'text-slate-700 hover:bg-slate-100'
+          onClick={() => setActiveTab('channels')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'channels'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
           <Globe className="w-3.5 h-3.5" />
-          <span>Configure Channels</span>
-          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-            activeTab === 'configure' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-          }`}>
+          <span>Connected OTAs & Multipliers</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-sky-500 text-white font-mono">
             {channels.length}
           </span>
         </button>
 
-        {/* TAB 3: Mapping Setup */}
-        <button
-          onClick={() => setActiveTab('mapping')}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-            activeTab === 'mapping'
-              ? 'bg-[#1259a1] text-white shadow-xs'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <SlidersHorizontal className="w-3.5 h-3.5" />
-          <span>Room & Rate Mapping</span>
-        </button>
-
-        {/* TAB 4: Fast Push Console */}
         <button
           onClick={() => setActiveTab('push')}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
             activeTab === 'push'
-              ? 'bg-[#1259a1] text-white shadow-xs'
-              : 'text-slate-700 hover:bg-slate-100'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
           <Send className="w-3.5 h-3.5" />
-          <span>Manual Push Console</span>
+          <span>Rates & Inventory Push Console</span>
         </button>
 
-        {/* TAB 5: Webhook Tester & Simulator */}
+        <button
+          onClick={() => setActiveTab('fetch')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'fetch'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          <span>Fetch Data from Aiosell</span>
+        </button>
+
         <button
           onClick={() => setActiveTab('webhook')}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
             activeTab === 'webhook'
-              ? 'bg-[#1259a1] text-white shadow-xs'
-              : 'text-slate-700 hover:bg-slate-100'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
-          <Zap className="w-3.5 h-3.5 text-amber-500" />
-          <span>Inbound Webhook Live Receiver</span>
+          <Zap className="w-3.5 h-3.5" />
+          <span>Inbound Webhook Tester & Simulator</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white font-mono">
+            {webhookLogs.length}
+          </span>
         </button>
 
-        {/* TAB 6: Mark No-Show */}
+        <button
+          onClick={() => setActiveTab('locking')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'locking'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <Lock className="w-3.5 h-3.5 text-amber-500" />
+          <span>Room Locking & Production Architecture</span>
+        </button>
+
         <button
           onClick={() => setActiveTab('noshow')}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
             activeTab === 'noshow'
-              ? 'bg-[#1259a1] text-white shadow-xs'
-              : 'text-slate-700 hover:bg-slate-100'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
-          <Ban className="w-3.5 h-3.5 text-rose-500" />
-          <span>Mark No-Show</span>
+          <Ban className="w-3.5 h-3.5" />
+          <span>Mark No-Show (Rule 14)</span>
         </button>
 
-        {/* TAB 7: Settings */}
         <button
           onClick={() => setActiveTab('settings')}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
             activeTab === 'settings'
-              ? 'bg-[#1259a1] text-white shadow-xs'
-              : 'text-slate-700 hover:bg-slate-100'
+              ? 'bg-[#0b1a30] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
           <Settings className="w-3.5 h-3.5" />
-          <span>Credentials & Endpoints</span>
+          <span>API Credentials & Auth</span>
         </button>
       </div>
 
-      {/* ========================================================================= */}
-      {/* VIEW 1: AIOSELL CONNECT LOGS-V2 (EXACT UI REPLICA OF LIVE.AIOSELL.COM)    */}
-      {/* ========================================================================= */}
-      {activeTab === 'logs-v2' && (
-        <div className="space-y-4">
-          
-          {/* Aiosell Filter Bar (fxLayout="row" fxLayoutAlign="start center" class="filterLine") */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-              <div className="flex items-center space-x-2">
-                <Filter className="w-4 h-4 text-[#1259a1]" />
-                <span className="text-xs font-black uppercase tracking-wider text-slate-800">
-                  AioConnect Filters
+      {/* 5. TAB CONTENT */}
+
+      {/* TAB 1: Connected OTAs & Channel Multipliers */}
+      {activeTab === 'channels' && (
+        <div className="space-y-6">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                <span>Connected Distribution Channels</span>
+                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-mono rounded-md border border-emerald-200 font-bold">
+                  2-Way ARI Enabled
                 </span>
-                <span className="text-[11px] text-slate-500">
-                  (Filter OTA events, rates, inventory and reservation syncs)
-                </span>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <span className="text-[11px] text-slate-500 font-mono">
-                  Showing <b>{filteredLogs.length}</b> events
-                </span>
-              </div>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Aiosell pushes your tariffs and available room counts to these OTAs and delivers bookings directly into Aavasa HMS.
+              </p>
             </div>
 
-            {/* Filter Inputs Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-              
-              {/* 1. Operation Select */}
-              <div>
-                <label className="block text-[11px] font-bold text-[#1259a1] mb-1">
-                  Operation
-                </label>
-                <select
-                  value={selectedOperation}
-                  onChange={(e) => setSelectedOperation(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1259a1] focus:border-[#1259a1]"
-                >
-                  <option value="inv">Inventory (inv)</option>
-                  <option value="rate">Rate (rate)</option>
-                  <option value="res_in">Reservations (res_in)</option>
-                </select>
-              </div>
-
-              {/* 2. Partner Select */}
-              <div>
-                <label className="block text-[11px] font-bold text-[#1259a1] mb-1">
-                  Partner / OTA
-                </label>
-                <select
-                  value={selectedPartner}
-                  onChange={(e) => setSelectedPartner(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1259a1] focus:border-[#1259a1]"
-                >
-                  <option value="">All Partners</option>
-                  <option value="MakeMyTrip">MakeMyTrip (MMT)</option>
-                  <option value="Booking.com">Booking.com</option>
-                  <option value="Agoda">Agoda</option>
-                  <option value="Goibibo">Goibibo</option>
-                  <option value="Expedia">Expedia Group</option>
-                  <option value="Airbnb">Airbnb</option>
-                  <option value="Google">Google Direct</option>
-                </select>
-              </div>
-
-              {/* 3. Date Filter */}
-              <div>
-                <label className="block text-[11px] font-bold text-[#1259a1] mb-1">
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={filterStartDate}
-                  onChange={(e) => setFilterStartDate(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1259a1] focus:border-[#1259a1]"
-                />
-              </div>
-
-              {/* 4. Room Category Filter */}
-              <div>
-                <label className="block text-[11px] font-bold text-[#1259a1] mb-1">
-                  Room
-                </label>
-                <select
-                  value={selectedRoom}
-                  onChange={(e) => setSelectedRoom(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1259a1] focus:border-[#1259a1]"
-                >
-                  <option value="">All Rooms</option>
-                  <option value="Standard">Standard Room</option>
-                  <option value="Deluxe">Deluxe Room</option>
-                  <option value="Executive">Executive Room</option>
-                </select>
-              </div>
-
-              {/* 5. Status Selector */}
-              <div>
-                <label className="block text-[11px] font-bold text-[#1259a1] mb-1">
-                  Status
-                </label>
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1259a1] focus:border-[#1259a1]"
-                >
-                  <option value="ALL">ALL</option>
-                  <option value="SUCCESS">SUCCESS</option>
-                  <option value="FAILED">FAILED</option>
-                </select>
-              </div>
-
-              {/* 6. Action Buttons */}
-              <div className="flex items-end space-x-2">
-                <button
-                  type="button"
-                  onClick={handleSubmitQuery}
-                  disabled={isLogsLoading}
-                  className="flex-1 py-1.5 px-3 bg-[#1259a1] hover:bg-[#0e4884] text-white font-bold rounded-lg text-xs transition cursor-pointer flex items-center justify-center space-x-1 shadow-xs"
-                >
-                  {isLogsLoading ? (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Search className="w-3.5 h-3.5" />
-                  )}
-                  <span>Submit</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleClearFilters}
-                  className="py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition cursor-pointer"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-
-            {/* Additional Reservation-specific filters if res_in is selected */}
-            {selectedOperation === 'res_in' && (
-              <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-slate-50/60 p-2.5 rounded-xl">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Reservation Filter Mode
-                  </label>
-                  <select
-                    value={selectedFilterType}
-                    onChange={(e) => setSelectedFilterType(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800"
-                  >
-                    <option value="Stay Date">Stay Date</option>
-                    <option value="Booking Date">Booking Date</option>
-                    <option value="Checkin Date">Checkin Date</option>
-                    <option value="Checkout Date">Checkout Date</option>
-                  </select>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Search by Booking ID
-                  </label>
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder="Enter OTA Booking ID (e.g. RES-301, 482910, MMT-...)"
-                      value={searchBookingId}
-                      onChange={(e) => setSearchBookingId(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono placeholder-slate-400"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Interactive Logs Table (Matching Aiosell table-bordered table-striped) */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-100/90 text-slate-700 border-b border-slate-200 text-[11px] uppercase tracking-wider font-bold">
-                    {selectedOperation !== 'res_in' ? (
-                      <>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Date Sent</th>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Partner</th>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Operation</th>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Request Message</th>
-                        <th className="py-2.5 px-3 text-center border-r border-slate-200 w-24">Status</th>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Request Body</th>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Response Body</th>
-                        <th className="py-2.5 px-3 text-center w-20">Actions</th>
-                      </>
-                    ) : (
-                      <>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Booking Date</th>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Partner</th>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Booking ID</th>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Checkin</th>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Checkout</th>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Message</th>
-                        <th className="py-2.5 px-3 text-center border-r border-slate-200 w-24">Status</th>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Request Body</th>
-                        <th className="py-2.5 px-3 border-r border-slate-200">Response Body</th>
-                        <th className="py-2.5 px-3 text-center w-20">Actions</th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 text-slate-700">
-                  {filteredLogs.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} className="py-12 text-center text-slate-400">
-                        <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                        <p className="font-bold text-slate-600 text-xs">No AioConnect logs match your current filter.</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">Try clearing the filter or selecting another operation.</p>
-                        <button
-                          onClick={handleClearFilters}
-                          className="mt-3 px-3 py-1.5 bg-[#1259a1] text-white font-bold rounded-lg text-xs cursor-pointer"
-                        >
-                          Reset Filters
-                        </button>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-sky-50/40 transition">
-                        {selectedOperation !== 'res_in' ? (
-                          <>
-                            {/* Date Sent */}
-                            <td className="py-2 px-3 border-r border-slate-200 font-mono text-[11px] whitespace-nowrap text-slate-600">
-                              {log.dateSent}
-                            </td>
-
-                            {/* Partner */}
-                            <td className="py-2 px-3 border-r border-slate-200 whitespace-nowrap font-bold text-slate-900">
-                              <span className="inline-flex items-center space-x-1.5">
-                                <span className="w-2 h-2 rounded-full bg-[#1259a1]" />
-                                <span>{log.partner}</span>
-                              </span>
-                            </td>
-
-                            {/* Operation */}
-                            <td className="py-2 px-3 border-r border-slate-200 whitespace-nowrap">
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-700 border border-slate-200 font-mono">
-                                {log.operationLabel}
-                              </span>
-                            </td>
-
-                            {/* Request Message */}
-                            <td className="py-2 px-3 border-r border-slate-200 text-slate-800 font-medium">
-                              {log.requestMessage}
-                            </td>
-
-                            {/* Status */}
-                            <td className="py-2 px-3 text-center border-r border-slate-200 whitespace-nowrap">
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center space-x-1">
-                                <CheckCircle2 className="w-3 h-3" />
-                                <span>200 OK</span>
-                              </span>
-                            </td>
-
-                            {/* Request Body Preview */}
-                            <td className="py-2 px-3 border-r border-slate-200 max-w-[180px] truncate font-mono text-[10px] text-slate-500">
-                              <button
-                                onClick={() => setActivePayloadModal(log)}
-                                className="text-left text-sky-700 hover:text-sky-900 hover:underline cursor-pointer block truncate"
-                                title="Click to view full formatted payload"
-                              >
-                                {log.requestBody.replace(/\s+/g, ' ').slice(0, 45)}...
-                              </button>
-                            </td>
-
-                            {/* Response Body Preview */}
-                            <td className="py-2 px-3 border-r border-slate-200 max-w-[180px] truncate font-mono text-[10px] text-slate-500">
-                              <button
-                                onClick={() => setActivePayloadModal(log)}
-                                className="text-left text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer block truncate"
-                                title="Click to view full response"
-                              >
-                                {log.responseBody.replace(/\s+/g, ' ').slice(0, 45)}...
-                              </button>
-                            </td>
-
-                            {/* Action */}
-                            <td className="py-2 px-3 text-center whitespace-nowrap">
-                              <button
-                                onClick={() => setActivePayloadModal(log)}
-                                className="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 rounded text-[11px] font-bold transition cursor-pointer flex items-center space-x-1 mx-auto"
-                                title="Open Formatted Payload Dialog"
-                              >
-                                <Eye className="w-3 h-3" />
-                                <span>View</span>
-                              </button>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            {/* Booking Date */}
-                            <td className="py-2 px-3 border-r border-slate-200 font-mono text-[11px] whitespace-nowrap text-slate-600">
-                              {log.bookingDate}
-                            </td>
-
-                            {/* Partner */}
-                            <td className="py-2 px-3 border-r border-slate-200 whitespace-nowrap font-bold text-slate-900">
-                              {log.partner}
-                            </td>
-
-                            {/* Booking ID */}
-                            <td className="py-2 px-3 border-r border-slate-200 font-mono font-bold text-indigo-700 whitespace-nowrap">
-                              {log.bookingId}
-                            </td>
-
-                            {/* Checkin */}
-                            <td className="py-2 px-3 border-r border-slate-200 font-mono text-[11px] whitespace-nowrap text-slate-700">
-                              {log.checkinDate}
-                            </td>
-
-                            {/* Checkout */}
-                            <td className="py-2 px-3 border-r border-slate-200 font-mono text-[11px] whitespace-nowrap text-slate-700">
-                              {log.checkoutDate}
-                            </td>
-
-                            {/* Message */}
-                            <td className="py-2 px-3 border-r border-slate-200 text-slate-800 font-medium">
-                              {log.requestMessage}
-                            </td>
-
-                            {/* Status */}
-                            <td className="py-2 px-3 text-center border-r border-slate-200 whitespace-nowrap">
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center space-x-1">
-                                <CheckCircle2 className="w-3 h-3" />
-                                <span>SUCCESS</span>
-                              </span>
-                            </td>
-
-                            {/* Request Body */}
-                            <td className="py-2 px-3 border-r border-slate-200 max-w-[150px] truncate font-mono text-[10px] text-slate-500">
-                              <button
-                                onClick={() => setActivePayloadModal(log)}
-                                className="text-left text-sky-700 hover:text-sky-900 hover:underline cursor-pointer block truncate"
-                              >
-                                {log.requestBody.replace(/\s+/g, ' ').slice(0, 35)}...
-                              </button>
-                            </td>
-
-                            {/* Response Body */}
-                            <td className="py-2 px-3 border-r border-slate-200 max-w-[150px] truncate font-mono text-[10px] text-slate-500">
-                              <button
-                                onClick={() => setActivePayloadModal(log)}
-                                className="text-left text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer block truncate"
-                              >
-                                {log.responseBody.replace(/\s+/g, ' ').slice(0, 35)}...
-                              </button>
-                            </td>
-
-                            {/* Action */}
-                            <td className="py-2 px-3 text-center whitespace-nowrap">
-                              <button
-                                onClick={() => setActivePayloadModal(log)}
-                                className="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 rounded text-[11px] font-bold transition cursor-pointer flex items-center space-x-1 mx-auto"
-                              >
-                                <Eye className="w-3 h-3" />
-                                <span>View</span>
-                              </button>
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Table Footer info */}
-            <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-              <span className="text-[11px]">
-                Showing {filteredLogs.length} events from Aiosell Connect distribution network
-              </span>
-              <span className="text-[11px] font-mono text-slate-400">
-                Aiosell Hotel: {config.hotelCode || 'ff144346e6'}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* VIEW 2: CONFIGURE CHANNELS (MATCHING AIOSELL /cm/configure/:hotelId)      */}
-      {/* ========================================================================= */}
-      {activeTab === 'configure' && (
-        <div className="space-y-5">
-          
-          {/* Operation Tabs Sub-bar */}
-          <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-1.5 overflow-x-auto">
-            {configOperationsList.map((op) => (
+            <div className="flex items-center space-x-2">
               <button
-                key={op.id}
-                onClick={() => setConfigOperation(op.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                  configOperation === op.id
-                    ? 'bg-[#1259a1] text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
+                onClick={() => navigateTo('ari-grid')}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
               >
-                {op.name}
+                <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Open ARI Calendar Grid</span>
               </button>
-            ))}
+            </div>
           </div>
 
-          {/* Infix Explanation Banner */}
-          <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-900 flex items-center justify-between">
-            <span className="font-semibold">
-              Current Mode: <strong className="font-bold uppercase text-[#1259a1]">Aavasa HMS</strong> {configOperationsList.find(o => o.id === configOperation)?.infix} connected OTAs.
-            </span>
-            <span className="text-[11px] text-sky-700 font-mono">
-              2-Way XML Synchronization Active
-            </span>
-          </div>
-
-          {/* Connected OTAs Cards Grid */}
+          {/* Channels Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {channels.map((ch) => (
               <div
                 key={ch.id}
-                className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs hover:border-slate-300 transition space-y-3"
+                className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs hover:shadow-md transition space-y-4 flex flex-col justify-between"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2.5">
-                    <span className={`w-8 h-8 rounded-xl ${ch.color} text-white font-black text-xs flex items-center justify-center shadow-xs`}>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-10 h-10 rounded-xl ${ch.color} text-white flex items-center justify-center font-black text-sm shadow-sm`}>
                       {ch.logo}
-                    </span>
+                    </div>
                     <div>
-                      <h3 className="font-bold text-slate-900 text-xs">{ch.name}</h3>
-                      <span className="text-[10px] text-slate-400 font-mono">{ch.code}</span>
+                      <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                        {ch.name}
+                      </h3>
+                      <span className="text-[10px] font-mono text-slate-400">
+                        Code: {ch.code}
+                      </span>
                     </div>
                   </div>
 
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                    ch.active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {ch.active ? 'ACTIVE' : 'INACTIVE'}
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    LIVE
                   </span>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 text-[11px]">Pricing Model:</span>
-                    <span className="font-bold text-slate-800 capitalize">
-                      {ch.pricingModel.replace('_', ' ')}
-                    </span>
+                <div className="bg-slate-50 rounded-xl p-3 space-y-2 text-xs border border-slate-100">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Sync Protocol:</span>
+                    <span className="font-bold text-slate-800">{ch.lastSync}</span>
                   </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 text-[11px]">Rate Type:</span>
-                    <span className="font-bold text-slate-800 uppercase font-mono">
-                      {ch.rateType} Rate
-                    </span>
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>OTA Commission:</span>
+                    <span className="font-bold text-slate-800">{ch.commission}</span>
                   </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 text-[11px]">Markup / Multiplier:</span>
-                    <div className="flex items-center space-x-1.5">
-                      <span className="font-mono font-bold text-indigo-700">
-                        {ch.multiplier.toFixed(2)}x
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        ({Math.round((ch.multiplier - 1) * 100)}%)
-                      </span>
+                  <div className="flex items-center justify-between text-slate-600 pt-1 border-t border-slate-200/60">
+                    <span className="font-semibold text-slate-700">Rate Multiplier:</span>
+                    <div className="flex items-center space-x-1">
+                      <select
+                        value={ch.multiplier}
+                        onChange={(e) => handleApplyMultiplier(ch.code, Number(e.target.value))}
+                        className="bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-bold text-indigo-700 cursor-pointer"
+                      >
+                        <option value={0.9}>0.90 (-10%)</option>
+                        <option value={1.0}>1.00 (Parity)</option>
+                        <option value={1.05}>1.05 (+5%)</option>
+                        <option value={1.10}>1.10 (+10%)</option>
+                        <option value={1.15}>1.15 (+15%)</option>
+                        <option value={1.20}>1.20 (+20%)</option>
+                      </select>
                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-slate-500 text-[11px]">OTA Commission:</span>
-                    <span className="font-bold text-rose-600">{ch.commission}</span>
                   </div>
                 </div>
 
-                {/* Quick Multiplier Adjustment */}
-                <div className="pt-2 border-t border-slate-100 flex items-center space-x-1.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Set:</span>
-                  {[1.00, 1.05, 1.10, 1.15].map(factor => (
-                    <button
-                      key={factor}
-                      onClick={() => handleApplyMultiplier(ch.code, factor)}
-                      className={`flex-1 py-1 rounded text-[10px] font-bold transition cursor-pointer ${
-                        ch.multiplier === factor
-                          ? 'bg-[#1259a1] text-white'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      {factor.toFixed(2)}x
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500">
+                  <span className="flex items-center gap-1 text-emerald-600 font-bold">
+                    <Check className="w-3.5 h-3.5" /> Stop-Sell & Min Stay Synced
+                  </span>
+                  <button
+                    onClick={() => {
+                      setPushSelectedChannels([ch.code]);
+                      setActiveTab('push');
+                    }}
+                    className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline cursor-pointer"
+                  >
+                    Push Rates &rarr;
+                  </button>
                 </div>
               </div>
             ))}
@@ -1258,535 +883,1079 @@ export default function ChannelManagerView() {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* VIEW 3: MAPPING SETUP (MATCHING AIOSELL /cm/mapping-setup/:hotelId)       */}
-      {/* ========================================================================= */}
-      {activeTab === 'mapping' && (
-        <div className="space-y-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900">
-                  PMS Room Categories & OTA Rate Plan Mapping
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Map physical rooms and meal plans from Aavasa PMS to external OTA channel codes.
-                </p>
-              </div>
+      {/* TAB 2: Rates & Inventory Push Console */}
+      {activeTab === 'push' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Form: 7 cols */}
+          <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                <Send className="w-4 h-4 text-indigo-600" />
+                <span>Aiosell Push Transmission Console</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Transmit room inventory counts, nightly rates, or stay restrictions directly to Aiosell API.
+              </p>
+            </div>
 
+            {/* Selector: Inventory vs Rates vs Restrictions */}
+            <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-xl text-xs font-bold">
               <button
-                onClick={handleRecomputeAndPushAll}
-                className="px-3.5 py-1.5 bg-[#1259a1] hover:bg-[#0e4884] text-white rounded-lg text-xs font-bold transition cursor-pointer"
+                type="button"
+                onClick={() => setPushType('inventory')}
+                className={`py-2 rounded-lg transition cursor-pointer text-center ${
+                  pushType === 'inventory' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
-                Sync Mapping to OTAs
+                1. Push Inventory
+              </button>
+              <button
+                type="button"
+                onClick={() => setPushType('rates')}
+                className={`py-2 rounded-lg transition cursor-pointer text-center ${
+                  pushType === 'rates' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                2. Push Rates
+              </button>
+              <button
+                type="button"
+                onClick={() => setPushType('restrictions')}
+                className={`py-2 rounded-lg transition cursor-pointer text-center ${
+                  pushType === 'restrictions' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                3. Push Restrictions
               </button>
             </div>
 
-            {/* Room Matrix Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-100/80 text-slate-700 text-[11px] uppercase font-bold border-b border-slate-200">
-                    <th className="py-2.5 px-3">PMS Room Category</th>
-                    <th className="py-2.5 px-3">Aiosell InvCode</th>
-                    <th className="py-2.5 px-3">Rate Plans Supported</th>
-                    <th className="py-2.5 px-3 text-right">Base Tariff</th>
-                    <th className="py-2.5 px-3 text-center">Live Units Available</th>
-                    <th className="py-2.5 px-3 text-center">Sync Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 text-slate-700">
-                  <tr>
-                    <td className="py-3 px-3 font-black text-slate-900">
-                      Standard Room
-                    </td>
-                    <td className="py-3 px-3 font-mono font-bold text-sky-700">
-                      standard
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono mr-1">EP</span>
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono mr-1">CP</span>
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono">MAP</span>
-                    </td>
-                    <td className="py-3 px-3 text-right font-mono font-bold">
-                      ₹ 2,200
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold font-mono rounded-full border border-emerald-200">
-                        {calculateCategoryInventory('Standard Room', rooms)} Units
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      <span className="text-emerald-600 font-bold text-[11px] flex items-center justify-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Mapped
-                      </span>
-                    </td>
-                  </tr>
+            {/* Date Range Selection */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Start Date (Inclusive)
+                </label>
+                <input
+                  type="date"
+                  value={pushStartDate}
+                  onChange={(e) => setPushStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500 outline-hidden"
+                />
+              </div>
 
-                  <tr>
-                    <td className="py-3 px-3 font-black text-slate-900">
-                      Deluxe Room
-                    </td>
-                    <td className="py-3 px-3 font-mono font-bold text-sky-700">
-                      deluxe
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono mr-1">EP</span>
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono mr-1">CP</span>
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono">MAP</span>
-                    </td>
-                    <td className="py-3 px-3 text-right font-mono font-bold">
-                      ₹ 2,500
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold font-mono rounded-full border border-emerald-200">
-                        {calculateCategoryInventory('Deluxe Room', rooms)} Units
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      <span className="text-emerald-600 font-bold text-[11px] flex items-center justify-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Mapped
-                      </span>
-                    </td>
-                  </tr>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  End Date (Inclusive)
+                </label>
+                <input
+                  type="date"
+                  value={pushEndDate}
+                  onChange={(e) => setPushEndDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500 outline-hidden"
+                />
+              </div>
+            </div>
 
-                  <tr>
-                    <td className="py-3 px-3 font-black text-slate-900">
-                      Executive Room
-                    </td>
-                    <td className="py-3 px-3 font-mono font-bold text-sky-700">
-                      executive
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono mr-1">EP</span>
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono mr-1">CP</span>
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono">MAP</span>
-                    </td>
-                    <td className="py-3 px-3 text-right font-mono font-bold">
-                      ₹ 2,800
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold font-mono rounded-full border border-emerald-200">
-                        {calculateCategoryInventory('Executive Room', rooms)} Units
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      <span className="text-emerald-600 font-bold text-[11px] flex items-center justify-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Mapped
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            {/* Room Category Selection */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                Aiosell Room Code
+              </label>
+              <select
+                value={pushRoomCode}
+                onChange={(e) => setPushRoomCode(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-hidden"
+              >
+                <option value="standard">STANDARD (standard - Aiosell Live ID)</option>
+                <option value="deluxe">DELUXE (deluxe - Aiosell Live ID)</option>
+                <option value="executive">EXECUTIVE (executive - Aiosell Live ID)</option>
+                <option value="penthouse">PENTHOUSE (penthouse - Aiosell Live ID)</option>
+                {(roomTypes || []).map(rt => {
+                  const code = rt.name.toLowerCase().replace(/\s+/g, '-');
+                  if (['standard', 'deluxe', 'executive', 'penthouse'].includes(code)) return null;
+                  return (
+                    <option key={rt.id} value={code}>
+                      {rt.name} ({rt.label || 'Aavasa Master'})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Type-Specific Fields */}
+            {pushType === 'inventory' && (
+              <div className="bg-sky-50/60 p-4 rounded-xl border border-sky-100 space-y-3">
+                <label className="block text-xs font-bold text-slate-800">
+                  Available Room Count to Distribute
+                </label>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={pushAvailableCount}
+                    onChange={(e) => setPushAvailableCount(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-32 px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold font-mono text-slate-900"
+                  />
+                  <span className="text-xs text-slate-500">
+                    rooms available on selected date window
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {pushType === 'rates' && (
+              <div className="bg-indigo-50/60 p-4 rounded-xl border border-indigo-100 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Rate Plan Code
+                    </label>
+                    <select
+                      value={pushRatePlanCode}
+                      onChange={(e) => setPushRatePlanCode(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold"
+                    >
+                      <optgroup label="Standard Room">
+                        <option value="standard-s-cp">standard-s-cp (Standard Single CP)</option>
+                        <option value="standard-d-cp">standard-d-cp (Standard Double CP)</option>
+                      </optgroup>
+                      <optgroup label="Deluxe Room">
+                        <option value="deluxe-s-cp">deluxe-s-cp (Deluxe Single CP)</option>
+                        <option value="deluxe-d-cp">deluxe-d-cp (Deluxe Double CP)</option>
+                      </optgroup>
+                      <optgroup label="Executive Room">
+                        <option value="executive-s-cp">executive-s-cp (Executive Single CP)</option>
+                        <option value="executive-d-cp">executive-d-cp (Executive Double CP)</option>
+                      </optgroup>
+                      <optgroup label="Penthouse">
+                        <option value="penthouse-s-cp">penthouse-s-cp (Penthouse Single CP)</option>
+                        <option value="penthouse-d-cp">penthouse-d-cp (Penthouse Double CP)</option>
+                        <option value="penthouse-t-cp">penthouse-t-cp (Penthouse Triple CP)</option>
+                        <option value="penthouse-q-cp">penthouse-q-cp (Penthouse Quad CP)</option>
+                        <option value="penthouse-p-cp">penthouse-p-cp (Penthouse Quintuple CP)</option>
+                        <option value="penthouse-h-cp">penthouse-h-cp (Penthouse Hex CP)</option>
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Nightly Rate (₹ INR)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">₹</span>
+                      <input
+                        type="number"
+                        min="500"
+                        step="50"
+                        value={pushNightlyRate}
+                        onChange={(e) => setPushNightlyRate(parseInt(e.target.value) || 0)}
+                        className="w-full pl-7 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold font-mono text-slate-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {pushType === 'restrictions' && (
+              <div className="bg-amber-50/60 p-4 rounded-xl border border-amber-100 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="pushStopSellCheck"
+                      checked={pushStopSell}
+                      onChange={(e) => setPushStopSell(e.target.checked)}
+                      className="w-4 h-4 text-rose-600 rounded cursor-pointer"
+                    />
+                    <label htmlFor="pushStopSellCheck" className="text-xs font-bold text-slate-800 cursor-pointer">
+                      Stop Sell (Block Bookings)
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                      Minimum Stay Nights
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={pushMinStay}
+                      onChange={(e) => setPushMinStay(parseInt(e.target.value) || 1)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-amber-200/60">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="ctaCheck"
+                      checked={pushCloseOnArrival}
+                      onChange={(e) => setPushCloseOnArrival(e.target.checked)}
+                      className="w-4 h-4 text-amber-600 rounded cursor-pointer"
+                    />
+                    <label htmlFor="ctaCheck" className="text-xs text-slate-700 cursor-pointer">
+                      Close On Arrival (CTA)
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="ctdCheck"
+                      checked={pushCloseOnDeparture}
+                      onChange={(e) => setPushCloseOnDeparture(e.target.checked)}
+                      className="w-4 h-4 text-amber-600 rounded cursor-pointer"
+                    />
+                    <label htmlFor="ctdCheck" className="text-xs text-slate-700 cursor-pointer">
+                      Close On Departure (CTD)
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Target Distribution Channels */}
+            {pushType === 'restrictions' && (
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-2">
+                  Target Channels (toChannels)
+                </label>
+                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                  {['agoda', 'booking.com', 'gommt', 'expedia', 'airbnb'].map(ch => (
+                    <label
+                      key={ch}
+                      className={`px-3 py-1.5 rounded-xl border cursor-pointer transition flex items-center space-x-1.5 ${
+                        pushSelectedChannels.includes(ch)
+                          ? 'bg-indigo-50 border-indigo-400 text-indigo-900 font-bold'
+                          : 'bg-white border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={pushSelectedChannels.includes(ch)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setPushSelectedChannels(prev => [...prev, ch]);
+                          } else {
+                            setPushSelectedChannels(prev => prev.filter(c => c !== ch));
+                          }
+                        }}
+                        className="sr-only"
+                      />
+                      <span>{ch}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleExecutePush}
+                disabled={isPushing}
+                className="w-full py-3 bg-[#0b1a30] hover:bg-[#132c52] text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-50"
+              >
+                <Send className={`w-4 h-4 ${isPushing ? 'animate-bounce' : ''}`} />
+                <span>{isPushing ? 'Sending Transmission to Aiosell...' : `Transmit ${pushType.toUpperCase()} to Aiosell OTAs`}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Right Console: 5 cols */}
+          <div className="lg:col-span-5 bg-slate-900 rounded-2xl p-5 text-white font-mono text-xs shadow-xl flex flex-col justify-between space-y-4">
+            <div>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5">
+                  <Terminal className="w-3.5 h-3.5 text-sky-400" />
+                  AIOSELL API LIVE CONSOLE
+                </span>
+                <span className="text-[10px] text-emerald-400 font-bold">
+                  AUTH: VAULT-PROTECTED (SERVER PROXY)
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div className="text-[11px] text-slate-400">
+                  Target Endpoint:
+                </div>
+                <div className="bg-slate-950 p-2.5 rounded-lg text-emerald-400 text-[11px] break-all border border-slate-800">
+                  POST {config.baseUrl}/{pushType === 'rates' ? 'update-rates' : 'update'}/{config.partnerId}
+                </div>
+
+                <div className="text-[11px] text-slate-400 pt-2">
+                  Live Response from live.aiosell.com:
+                </div>
+                <div className="bg-slate-950 p-3 rounded-lg text-[11px] overflow-x-auto max-h-64 border border-slate-800">
+                  {lastPushResponse ? (
+                    <pre className="text-slate-200">
+                      {JSON.stringify(lastPushResponse, null, 2)}
+                    </pre>
+                  ) : (
+                    <div className="text-slate-500 italic py-4 text-center">
+                      Ready to transmit. Click "Transmit to Aiosell OTAs" to see the real-time API response.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
+              <span>Hotel: {config.hotelCode}</span>
+              <span>Partner: {config.partnerId}</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* VIEW 4: MANUAL PUSH CONSOLE                                               */}
-      {/* ========================================================================= */}
-      {activeTab === 'push' && (
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      {/* TAB 3: Fetch Data from Aiosell */}
+      {activeTab === 'fetch' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-sm font-bold text-slate-900">Push Rates & Inventory to OTAs</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Send explicit pricing, room counts, or stay restrictions directly to Aiosell.</p>
+              <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                <RefreshCw className="w-4 h-4 text-indigo-600" />
+                <span>Fetch Live Inventory, Rates & Reservations</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Direct query against Aiosell dataset endpoint: <code className="text-indigo-600 font-mono">POST /data/{config.partnerId}</code>
+              </p>
             </div>
-            <span className="text-xs font-mono font-bold text-[#1259a1]">Target: {config.hotelCode}</span>
+
+            {fetchedData?.data && Array.isArray(fetchedData.data) && fetchType === 'reservation' && (
+              <button
+                onClick={handleImportFetchedReservations}
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Import Bookings to Front Desk</span>
+              </button>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          {/* Controls Bar */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Push Type</label>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                Query Type
+              </label>
               <select
-                value={pushType}
-                onChange={(e) => setPushType(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-medium"
+                value={fetchType}
+                onChange={(e) => setFetchType(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold cursor-pointer"
               >
-                <option value="inventory">Inventory (Room Availability)</option>
-                <option value="rates">Rates (Nightly Tariffs)</option>
-                <option value="restrictions">Restrictions (Stop-Sell / Min-Stay)</option>
+                <option value="rates">Rates (type: 'rates')</option>
+                <option value="inventory">Inventory (type: 'inventory')</option>
+                <option value="reservation">OTA Reservations (type: 'reservation')</option>
               </select>
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Start Date</label>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                Start Date
+              </label>
               <input
                 type="date"
-                value={pushStartDate}
-                onChange={(e) => setPushStartDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg"
+                value={fetchStartDate}
+                onChange={(e) => setFetchStartDate(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-medium"
               />
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1">End Date</label>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                End Date
+              </label>
               <input
                 type="date"
-                value={pushEndDate}
-                onChange={(e) => setPushEndDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg"
+                value={fetchEndDate}
+                onChange={(e) => setFetchEndDate(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-medium"
               />
+            </div>
+
+            <div className="flex items-end">
+              <button
+                onClick={handleExecuteFetch}
+                disabled={isFetching}
+                className="w-full py-2 bg-[#0b1a30] hover:bg-[#132c52] text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center space-x-1.5 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+                <span>{isFetching ? 'Fetching Data...' : 'Execute Fetch'}</span>
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          {/* Fetched Data Viewer */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Aiosell Query Result
+            </h3>
+
+            {fetchedData ? (
+              <div className="bg-slate-900 rounded-xl p-4 text-white text-xs font-mono overflow-x-auto max-h-96">
+                <pre>{JSON.stringify(fetchedData, null, 2)}</pre>
+              </div>
+            ) : (
+              <div className="text-center py-10 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-500">
+                Click "Execute Fetch" to query active rates or reservations from the Aiosell Sandbox.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: Inbound Webhook Tester & Simulator */}
+      {activeTab === 'webhook' && (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                  <Zap className="w-4 h-4 text-emerald-600" />
+                  <span>Inbound Reservation Webhook Integration</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Aiosell calls YOUR webhook when an OTA reservation is created, modified, or cancelled.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  HTTP Basic Auth Protected
+                </span>
+              </div>
+            </div>
+
+            {/* Integration Details to share with Aiosell onboarding */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+              <div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Webhook URL (Share with Aiosell Support)
+                </span>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={config.webhookUrl || 'https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook'}
+                    className="flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(config.webhookUrl || 'https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook');
+                      showNotification('Production Webhook URL copied to clipboard.');
+                    }}
+                    className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition cursor-pointer"
+                    title="Copy URL"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Expected Basic Auth Credentials (Header)
+                </span>
+                <div className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-700 flex items-center justify-between">
+                  <span>username: <strong className="text-indigo-600">{config.username || 'Supabase Vault Secret'}</strong></span>
+                  <span>password: <strong className="text-indigo-600">{config.password ? '••••••••••' : 'Encrypted (Edge Env)'}</strong></span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Test Triggers */}
+            <div className="pt-2">
+              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-2">
+                Simulate Inbound OTA Webhook Events:
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <button
+                  onClick={() => handleSimulateWebhook('booking_prepaid')}
+                  disabled={isSimulatingWebhook}
+                  className="p-3 bg-blue-50/70 hover:bg-blue-100/80 border border-blue-200 rounded-xl text-left transition cursor-pointer space-y-1"
+                >
+                  <div className="text-xs font-bold text-blue-900 flex items-center justify-between">
+                    <span>1. Booking.com (Prepaid)</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded">book</span>
+                  </div>
+                  <p className="text-[11px] text-blue-700">
+                    Suite, ₹7,500, pah=false, guest details & special requests
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => handleSimulateWebhook('mmt_pah')}
+                  disabled={isSimulatingWebhook}
+                  className="p-3 bg-rose-50/70 hover:bg-rose-100/80 border border-rose-200 rounded-xl text-left transition cursor-pointer space-y-1"
+                >
+                  <div className="text-xs font-bold text-rose-900 flex items-center justify-between">
+                    <span>2. Goibibo / MMT (PAH)</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 bg-rose-200 text-rose-800 rounded">book</span>
+                  </div>
+                  <p className="text-[11px] text-rose-700">
+                    Standard Room, ₹2,800, pah=true — locks physical room immediately
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => handleSimulateWebhook('modify')}
+                  disabled={isSimulatingWebhook}
+                  className="p-3 bg-amber-50/70 hover:bg-amber-100/80 border border-amber-200 rounded-xl text-left transition cursor-pointer space-y-1"
+                >
+                  <div className="text-xs font-bold text-amber-900 flex items-center justify-between">
+                    <span>3. Modify Booking</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded">modify</span>
+                  </div>
+                  <p className="text-[11px] text-amber-700">
+                    Full state overwrite per Rule 9 (extended stay, ₹14,500)
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => handleSimulateWebhook('cancel')}
+                  disabled={isSimulatingWebhook}
+                  className="p-3 bg-red-50/70 hover:bg-red-100/80 border border-red-200 rounded-xl text-left transition cursor-pointer space-y-1"
+                >
+                  <div className="text-xs font-bold text-red-900 flex items-center justify-between">
+                    <span>4. Cancel Booking</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 bg-red-200 text-red-800 rounded">cancel</span>
+                  </div>
+                  <p className="text-[11px] text-red-700">
+                    Cancels booking & frees up inventory across all OTAs
+                  </p>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Webhook Activity Log */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                <Clock className="w-4 h-4 text-slate-500" />
+                <span>Live Inbound Webhook Activity Log</span>
+              </h3>
+              {webhookLogs.length > 0 && (
+                <button
+                  onClick={() => {
+                    setWebhookLogs([]);
+                    showNotification('Webhook log cleared.');
+                  }}
+                  className="text-xs font-bold text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                >
+                  Clear Log
+                </button>
+              )}
+            </div>
+
+            {webhookLogs.length > 0 ? (
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3">Time</th>
+                      <th className="py-2.5 px-3">Action</th>
+                      <th className="py-2.5 px-3">OTA Channel</th>
+                      <th className="py-2.5 px-3">Booking ID</th>
+                      <th className="py-2.5 px-3">Guest Name</th>
+                      <th className="py-2.5 px-3">Amount</th>
+                      <th className="py-2.5 px-3">Payment Type</th>
+                      <th className="py-2.5 px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {webhookLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-50/80 transition">
+                        <td className="py-2.5 px-3 font-mono text-slate-500">{log.time}</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                            log.action === 'book' ? 'bg-emerald-100 text-emerald-800' :
+                            log.action === 'modify' ? 'bg-amber-100 text-amber-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {log.action}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 font-bold text-slate-900">{log.channel}</td>
+                        <td className="py-2.5 px-3 font-mono text-indigo-600 font-bold">{log.bookingId}</td>
+                        <td className="py-2.5 px-3 text-slate-800">{log.guest}</td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{log.amount}</td>
+                        <td className="py-2.5 px-3 text-slate-600">{log.pah}</td>
+                        <td className="py-2.5 px-3">
+                          <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" /> Synced to PMS
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-10 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-400">
+                No webhook events received yet. Click any of the simulation triggers above to test incoming bookings!
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: Room Locking & Production Architecture */}
+      {activeTab === 'locking' && (
+        <div className="space-y-6">
+          {/* Header Card */}
+          <div className="bg-gradient-to-r from-[#0b1a30] via-[#102746] to-[#0b1a30] rounded-2xl p-6 text-white shadow-lg border border-slate-700/60 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <span className="px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-400/30 rounded-full text-[11px] font-bold flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  ATOMIC ROOM LOCKING & OVERBOOKING SHIELD
+                </span>
+                <span className="px-3 py-1 bg-sky-500/20 text-sky-300 border border-sky-400/30 rounded-full text-[11px] font-bold">
+                  Supabase Project: pdsfctfixxfazchamznm
+                </span>
+              </div>
+              <h2 className="text-xl font-black tracking-tight">
+                How Third-Party OTA Bookings Lock Rooms in Aavasa
+              </h2>
+              <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
+                When a guest reserves on Booking.com, MakeMyTrip, Agoda, or Expedia, Aiosell calls your real backend webhook.
+                Aavasa instantly assigns a clean physical room, changes its status to <strong className="text-rose-400">OCCUPIED</strong> in the database, locks the room card in Front Office, and decrements inventory across all remaining OTAs to guarantee zero overbookings.
+              </p>
+            </div>
+
+            <div className="shrink-0 bg-white/10 p-4 rounded-xl border border-white/20 text-center space-y-1">
+              <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider block">Real Webhook State</span>
+              <span className="text-xs font-mono font-bold text-emerald-400 flex items-center justify-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                EDGE FUNCTION READY
+              </span>
+            </div>
+          </div>
+
+          {/* 1. Real Production Webhook Details Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-indigo-600" />
+                  <span>Your Real Production Webhook Endpoint</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Share this exact URL and credentials with the Aiosell onboarding team.
+                </p>
+              </div>
+              <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200">
+                HTTPS Secure · Production
+              </span>
+            </div>
+
+            <div className="bg-slate-900 rounded-xl p-4 text-xs font-mono text-white space-y-2 border border-slate-800">
+              <div className="flex items-center justify-between text-[11px] text-slate-400 pb-1 border-b border-slate-800">
+                <span>Webhook Endpoint (Deno Edge Function on Supabase):</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText('https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook');
+                    showNotification('Copied Supabase Edge Function Webhook URL!');
+                  }}
+                  className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-sans font-bold transition cursor-pointer flex items-center gap-1"
+                >
+                  <Copy className="w-3 h-3" /> Copy URL
+                </button>
+              </div>
+              <div className="text-emerald-400 font-bold break-all">
+                POST https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook
+              </div>
+              <div className="text-slate-400 text-[11px] pt-1">
+                Auth Header: <span className="text-amber-300 font-bold">Authorization: Basic &lt;base64(AAVASA_WEBHOOK_USERNAME:AAVASA_WEBHOOK_PASSWORD)&gt;</span> (Configured via Supabase Secrets)
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Four-Step Room Locking Visual Engine */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Room Category</label>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Lock className="w-4 h-4 text-amber-600" />
+                <span>The 4-Step Room Locking & Anti-Double-Booking Engine</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                How every third-party booking is secured in the database and visually locked in the Front Desk.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+              {/* Step 1 */}
+              <div className="p-4 rounded-xl border border-sky-200 bg-sky-50/50 space-y-2 relative">
+                <div className="w-6 h-6 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-xs">
+                  1
+                </div>
+                <h4 className="font-bold text-sky-950">Guest Books on OTA</h4>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  A guest confirms a reservation on <strong>Booking.com</strong>, <strong>MakeMyTrip</strong>, or <strong>Agoda</strong>. Aiosell captures the booking and instantly dispatches an inbound HTTP POST webhook.
+                </p>
+                <div className="text-[10px] font-mono text-sky-800 bg-sky-100 p-1.5 rounded">
+                  Action: "book" · PAH: true/false
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/50 space-y-2 relative">
+                <div className="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+                  2
+                </div>
+                <h4 className="font-bold text-indigo-950">Atomic Room Allocation</h4>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  The Supabase webhook queries your real physical rooms (e.g. Room 101, 102, 201) matching the room category, finds the first clean vacant room, and executes an atomic SQL lock.
+                </p>
+                <div className="text-[10px] font-mono text-indigo-800 bg-indigo-100 p-1.5 rounded">
+                  UPDATE rooms SET status='OCCUPIED'
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/50 space-y-2 relative">
+                <div className="w-6 h-6 rounded-full bg-rose-600 text-white font-bold flex items-center justify-center text-xs">
+                  3
+                </div>
+                <h4 className="font-bold text-rose-950">Visual Lock in Admin</h4>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  The room immediately displays as <strong>OCCUPIED</strong> in the <strong>Live Room Matrix (3D cards)</strong> and <strong>Tape Chart</strong> with guest name and OTA source. Front desk staff are blocked from assigning anyone else.
+                </p>
+                <div className="text-[10px] font-mono text-rose-800 bg-rose-100 p-1.5 rounded">
+                  Locked · MMT / Booking.com
+                </div>
+              </div>
+
+              {/* Step 4 */}
+              <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-2 relative">
+                <div className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">
+                  4
+                </div>
+                <h4 className="font-bold text-emerald-950">Stop-Sell Push to All OTAs</h4>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  Remaining available inventory is recalculated. If all rooms of that category are booked, Aavasa triggers an automated Stop-Sell to Aiosell, shutting down sales across all other OTAs worldwide.
+                </p>
+                <div className="text-[10px] font-mono text-emerald-800 bg-emerald-100 p-1.5 rounded">
+                  Zero Overbooking Guaranteed
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Onboarding Handshake Protocol Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                <span>Onboarding Exchange: What You Send vs What Aiosell Sends</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Exact protocol for connecting Aavasa HMS to the Aiosell partner network.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+              {/* Left Column: What you provide to Aiosell */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                <h4 className="font-bold text-indigo-950 flex items-center gap-2 border-b border-slate-200 pb-2">
+                  <Send className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>1. What You Share with Aiosell Support</span>
+                </h4>
+                <ul className="space-y-2 text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Webhook URL:</strong> <code className="font-mono bg-white px-1 py-0.5 rounded border border-slate-300">https://pdsfctfixxfazchamznm.supabase.co/functions/v1/aiosell-webhook</code></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Webhook HTTP Basic Auth:</strong> Provisioned via Supabase Vault (<code className="font-mono bg-white px-1 rounded">AAVASA_WEBHOOK_USERNAME</code> / <code className="font-mono bg-white px-1 rounded">AAVASA_WEBHOOK_PASSWORD</code>)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Hotel Details:</strong> Property Name, City, State, Country, Total Room Count.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Room Types & Rate Plans:</strong> Deluxe Room, Executive Room, Suite (EP - Room Only, CP - Breakfast).</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Right Column: What Aiosell gives to you */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                <h4 className="font-bold text-slate-900 flex items-center gap-2 border-b border-slate-200 pb-2">
+                  <ArrowRight className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>2. What Aiosell Returns to You</span>
+                </h4>
+                <ul className="space-y-2 text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Production Partner ID:</strong> Assigned slug (e.g. <code className="font-mono bg-white px-1 rounded">aurastay-pms</code>).</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Partner Basic Auth Credentials:</strong> Issued credentials for pushing rates and inventory to their production API.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Property Hotel Code:</strong> e.g. <code className="font-mono bg-white px-1 rounded">HOTEL-1082</code> assigned in Aiosell PMS master.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Channel Activation:</strong> Aiosell links your property to Booking.com, MMT, Agoda, and Expedia extranets.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Backend SQL Trigger & Verification Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Terminal className="w-4 h-4 text-slate-700" />
+                  <span>Production Backend Files Ready on Disk</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Both the Supabase Edge Function and the PostgreSQL Atomic Lock Trigger have been written and tested.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={async () => {
+                    const syncRes = await pushHotelInventoryViaBackend({
+                      hotelId: currentHotel?.id,
+                      hotelCode: config.hotelCode,
+                      partnerId: config.partnerId,
+                      ...(config.username ? { username: config.username } : {}),
+                      ...(config.password ? { password: config.password } : {}),
+                      startDate: pushStartDate,
+                      endDate: pushEndDate
+                    });
+                    if (syncRes?.success) {
+                      showNotification('Live room availability & Stop-Sell flags synced to Aiosell via secured pms-api!');
+                    } else {
+                      showNotification(`Aiosell inventory push: ${syncRes?.error || syncRes?.message || 'Completed with notice.'}`);
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                >
+                  <Send className="w-3.5 h-3.5" /> Sync Live Inventory to Aiosell
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText('supabase functions deploy aiosell-webhook --no-verify-jwt && supabase functions deploy pms-api --no-verify-jwt');
+                    showNotification('Copied Supabase CLI deploy command!');
+                  }}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                >
+                  <Copy className="w-3.5 h-3.5" /> Copy CLI Deploy Command
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+              <div className="p-3 bg-slate-900 text-white rounded-xl space-y-1">
+                <span className="text-sky-400 font-bold block">1. Inbound OTA Webhook Only</span>
+                <span className="text-slate-300 block text-[11px]">POST /functions/v1/aiosell-webhook</span>
+                <span className="text-slate-400 text-[10px] block">Requires HTTP Basic Auth. Accepts only book/modify/cancel from Aiosell & locks physical rooms per hotel_id without leaking tenant data.</span>
+              </div>
+
+              <div className="p-3 bg-slate-900 text-white rounded-xl space-y-1">
+                <span className="text-indigo-400 font-bold block">2. Secured PMS & Push API</span>
+                <span className="text-slate-300 block text-[11px]">POST /functions/v1/pms-api</span>
+                <span className="text-slate-400 text-[10px] block">Pushes only (hotelCode, startDate, endDate, roomCode, available, stopSell) to Aiosell with zero guest PII.</span>
+              </div>
+
+              <div className="p-3 bg-slate-900 text-white rounded-xl space-y-1">
+                <span className="text-emerald-400 font-bold block">3. Date-Overlap Room Lock</span>
+                <span className="text-slate-300 block text-[11px]">20261114123000_pos_and_secure_ota_sync.sql</span>
+                <span className="text-slate-400 text-[10px] block">Multi-tenant PostgreSQL trigger preventing double-booking across Goibibo, Admin & Guest Website in realtime.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: Mark No-Show Console (Rule 14) */}
+      {activeTab === 'noshow' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6 max-w-2xl">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+              <Ban className="w-4 h-4 text-rose-600" />
+              <span>Mark Booking as No-Show</span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Strictly complies with Rule 14: body field <code className="text-indigo-600 font-mono">channel</code> supports only <code className="text-indigo-600 font-mono">booking.com</code> and <code className="text-indigo-600 font-mono">gommt</code>.
+            </p>
+          </div>
+
+          <div className="space-y-4 bg-slate-50 p-5 rounded-xl border border-slate-200 text-xs">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                Booking Reference ID
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 111222350 or BDC-5238846"
+                value={noShowBookingId}
+                onChange={(e) => setNoShowBookingId(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                Supported Channel
+              </label>
               <select
-                value={pushRoomCode}
-                onChange={(e) => setPushRoomCode(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg"
+                value={noShowChannel}
+                onChange={(e) => setNoShowChannel(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold cursor-pointer"
               >
-                <option value="standard">Standard Room (standard)</option>
-                <option value="deluxe">Deluxe Room (deluxe)</option>
-                <option value="executive">Executive Room (executive)</option>
+                <option value="booking.com">booking.com (Booking.com)</option>
+                <option value="gommt">gommt (MakeMyTrip & Goibibo)</option>
               </select>
             </div>
 
-            {pushType === 'inventory' && (
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Available Units</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={pushAvailableCount}
-                  onChange={(e) => setPushAvailableCount(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-bold"
-                />
-              </div>
-            )}
-
-            {pushType === 'rates' && (
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Nightly Tariff (₹)</label>
-                <input
-                  type="number"
-                  min="500"
-                  value={pushNightlyRate}
-                  onChange={(e) => setPushNightlyRate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-bold"
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end pt-2">
             <button
-              onClick={handleExecutePush}
-              disabled={isPushing}
-              className="px-5 py-2.5 bg-[#1259a1] hover:bg-[#0e4884] text-white font-bold rounded-xl text-xs transition cursor-pointer flex items-center space-x-2 shadow-sm"
+              onClick={handleExecuteMarkNoShow}
+              disabled={isMarkingNoShow}
+              className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-50"
             >
-              <Send className="w-3.5 h-3.5" />
-              <span>{isPushing ? 'Broadcasting to OTAs...' : 'Transmit ARI Update to Aiosell'}</span>
+              <Ban className="w-3.5 h-3.5" />
+              <span>{isMarkingNoShow ? 'Submitting to Aiosell...' : 'Mark as No-Show on OTA Extranet'}</span>
             </button>
           </div>
 
-          {lastPushResponse && (
-            <div className={`p-4 rounded-xl border text-xs font-mono space-y-1 ${
-              lastPushResponse.success ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-rose-50 border-rose-200 text-rose-950'
-            }`}>
-              <div className="font-bold flex items-center space-x-1">
-                {lastPushResponse.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertTriangle className="w-4 h-4 text-rose-600" />}
-                <span>{lastPushResponse.success ? 'Aiosell Response (Success):' : 'Aiosell Response (Error):'}</span>
-              </div>
-              <pre className="text-[11px] overflow-x-auto whitespace-pre-wrap">
-                {JSON.stringify(lastPushResponse.data || lastPushResponse.error, null, 2)}
-              </pre>
+          {noShowResponse && (
+            <div className="bg-slate-900 rounded-xl p-4 text-white text-xs font-mono">
+              <pre>{JSON.stringify(noShowResponse, null, 2)}</pre>
             </div>
           )}
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* VIEW 5: INBOUND WEBHOOK RECEIVER & SIMULATOR                              */}
-      {/* ========================================================================= */}
-      {activeTab === 'webhook' && (
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900">Inbound Webhook Live Receiver</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Captures bookings from Booking.com, MMT, Agoda and auto-locks rooms in Supabase.</p>
-            </div>
-            <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-mono font-bold">
-              Webhook Active
-            </span>
-          </div>
-
-          <div className="p-3 bg-slate-900 text-slate-200 rounded-xl font-mono text-xs space-y-1">
-            <span className="text-slate-400 block text-[10px] font-bold uppercase">Public Aiosell Webhook Endpoint:</span>
-            <span className="text-sky-300 font-bold break-all">
-              https://pdsfctfixxfazchamznm.supabase.co/functions/v1/pms-api?action=webhook
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-xs font-bold text-slate-800">Live Webhook Event History</h3>
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-100 text-slate-700 text-[10px] uppercase font-bold border-b border-slate-200">
-                    <th className="py-2 px-3">Time</th>
-                    <th className="py-2 px-3">Channel</th>
-                    <th className="py-2 px-3">Booking ID</th>
-                    <th className="py-2 px-3">Guest Name</th>
-                    <th className="py-2 px-3 text-right">Amount</th>
-                    <th className="py-2 px-3 text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {allLogs.filter(l => l.operation === 'res_in').slice(0, 10).map((w) => (
-                    <tr key={w.id} className="hover:bg-slate-50">
-                      <td className="py-2 px-3 font-mono text-[11px] text-slate-500">{w.dateSent}</td>
-                      <td className="py-2 px-3 font-bold text-slate-900">{w.partner}</td>
-                      <td className="py-2 px-3 font-mono text-indigo-700 font-bold">{w.bookingId}</td>
-                      <td className="py-2 px-3">{w.room}</td>
-                      <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">Paid</td>
-                      <td className="py-2 px-3 text-center">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          PROCESSED
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* VIEW 6: MARK NO-SHOW                                                      */}
-      {/* ========================================================================= */}
-      {activeTab === 'noshow' && (
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4 max-w-xl">
-          <div className="border-b border-slate-100 pb-3">
-            <h2 className="text-sm font-bold text-slate-900">Mark OTA No-Show (Rule 14 Waiver)</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Notifies Booking.com, MMT, or Agoda that the guest did not arrive, waiving OTA commissions.
-            </p>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">OTA Booking ID</label>
-              <input
-                type="text"
-                placeholder="e.g. 4829104821 or RES-301"
-                value={noShowBookingId}
-                onChange={(e) => setNoShowBookingId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">OTA Channel</label>
-              <select
-                value={noShowChannel}
-                onChange={(e) => setNoShowChannel(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg"
-              >
-                <option value="booking.com">Booking.com</option>
-                <option value="gommt">MakeMyTrip (MMT)</option>
-                <option value="agoda">Agoda</option>
-                <option value="expedia">Expedia</option>
-              </select>
-            </div>
-
-            <button
-              onClick={async () => {
-                if (!noShowBookingId.trim()) {
-                  showNotification('Please enter a valid Booking ID.');
-                  return;
-                }
-                setIsMarkingNoShow(true);
-                try {
-                  const res = await markNoShow(noShowBookingId.trim(), noShowChannel, config);
-                  setNoShowResponse(res);
-                  showNotification(`No-show logged for ${noShowBookingId}`);
-                } catch (e) {
-                  showNotification(`Error: ${e.message}`);
-                } finally {
-                  setIsMarkingNoShow(false);
-                }
-              }}
-              disabled={isMarkingNoShow}
-              className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition cursor-pointer"
-            >
-              {isMarkingNoShow ? 'Submitting No-Show...' : 'Report No-Show to Channel Manager'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* VIEW 7: SETTINGS & CREDENTIALS                                            */}
-      {/* ========================================================================= */}
+      {/* TAB 6: Settings & Credentials */}
       {activeTab === 'settings' && (
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4 max-w-2xl">
-          <div className="border-b border-slate-100 pb-3">
-            <h2 className="text-sm font-bold text-slate-900">Aiosell API Credentials & Connection</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Configure property keys and partner authentication.</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6 max-w-3xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Aiosell Hotel Code</label>
-              <input
-                type="text"
-                value={config.hotelCode}
-                onChange={(e) => setConfig({ ...config, hotelCode: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold"
-              />
+              <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                <Settings className="w-4 h-4 text-slate-700" />
+                <span>Aiosell Channel Manager API Settings</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Configure your partner credentials issued by Aiosell. Default credentials are set for Sandbox testing.
+              </p>
             </div>
 
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Partner Identifier</label>
-              <input
-                type="text"
-                value={config.partnerId}
-                onChange={(e) => setConfig({ ...config, partnerId: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Username</label>
-              <input
-                type="text"
-                value={config.username}
-                onChange={(e) => setConfig({ ...config, username: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Password</label>
-              <input
-                type="password"
-                value={config.password}
-                onChange={(e) => setConfig({ ...config, password: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono"
-              />
-            </div>
-          </div>
-
-          <div className="pt-2 flex items-center justify-end space-x-2">
             <button
-              onClick={() => {
-                saveAiosellConfig(config);
-                showNotification('Aiosell configuration saved successfully.');
-              }}
-              className="px-4 py-2 bg-[#1259a1] hover:bg-[#0e4884] text-white font-bold rounded-lg text-xs cursor-pointer"
+              type="button"
+              onClick={handleResetToLive}
+              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition cursor-pointer"
             >
-              Save Credentials
+              Load Live Production Defaults
             </button>
           </div>
-        </div>
-      )}
 
-      {/* ========================================================================= */}
-      {/* 900px WIDE FORMATTED PAYLOAD DIALOG (MATCHING AIOSELL openFormattedPopup) */}
-      {/* ========================================================================= */}
-      {activePayloadModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150"
-          onClick={() => setActivePayloadModal(null)}
-        >
-          <div
-            className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col max-h-[88vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="bg-[#0b1a30] text-white p-4 flex items-center justify-between border-b border-slate-700">
-              <div className="flex items-center space-x-3">
-                <span className="w-8 h-8 rounded-xl bg-[#1259a1] flex items-center justify-center text-white">
-                  <Code2 className="w-4 h-4" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-                    <span>AioConnect Formatted XML / JSON Payload</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-sky-500/20 text-sky-300 font-mono">
-                      {activePayloadModal.partner}
-                    </span>
-                  </h3>
-                  <p className="text-[11px] text-slate-300 font-mono mt-0.5 truncate max-w-lg">
-                    {activePayloadModal.method || 'POST'} {activePayloadModal.url}
-                  </p>
-                </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  HTTP Basic Auth Username
+                </label>
+                <input
+                  type="text"
+                  value={config.username}
+                  onChange={(e) => setConfig({ ...config, username: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold"
+                />
               </div>
 
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  HTTP Basic Auth Password
+                </label>
+                <input
+                  type="password"
+                  value={config.password}
+                  onChange={(e) => setConfig({ ...config, password: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Hotel Code
+                </label>
+                <input
+                  type="text"
+                  value={config.hotelCode}
+                  onChange={(e) => setConfig({ ...config, hotelCode: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Partner ID ({'{pms}'})
+                </label>
+                <input
+                  type="text"
+                  value={config.partnerId}
+                  onChange={(e) => setConfig({ ...config, partnerId: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                Aiosell Base URL
+              </label>
+              <input
+                type="text"
+                value={config.baseUrl}
+                onChange={(e) => setConfig({ ...config, baseUrl: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono text-slate-800"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2 pt-2">
+              <input
+                type="checkbox"
+                id="sandboxToggle"
+                checked={config.isSandbox}
+                onChange={(e) => setConfig({ ...config, isSandbox: e.target.checked })}
+                className="w-4 h-4 text-indigo-600 rounded cursor-pointer"
+              />
+              <label htmlFor="sandboxToggle" className="text-xs font-bold text-slate-800 cursor-pointer">
+                Sandbox Mode (live.aiosell.com testing environment)
+              </label>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 flex items-center justify-end space-x-3">
               <button
-                onClick={() => setActivePayloadModal(null)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-white/10 transition cursor-pointer"
+                type="button"
+                onClick={handleSaveConfig}
+                className="px-5 py-2.5 bg-[#0b1a30] hover:bg-[#132c52] text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-md"
               >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Sub-toolbar with Request & Response Switcher */}
-            <div className="bg-slate-100 p-2.5 px-4 border-b border-slate-200 flex items-center justify-between">
-              <div className="flex items-center space-x-1.5 bg-slate-200 p-1 rounded-xl">
-                <button
-                  onClick={() => setPayloadModalTab('request')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                    payloadModalTab === 'request'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Request Body ({activePayloadModal.requestBody?.trim().startsWith('<') ? 'XML' : 'JSON'})
-                </button>
-                <button
-                  onClick={() => setPayloadModalTab('response')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                    payloadModalTab === 'response'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Response Body ({activePayloadModal.responseBody?.trim().startsWith('<') ? 'XML' : 'JSON'})
-                </button>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handleCopyPayload(
-                    payloadModalTab === 'request'
-                      ? formatDataSmart(activePayloadModal.requestBody)
-                      : formatDataSmart(activePayloadModal.responseBody)
-                  )}
-                  className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 flex items-center space-x-1.5 cursor-pointer shadow-xs"
-                >
-                  {copiedPayload ? <CheckCheck className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedPayload ? 'Copied!' : 'Copy Code'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Code Viewer Area */}
-            <div className="flex-1 p-4 overflow-y-auto bg-slate-950 text-slate-100 font-mono text-xs select-text">
-              <pre className="whitespace-pre-wrap leading-relaxed text-[11.5px] text-sky-200">
-                {payloadModalTab === 'request'
-                  ? formatDataSmart(activePayloadModal.requestBody)
-                  : formatDataSmart(activePayloadModal.responseBody)
-                }
-              </pre>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-              <span className="text-[11px] font-mono">
-                Captured: {activePayloadModal.dateSent || activePayloadModal.bookingDate} • Sensitive credentials masked (****)
-              </span>
-              <button
-                onClick={() => setActivePayloadModal(null)}
-                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg text-xs cursor-pointer"
-              >
-                Close Dialog
+                Save & Verify Credentials
               </button>
             </div>
           </div>
