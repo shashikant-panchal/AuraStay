@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Printer, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Printer, X, Edit3, Check } from 'lucide-react';
 import aavasaLogo from '../../assets/aavasa-logo.webp';
+import { useDashboard } from '../../context/DashboardContext';
 
 /**
  * Architectural Neoclassical Hotel Emblem Logo matching Image 2 & 3
@@ -36,6 +37,11 @@ export default function BookingVoucher({
   voucherDate,
   onClose
 }) {
+  const { reservations = [], updateReservationGuestName } = useDashboard();
+  const liveReservation = reservation?.id
+    ? reservations.find(r => String(r.id) === String(reservation.id))
+    : null;
+
   // Currency state (defaults to Indian Rupee ₹)
   const [selectedCurrency, setSelectedCurrency] = useState(
     currentHotel?.currencySymbol || '₹'
@@ -45,7 +51,48 @@ export default function BookingVoucher({
 
   const roomNum = String(room?.room_number || room?.roomNumber || room?.number || reservation?.room_number || String(reservation?.room || '').replace(/\D/g, '') || '101');
   const roomCategory = String(room?.category || room?.type || reservation?.room_type || 'DELUXE ROOM').toUpperCase();
-  const guestName = reservation?.guest || reservation?.name || room?.guest || 'Valued Guest';
+  const resolvedGuestName = liveReservation?.guest || reservation?.guest || reservation?.name || room?.guest || 'Valued Guest';
+
+  const [localGuestName, setLocalGuestName] = useState(resolvedGuestName);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [draftGuestName, setDraftGuestName] = useState(resolvedGuestName);
+  const [isSavingName, setIsSavingName] = useState(false);
+
+  useEffect(() => {
+    setLocalGuestName(resolvedGuestName);
+    if (!isEditingName) {
+      setDraftGuestName(resolvedGuestName);
+    }
+  }, [resolvedGuestName, reservation?.id]);
+
+  const guestName = localGuestName;
+
+  const handleSaveGuestName = async (e) => {
+    e.preventDefault();
+    const cleanName = draftGuestName.trim();
+    if (!cleanName) return;
+    if (cleanName === localGuestName) {
+      setIsEditingName(false);
+      return;
+    }
+
+    const resId = reservation?.id || liveReservation?.id;
+    if (resId && updateReservationGuestName) {
+      setIsSavingName(true);
+      try {
+        const result = await updateReservationGuestName(resId, cleanName);
+        if (result?.success) {
+          setLocalGuestName(result.guest || cleanName);
+          setIsEditingName(false);
+        }
+      } finally {
+        setIsSavingName(false);
+      }
+    } else {
+      setLocalGuestName(cleanName);
+      setIsEditingName(false);
+    }
+  };
   const phone = reservation?.phone || reservation?.guestPhone || reservation?.guest_phone || '';
   const email = reservation?.email || reservation?.guestEmail || reservation?.guest_email || '';
   const address = reservation?.address || reservation?.idCity || currentHotel?.city || 'Bengaluru';
@@ -457,7 +504,61 @@ export default function BookingVoucher({
           <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
             GUEST INFORMATION
           </h3>
-          <p className="font-black text-sm text-slate-900">{guestName}</p>
+          {isEditingName ? (
+            <form onSubmit={handleSaveGuestName} className="no-print flex items-center gap-1.5 pb-1">
+              <input
+                type="text"
+                value={draftGuestName}
+                onChange={(e) => setDraftGuestName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIsEditingName(false);
+                    setDraftGuestName(guestName);
+                  }
+                }}
+                placeholder="Enter customer's real name"
+                autoFocus
+                maxLength={150}
+                className="flex-1 min-w-0 px-2.5 py-1 text-xs font-bold text-slate-900 bg-white border border-[#034a7f] rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+              />
+              <button
+                type="submit"
+                disabled={isSavingName || !draftGuestName.trim()}
+                className="px-2.5 py-1 bg-[#034a7f] hover:bg-[#023861] disabled:opacity-50 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                title="Save customer name"
+              >
+                <Check className="w-3 h-3" />
+                <span>{isSavingName ? '...' : 'Save'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditingName(false);
+                  setDraftGuestName(guestName);
+                }}
+                className="p-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg cursor-pointer shrink-0"
+                title="Cancel"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          ) : (
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-black text-sm text-slate-900">{guestName}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftGuestName(guestName);
+                  setIsEditingName(true);
+                }}
+                className="no-print inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 hover:bg-sky-100 text-[#034a7f] border border-sky-200 text-[10px] font-bold transition cursor-pointer"
+                title="Edit customer name for invoice & database"
+              >
+                <Edit3 className="w-2.5 h-2.5" />
+                <span>Edit Name</span>
+              </button>
+            </div>
+          )}
           <p className="text-slate-700">
             <span className="text-slate-500">Phone Number:</span>{' '}
             <strong className="font-semibold text-slate-800">{phone}</strong>

@@ -233,6 +233,7 @@ export function DashboardProvider({ children }) {
   const [otaChannels, setOtaChannels] = useState(mockOtaChannels);
   const [isLiveConnected, setIsLiveConnected] = useState(false);
   const syncDebounceRef = useRef(null);
+  const recentLocalGuestEditRef = useRef({ id: null, until: 0 });
 
   // Cab Bookings & Travel Desk State - driven by Supabase
   const [cabBookings, setCabBookings] = useState([]);
@@ -780,21 +781,32 @@ export function DashboardProvider({ children }) {
     if (!isSupabaseConfigured || !isLoggedIn || !hotelId) return;
 
     const hotelFilter = `hotel_id=eq.${hotelId}`;
+    const isSelfGuestEditEcho = (payload, matchKey) => {
+      if (payload?.eventType !== 'UPDATE') return false;
+      const recent = recentLocalGuestEditRef.current;
+      if (!recent?.id || Date.now() > recent.until) return false;
+      return String(payload?.new?.[matchKey] || '') === String(recent.id);
+    };
 
     const channel = supabase.channel(`aurastay-realtime-${hotelId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'hotels', filter: `id=eq.${hotelId}` }, () => {
         scheduleRealtimeRefresh();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: hotelFilter }, () => {
-        scheduleRealtimeRefresh();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: hotelFilter }, payload => {
+        if (!isSelfGuestEditEcho(payload, 'booking_id')) {
+          scheduleRealtimeRefresh();
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations', filter: hotelFilter }, payload => {
-        scheduleRealtimeRefresh();
         if (payload.eventType === 'INSERT' && payload.new) {
           playBookingBellSound();
           showNotification(`New Booking #${payload.new.id} received for ${payload.new.guest || 'Guest'} (${payload.new.room || 'Room'}).`);
+          scheduleRealtimeRefresh();
         } else if (payload.eventType === 'UPDATE' && payload.new && payload.new.status === 'CANCELLED') {
           showNotification(`Reservation #${payload.new.id} for ${payload.new.guest || 'Guest'} was CANCELLED.`);
+          scheduleRealtimeRefresh();
+        } else if (!isSelfGuestEditEcho(payload, 'id')) {
+          scheduleRealtimeRefresh();
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fnb_orders', filter: hotelFilter }, () => {
@@ -812,8 +824,10 @@ export function DashboardProvider({ children }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cab_bookings', filter: hotelFilter }, () => {
         scheduleRealtimeRefresh();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_invoices', filter: hotelFilter }, () => {
-        scheduleRealtimeRefresh();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_invoices', filter: hotelFilter }, payload => {
+        if (!isSelfGuestEditEcho(payload, 'reservation_id')) {
+          scheduleRealtimeRefresh();
+        }
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -1997,10 +2011,130 @@ export function DashboardProvider({ children }) {
     showNotification(`Cab booking #${bookingId} deleted.`);
   };
 
+  // Update Customer / Guest Real Name (1 atomic RPC call, zero redundant refetches)
+  const updateReservationGuestName = async (reservationId, newGuestName) => {
+    const resId = String(reservationId || '').trim();
+    const cleanName = String(newGuestName || '').trim().slice(0, 150);
+
+    if (!resId) {
+      const msg = 'Reservation ID is required to update customer name.';
+      showNotification(msg, 'error');
+      return { success: false, message: msg };
+    }
+
+    if (!cleanName) {
+      const msg = 'Customer name cannot be empty.';
+      showNotification(msg, 'error');
+      return { success: false, message: msg };
+    }
+
+    const matchedRes = reservations.find(r => String(r.id) === resId);
+    if (matchedRes && String(matchedRes.guest || '').trim() === cleanName) {
+      return { success: true, guest: cleanName, unchanged: true };
+    }
+
+    const nowIso = new Date().toISOString();
+
+    if (isSupabaseConfigured && currentHotel?.id) {
+      recentLocalGuestEditRef.current = { id: resId, until: Date.now() + 3500 };
+      try {
+        const { error: rpcErr } = await supabase.rpc('admin_update_reservation_guest_name', {
+          p_hotel_id: currentHotel.id,
+          p_reservation_id: resId,
+          p_guest_name: cleanName
+        });
+
+        if (rpcErr) {
+          const isMissingRpc =
+            /admin_update_reservation_guest_name/i.test(rpcErr.message || '') &&
+            /(could not find|does not exist|schema cache)/i.test(rpcErr.message || '');
+
+          if (!isMissingRpc) {
+            recentLocalGuestEditRef.current = { id: null, until: 0 };
+            const errMsg = rpcErr.message || 'Failed to update customer name.';
+            showNotification(errMsg, 'error');
+            return { success: false, message: errMsg };
+          }
+
+          // Graceful fallback if RPC isn't yet deployed: minimal targeted updates only
+          const { error: resErr } = await supabase
+            .from('reservations')
+            .update({ guest: cleanName, updated_at: nowIso })
+            .eq('id', resId)
+            .eq('hotel_id', currentHotel.id);
+
+          if (resErr) {
+            recentLocalGuestEditRef.current = { id: null, until: 0 };
+            const errMsg = resErr.message || 'Failed to update customer name.';
+            showNotification(errMsg, 'error');
+            return { success: false, message: errMsg };
+          }
+
+          const hasLinkedRoom = rooms.some(rm => String(rm.bookingId || rm.booking_id || '') === resId);
+          if (hasLinkedRoom) {
+            await supabase
+              .from('rooms')
+              .update({ guest: cleanName, updated_at: nowIso })
+              .eq('hotel_id', currentHotel.id)
+              .eq('booking_id', resId);
+          }
+
+          const hasSavedFolio = Boolean(folios[resId]);
+          if (hasSavedFolio) {
+            await supabase
+              .from('financial_invoices')
+              .update({ client_name: cleanName, updated_at: nowIso })
+              .eq('hotel_id', currentHotel.id)
+              .eq('reservation_id', resId);
+          }
+        }
+        invalidateCache(`pms:dashboard:${currentHotel.id}`);
+      } catch (err) {
+        recentLocalGuestEditRef.current = { id: null, until: 0 };
+        const errMsg = err?.message || 'Failed to update customer name.';
+        showNotification(errMsg, 'error');
+        return { success: false, message: errMsg };
+      }
+    }
+
+    setReservations(prev =>
+      prev.map(r => (String(r.id) === resId ? { ...r, guest: cleanName } : r))
+    );
+
+    setRooms(prev =>
+      prev.map(rm =>
+        String(rm.bookingId || rm.booking_id || '') === resId
+          ? { ...rm, guest: cleanName }
+          : rm
+      )
+    );
+
+    setFolios(prev => {
+      let changed = false;
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        const f = next[k];
+        if (f && (String(k) === resId || String(f.reservationId || '') === resId)) {
+          next[k] = { ...f, guestName: cleanName, updatedAt: nowIso };
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+
+    setSelectedReservationDetails(prev =>
+      prev && String(prev.id) === resId ? { ...prev, guest: cleanName } : prev
+    );
+
+    showNotification(`Customer name updated to "${cleanName}".`);
+    return { success: true, guest: cleanName };
+  };
+
   // Full Admin Check-In Action
   const checkInReservation = async (reservationId, checkInData) => {
     const {
       roomNumber,
+      guestName,
       actualCheckInTime,
       expectedCheckOutTime,
       idType = 'Aadhaar Card',
@@ -2010,6 +2144,8 @@ export function DashboardProvider({ children }) {
       paymentMode = 'CASH',
       paymentRef = ''
     } = checkInData;
+
+    const cleanGuestName = String(guestName || '').trim().slice(0, 150);
 
     const normalizeIsoTimestamp = (val) => {
       if (!val) return new Date().toISOString();
@@ -2032,6 +2168,7 @@ export function DashboardProvider({ children }) {
 
       updatedRes = {
         ...currentRes,
+        guest: cleanGuestName || currentRes.guest,
         status: 'CHECKED_IN',
         room: roomNumber ? `Room ${roomNumber}` : currentRes.room,
         room_number: roomNumber || currentRes.room_number,
@@ -2057,6 +2194,7 @@ export function DashboardProvider({ children }) {
       try {
         const cleanRoomNum = roomNumber ? (String(roomNumber).replace(/\D/g, '') || String(roomNumber)) : undefined;
         const { error: resCheckInError } = await supabase.from('reservations').update({
+          ...(cleanGuestName ? { guest: cleanGuestName } : {}),
           status: 'CHECKED_IN',
           room: roomNumber ? `Room ${cleanRoomNum || roomNumber}` : undefined,
           room_number: cleanRoomNum || undefined,
@@ -3044,6 +3182,7 @@ export function DashboardProvider({ children }) {
       resetToDefaults,
       updateRoomStatus,
       addReservation,
+      updateReservationGuestName,
       updateReservationPayment,
       checkInReservation,
       checkOutReservation,

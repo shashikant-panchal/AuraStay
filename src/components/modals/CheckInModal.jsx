@@ -33,6 +33,7 @@ export default function CheckInModal({ isOpen, onClose, reservation }) {
   const checkOutDefault = String(reservation?.check_out || reservation?.checkOut || todayStr).slice(0, 10);
 
   const [assignedRoom, setAssignedRoom] = useState(rawRoom || (rooms[0]?.roomNumber || '101'));
+  const [guestName, setGuestName] = useState(reservation?.guest || 'Valued Guest');
   const [checkInDate, setCheckInDate] = useState(todayStr);
   const [checkInTime, setCheckInTime] = useState(getCurrentTimeStr());
   const [checkOutDate, setCheckOutDate] = useState(checkOutDefault);
@@ -63,6 +64,7 @@ export default function CheckInModal({ isOpen, onClose, reservation }) {
     const tDue = Math.max(0, tTotal - tPaid);
 
     setAssignedRoom(rRoom || (rooms[0]?.roomNumber || '101'));
+    setGuestName(reservation.guest || 'Valued Guest');
     setCheckInDate(tToday);
     setCheckInTime(getCurrentTimeStr());
     setCheckOutDate(String(reservation.check_out || reservation.checkOut || tToday).slice(0, 10));
@@ -99,6 +101,7 @@ export default function CheckInModal({ isOpen, onClose, reservation }) {
 
       await checkInReservation(reservation.id, {
         roomNumber: assignedRoom,
+        guestName: guestName.trim() || reservation.guest,
         actualCheckInTime: fullCheckInTimestamp,
         expectedCheckOutTime: fullCheckOutTimestamp,
         idType,
@@ -146,18 +149,27 @@ export default function CheckInModal({ isOpen, onClose, reservation }) {
         </div>
 
         {/* Guest Summary Card */}
-        <div className="mt-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+        <div className="mt-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div>
-            <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Guest Name</span>
-            <p className="font-bold text-slate-900 mt-0.5 truncate">{reservation.guest || 'Valued Guest'}</p>
+            <label className="text-slate-500 text-[10px] uppercase font-bold tracking-wider block">
+              Customer Name (Per ID / Invoice)
+            </label>
+            <input
+              type="text"
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              placeholder="Enter real guest name"
+              maxLength={150}
+              className="mt-1 w-full px-2.5 py-1 bg-white border border-slate-300 rounded-lg font-bold text-slate-900 text-xs focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none"
+            />
           </div>
           <div>
             <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Contact Phone</span>
-            <p className="font-mono text-slate-800 mt-0.5">{reservation.guest_phone || reservation.phone || 'N/A'}</p>
+            <p className="font-mono text-slate-800 mt-1.5">{reservation.guest_phone || reservation.phone || 'N/A'}</p>
           </div>
           <div>
             <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Category</span>
-            <p className="font-semibold text-indigo-700 mt-0.5">{reservation.room_type || reservation.roomType || 'Deluxe Room'}</p>
+            <p className="font-semibold text-indigo-700 mt-1.5">{reservation.room_type || reservation.roomType || 'Deluxe Room'}</p>
           </div>
         </div>
 

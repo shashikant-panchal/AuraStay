@@ -31,7 +31,10 @@ import {
   Receipt,
   CalendarPlus,
   UserCheck,
-  Printer
+  Printer,
+  Edit3,
+  Check,
+  X
 } from 'lucide-react';
 import BookingPaymentsModal from '../modals/BookingPaymentsModal';
 import FolioBillingModal from '../modals/FolioBillingModal';
@@ -48,6 +51,7 @@ export default function ReservationManagementView({ isSubTab = false }) {
     reservations: contextReservations = [],
     setReservations,
     addReservation,
+    updateReservationGuestName,
     updateReservationPayment,
     checkOutReservation,
     requestCheckout,
@@ -154,6 +158,35 @@ export default function ReservationManagementView({ isSubTab = false }) {
   // Check In & Front Desk Payment Modals
   const [checkInModalRes, setCheckInModalRes] = useState(null);
   const [collectPaymentModalRes, setCollectPaymentModalRes] = useState(null);
+
+  // Inline Customer Name Edit State (table & inspector modal)
+  const [editingGuestResId, setEditingGuestResId] = useState(null);
+  const [editingGuestDraft, setEditingGuestDraft] = useState('');
+  const [isSavingGuestName, setIsSavingGuestName] = useState(false);
+
+  const handleSaveInlineGuestName = async (resId, e) => {
+    if (e) e.preventDefault();
+    const cleanName = editingGuestDraft.trim();
+    if (!cleanName || !updateReservationGuestName) return;
+    setIsSavingGuestName(true);
+    try {
+      const result = await updateReservationGuestName(resId, cleanName);
+      if (result?.success) {
+        setEditingGuestResId(null);
+        setInspectedReservation(prev =>
+          prev && String(prev.id) === String(resId) ? { ...prev, guest: result.guest || cleanName } : prev
+        );
+        setInvoiceModalData(prev =>
+          prev && String(prev.id) === String(resId) ? { ...prev, guest: result.guest || cleanName } : prev
+        );
+        setFolioActiveRsvn(prev =>
+          prev && String(prev.id) === String(resId) ? { ...prev, guest: result.guest || cleanName } : prev
+        );
+      }
+    } finally {
+      setIsSavingGuestName(false);
+    }
+  };
 
   const handleOpenPayments = (res) => {
     setSelectedPaymentReservation(res);
@@ -581,13 +614,64 @@ export default function ReservationManagementView({ isSubTab = false }) {
                         <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
                           <User className="w-3.5 h-3.5" />
                         </div>
-                        <div>
-                          <span
-                            onClick={() => setInspectedReservation(res)}
-                            className="font-bold text-slate-900 hover:text-sky-800 cursor-pointer"
-                          >
-                            {res.guest}
-                          </span>
+                        <div className="min-w-0">
+                          {editingGuestResId === res.id ? (
+                            <form
+                              onSubmit={(e) => handleSaveInlineGuestName(res.id, e)}
+                              className="flex items-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="text"
+                                value={editingGuestDraft}
+                                onChange={(e) => setEditingGuestDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') setEditingGuestResId(null);
+                                }}
+                                autoFocus
+                                maxLength={150}
+                                placeholder="Real customer name"
+                                className="w-36 px-2 py-0.5 text-xs font-bold text-slate-900 bg-white border border-sky-600 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
+                              />
+                              <button
+                                type="submit"
+                                disabled={isSavingGuestName || !editingGuestDraft.trim()}
+                                className="p-1 bg-sky-700 hover:bg-sky-800 disabled:opacity-50 text-white rounded-md cursor-pointer"
+                                title="Save customer name"
+                              >
+                                <Check className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingGuestResId(null)}
+                                className="p-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md cursor-pointer"
+                                title="Cancel"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </form>
+                          ) : (
+                            <div className="flex items-center gap-1.5 group/name">
+                              <span
+                                onClick={() => setInspectedReservation(res)}
+                                className="font-bold text-slate-900 hover:text-sky-800 cursor-pointer"
+                              >
+                                {res.guest}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingGuestResId(res.id);
+                                  setEditingGuestDraft(res.guest || '');
+                                }}
+                                className="p-0.5 text-slate-400 hover:text-sky-700 hover:bg-sky-50 rounded transition cursor-pointer"
+                                title="Edit customer name for invoice & database"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
                           <div className="flex items-center space-x-1 text-[10.5px] text-slate-400 mt-0.5">
                             <span className="font-semibold">{res.guestType}</span>
                             <span>🚶</span>
@@ -922,7 +1006,56 @@ export default function ReservationManagementView({ isSubTab = false }) {
               <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                 <div>
                   <span className="text-slate-400 font-medium block">Guest Name</span>
-                  <span className="font-bold text-slate-900 text-sm">{inspectedReservation.guest}</span>
+                  {editingGuestResId === `modal-${inspectedReservation.id}` ? (
+                    <form
+                      onSubmit={(e) => handleSaveInlineGuestName(inspectedReservation.id, e)}
+                      className="flex items-center gap-1 mt-0.5"
+                    >
+                      <input
+                        type="text"
+                        value={editingGuestDraft}
+                        onChange={(e) => setEditingGuestDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setEditingGuestResId(null);
+                        }}
+                        autoFocus
+                        maxLength={150}
+                        className="flex-1 min-w-0 px-2 py-0.5 text-xs font-bold text-slate-900 bg-white border border-sky-600 rounded-md focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isSavingGuestName || !editingGuestDraft.trim()}
+                        className="p-1 bg-sky-700 hover:bg-sky-800 disabled:opacity-50 text-white rounded-md cursor-pointer"
+                        title="Save"
+                      >
+                        <Check className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingGuestResId(null)}
+                        className="p-1 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-md cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-900 text-sm">{inspectedReservation.guest}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingGuestResId(`modal-${inspectedReservation.id}`);
+                          setEditingGuestDraft(inspectedReservation.guest || '');
+                        }}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-[10px] font-bold cursor-pointer"
+                        title="Edit customer name"
+                      >
+                        <Edit3 className="w-2.5 h-2.5" />
+                        <span>Edit</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <span className="text-slate-400 font-medium block">Phone</span>

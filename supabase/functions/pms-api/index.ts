@@ -1108,6 +1108,35 @@ serve(async (req: Request) => {
       return jsonResponse({ success: true, room: updatedRoom }, 200);
     }
 
+    if (action === "update_reservation_guest_name") {
+      const targetHotelId = String(payload.hotelId || payload.hotel_id || "").trim();
+      const reservationId = String(payload.reservationId || payload.reservation_id || payload.id || "").trim();
+      const guestName = String(payload.guestName || payload.guest_name || payload.guest || "").trim();
+
+      if (!targetHotelId || !reservationId || !guestName) {
+        return jsonResponse({ success: false, message: "hotelId, reservationId, and guestName are required." }, 400);
+      }
+      if (!canAccessHotel(caller, targetHotelId)) {
+        return jsonResponse({ success: false, message: "Forbidden: Invalid tenant credentials." }, 403);
+      }
+
+      const { data: updatedRes, error: rpcErr } = await supabaseAdmin.rpc("admin_update_reservation_guest_name", {
+        p_hotel_id: targetHotelId,
+        p_reservation_id: reservationId,
+        p_guest_name: guestName
+      });
+
+      if (rpcErr) {
+        const isNotFound = /not found/i.test(rpcErr.message || "");
+        return jsonResponse(
+          { success: false, message: rpcErr.message || "Failed to update customer name." },
+          isNotFound ? 404 : 400
+        );
+      }
+
+      return jsonResponse({ success: true, reservation: updatedRes }, 200);
+    }
+
     if (action === "pms_mutation") {
       const { table, operation, data, match } = payload;
       if (!table || !operation || !ALLOWED_MUTATION_TABLES.has(String(table))) {

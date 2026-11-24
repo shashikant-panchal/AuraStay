@@ -94,6 +94,7 @@ export default function StayViewCalendar() {
     setIsCreateReservationModalOpen,
     openCreateReservationModal,
     openEditRoomModal,
+    updateReservationGuestName,
     checkOutReservation,
     requestCheckout,
     scheduleRealtimeRefresh,
@@ -115,7 +116,30 @@ export default function StayViewCalendar() {
 
   // Modals State
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [isEditingBookingGuest, setIsEditingBookingGuest] = useState(false);
+  const [draftBookingGuest, setDraftBookingGuest] = useState('');
+  const [isSavingBookingGuest, setIsSavingBookingGuest] = useState(false);
   const [isFolioModalOpen, setIsFolioModalOpen] = useState(false);
+
+  const handleSaveBookingGuestName = async (e) => {
+    e.preventDefault();
+    const cleanName = draftBookingGuest.trim();
+    if (!cleanName || !selectedBooking?.id || !updateReservationGuestName) return;
+    if (cleanName === selectedBooking.guest) {
+      setIsEditingBookingGuest(false);
+      return;
+    }
+    setIsSavingBookingGuest(true);
+    try {
+      const result = await updateReservationGuestName(selectedBooking.id, cleanName);
+      if (result?.success) {
+        setSelectedBooking(prev => (prev ? { ...prev, guest: result.guest || cleanName } : prev));
+        setIsEditingBookingGuest(false);
+      }
+    } finally {
+      setIsSavingBookingGuest(false);
+    }
+  };
   const [folioActiveBooking, setFolioActiveBooking] = useState(null);
   const [checkInModalRes, setCheckInModalRes] = useState(null);
   const [collectPaymentModalRes, setCollectPaymentModalRes] = useState(null);
@@ -1320,10 +1344,56 @@ export default function StayViewCalendar() {
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center space-x-2.5">
-                <span className={`w-3.5 h-3.5 rounded-full ${selectedBooking.color}`} />
-                <div>
-                  <h3 className="font-black text-base text-slate-900">{selectedBooking.guest}</h3>
+              <div className="flex items-center space-x-2.5 flex-1 min-w-0">
+                <span className={`w-3.5 h-3.5 rounded-full shrink-0 ${selectedBooking.color}`} />
+                <div className="flex-1 min-w-0">
+                  {isEditingBookingGuest ? (
+                    <form onSubmit={handleSaveBookingGuestName} className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={draftBookingGuest}
+                        onChange={(e) => setDraftBookingGuest(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setIsEditingBookingGuest(false);
+                        }}
+                        autoFocus
+                        maxLength={150}
+                        placeholder="Real customer name"
+                        className="flex-1 min-w-0 px-2.5 py-1 text-xs font-bold text-slate-900 bg-white border border-indigo-500 rounded-lg focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isSavingBookingGuest || !draftBookingGuest.trim()}
+                        className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                      >
+                        <Check className="w-3 h-3" />
+                        <span>{isSavingBookingGuest ? '...' : 'Save'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingBookingGuest(false)}
+                        className="p-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg cursor-pointer shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-black text-base text-slate-900 truncate">{selectedBooking.guest}</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDraftBookingGuest(selectedBooking.guest || '');
+                          setIsEditingBookingGuest(true);
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[10px] font-bold transition cursor-pointer"
+                        title="Edit customer real name"
+                      >
+                        <Edit3 className="w-2.5 h-2.5" />
+                        <span>Edit Name</span>
+                      </button>
+                    </div>
+                  )}
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     Stay Details &amp; Actions
                   </span>
@@ -1331,8 +1401,11 @@ export default function StayViewCalendar() {
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedBooking(null)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition"
+                onClick={() => {
+                  setIsEditingBookingGuest(false);
+                  setSelectedBooking(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition shrink-0 ml-2"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1560,6 +1633,10 @@ export default function StayViewCalendar() {
             check_out: folioActiveBooking.checkOut,
             actual_check_in_time: folioActiveBooking.actualCheckInTime,
             actual_check_out_time: folioActiveBooking.actualCheckOutTime,
+            amount:
+              Number(
+                folioActiveBooking.rawAmount ?? String(folioActiveBooking.amount || '').replace(/[^\d.]/g, '')
+              ) || 2500,
             price:
               Number(
                 folioActiveBooking.rawAmount ?? String(folioActiveBooking.amount || '').replace(/[^\d.]/g, '')

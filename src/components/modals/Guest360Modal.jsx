@@ -1,19 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, User, Phone, Mail, MapPin, ShieldCheck, FileText, Camera, Award, Star, History, Calendar, Check, Edit3 } from 'lucide-react';
 import { useDashboard } from '../../context/DashboardContext';
 
 export default function Guest360Modal({ isOpen, onClose, room, reservation }) {
-  const { showNotification } = useDashboard();
+  const { showNotification, reservations = [], updateReservationGuestName } = useDashboard();
+
+  const liveReservation = reservation?.id
+    ? reservations.find(r => String(r.id) === String(reservation.id))
+    : null;
+  const activeRes = liveReservation || reservation;
 
   const [isEditing, setIsEditing] = useState(false);
-  const [guestName, setGuestName] = useState(reservation?.guest || reservation?.name || room?.guest || 'Mr. Ramesh Patel');
-  const [phone, setPhone] = useState(reservation?.phone || '+91 98450 12345');
-  const [email, setEmail] = useState(reservation?.email || 'ramesh.patel@gmail.com');
-  const [city, setCity] = useState('Bengaluru, Karnataka');
-  const [idType, setIdType] = useState('Aadhaar Card');
-  const [idNumber, setIdNumber] = useState('XXXX-XXXX-4812');
+  const [isSaving, setIsSaving] = useState(false);
+  const [guestName, setGuestName] = useState(activeRes?.guest || activeRes?.name || room?.guest || 'Valued Guest');
+  const [phone, setPhone] = useState(activeRes?.guestPhone || activeRes?.guest_phone || activeRes?.phone || '+91 98450 12345');
+  const [email, setEmail] = useState(activeRes?.guestEmail || activeRes?.guest_email || activeRes?.email || 'N/A');
+  const [city, setCity] = useState(activeRes?.idCity || 'Bengaluru, Karnataka');
+  const [idType, setIdType] = useState(activeRes?.idType || 'Aadhaar Card');
+  const [idNumber, setIdNumber] = useState(activeRes?.idNumber || 'XXXX-XXXX-4812');
   const [vipTier, setVipTier] = useState('Gold VIP');
-  const [preferences, setPreferences] = useState('Non-smoking high-floor room, prefers extra bottled water and morning tea at 7:30 AM.');
+  const [preferences, setPreferences] = useState(activeRes?.notes || 'Non-smoking high-floor room, prefers extra bottled water and morning tea at 7:30 AM.');
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsEditing(false);
+      return;
+    }
+    setGuestName(activeRes?.guest || activeRes?.name || room?.guest || 'Valued Guest');
+    setPhone(activeRes?.guestPhone || activeRes?.guest_phone || activeRes?.phone || 'N/A');
+    setEmail(activeRes?.guestEmail || activeRes?.guest_email || activeRes?.email || 'N/A');
+    setCity(activeRes?.idCity || 'Bengaluru, Karnataka');
+    setIdType(activeRes?.idType || 'Aadhaar Card');
+    setIdNumber(activeRes?.idNumber || 'Not Provided');
+    setPreferences(activeRes?.notes || 'Standard guest preferences.');
+  }, [isOpen, activeRes?.id, activeRes?.guest, room?.guest]);
 
   if (!isOpen || !room) return null;
 
@@ -25,10 +45,29 @@ export default function Guest360Modal({ isOpen, onClose, room, reservation }) {
     { date: '19 May 2026', room: 'Deluxe #103', nights: 1, amount: '₹3,400', status: 'Completed' }
   ];
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    setIsEditing(false);
-    showNotification('Guest profile and identity details updated successfully.', 'success');
+    const cleanName = guestName.trim();
+    if (!cleanName) {
+      showNotification('Customer name cannot be empty.', 'error');
+      return;
+    }
+
+    const resId = activeRes?.id || room?.booking_id || room?.bookingId;
+    if (resId && updateReservationGuestName) {
+      setIsSaving(true);
+      try {
+        const result = await updateReservationGuestName(resId, cleanName);
+        if (result?.success) {
+          setIsEditing(false);
+        }
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      setIsEditing(false);
+      showNotification('Guest profile and identity details updated successfully.', 'success');
+    }
   };
 
   return (
@@ -154,10 +193,11 @@ export default function Guest360Modal({ isOpen, onClose, room, reservation }) {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white text-xs font-bold shadow-md shadow-indigo-900/20 flex items-center space-x-1"
+                  disabled={isSaving}
+                  className="px-5 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-950 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-indigo-900/20 flex items-center space-x-1"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>Save Changes</span>
+                  <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
                 </button>
               </div>
             </form>
