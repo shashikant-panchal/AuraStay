@@ -7,7 +7,7 @@ import { cachedQuery, invalidateCache, invalidateAllCache } from '../lib/queryCa
 import { PMS_API_URL, broadcastCrossDeviceSync, pushHotelInventoryViaBackend } from '../services/aiosellService';
 import { compareCategoryNames, compareRoomsByCategoryAndNumber } from '../utils/roomSort';
 import { playBookingBellSound } from '../utils/audioAlert';
-import { getLocalTodayStr, normalizeRoomNum, resolveRoomTodayState } from '../utils/roomState';
+import { getLocalTodayStr, normalizeRoomNum, extractReservationRoomNum, resolveRoomTodayState } from '../utils/roomState';
 
 const RESERVATION_PAGE_SIZE = 200;
 const FOLIO_PAGE_SIZE = 200;
@@ -2313,7 +2313,13 @@ export function DashboardProvider({ children }) {
   // Admin Check-Out Action
   const checkOutReservation = async (reservationId) => {
     const checkoutIso = new Date().toISOString();
+    const todayStr = getLocalTodayStr();
     const matchedRes = reservations.find(r => r.id === reservationId);
+    const matchedCi = String(matchedRes?.check_in || matchedRes?.checkIn || '').slice(0, 10);
+    if (matchedRes && matchedCi && matchedCi > todayStr && !matchedRes.actualCheckInTime && !matchedRes.actual_check_in_time) {
+      showNotification(`Cannot check out future booking #${reservationId} before its arrival date (${matchedCi}).`, 'error');
+      return;
+    }
     const rawTargetRoom = matchedRes
       ? (matchedRes.room_number || String(matchedRes.room || '').replace(/\D/g, ''))
       : null;
@@ -2984,6 +2990,7 @@ export function DashboardProvider({ children }) {
     const num = String(roomNumber).trim();
     const cleanNum = num.replace(/\D/g, '') || num;
     const checkoutIso = new Date().toISOString();
+    const todayStr = getLocalTodayStr();
 
     const targetRoomObj = rooms.find(rm => {
       const rmNum = String(rm.roomNumber || rm.room_number || rm.number || '').trim();
@@ -2993,10 +3000,13 @@ export function DashboardProvider({ children }) {
     const roomBookingId = targetRoomObj?.bookingId || targetRoomObj?.booking_id || null;
 
     const activeForRoom = reservations.filter(r => {
-      const rNum = String(r.room_number || r.room || '').replace(/\D/g, '');
       const st = String(r.status || '').toUpperCase();
       if (['CHECKED_OUT', 'CHECKEDOUT', 'CANCELLED', 'NO_SHOW'].includes(st)) return false;
-      return (roomBookingId && String(r.id) === String(roomBookingId)) || rNum === cleanNum || String(r.room || '').includes(`Room ${cleanNum}`);
+      const ci = String(r.check_in || r.checkIn || '').slice(0, 10);
+      // Never allow checkoutRoom to accidentally check out a future upcoming booking
+      if (ci && ci > todayStr && !r.actualCheckInTime && !r.actual_check_in_time) return false;
+      const resNorm = extractReservationRoomNum(r);
+      return resNorm === normalizeRoomNum(cleanNum);
     });
 
     const matchedRes = reservationId
@@ -3006,7 +3016,14 @@ export function DashboardProvider({ children }) {
           activeForRoom.find(r => ['CHECKED_IN', 'CHECKEDIN', 'OCCUPIED'].includes(String(r.status || '').toUpperCase())) ||
           activeForRoom[0]
         );
-    const resolvedResId = reservationId || matchedRes?.id;
+
+    const matchedCi = String(matchedRes?.check_in || matchedRes?.checkIn || '').slice(0, 10);
+    if (matchedRes && matchedCi && matchedCi > todayStr && !matchedRes.actualCheckInTime && !matchedRes.actual_check_in_time) {
+      showNotification(`Cannot check out future booking #${matchedRes.id} before its arrival date (${matchedCi}).`, 'error');
+      return;
+    }
+
+    const resolvedResId = matchedRes?.id || null;
 
     if (resolvedResId) {
       setReservations(prev => prev.map(r => {
@@ -3060,12 +3077,12 @@ export function DashboardProvider({ children }) {
           }
         }
 
-        // Also close any other lingering CHECKED_IN reservations on this room so it cannot revert to OCCUPIED
+        // Also close any other lingering CHECKED_IN reservations on this room (never future bookings)
         const { error: staleCheckOutError } = await supabase.from('reservations').update({
           status: 'CHECKED_OUT',
           actual_check_out_time: checkoutIso,
           updated_at: checkoutIso
-        }).eq('hotel_id', currentHotel.id).eq('room_number', cleanNum).in('status', ['CHECKED_IN', 'CHECKEDIN']);
+        }).eq('hotel_id', currentHotel.id).eq('room_number', cleanNum).in('status', ['CHECKED_IN', 'CHECKEDIN']).lte('check_in', todayStr);
 
         if (staleCheckOutError) {
           console.warn('Supabase stale check-in cleanup warning:', staleCheckOutError);
