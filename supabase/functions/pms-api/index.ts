@@ -175,6 +175,30 @@ async function resolveAuthUserIdByEmail(email: string, storedAuthId?: string | n
   return null;
 }
 
+function appMetadataMatches(
+  existing: Record<string, unknown> | undefined | null,
+  expected: Record<string, unknown>
+): boolean {
+  if (!existing || typeof existing !== "object") return false;
+  return Object.entries(expected).every(([k, v]) => {
+    const cur = (existing as Record<string, unknown>)[k];
+    if (typeof v === "string" && typeof cur === "string") {
+      return cur.trim().toLowerCase() === v.trim().toLowerCase();
+    }
+    return cur === v;
+  });
+}
+
+function formatAuthSession(signInData: any) {
+  return {
+    access_token: signInData.session.access_token,
+    refresh_token: signInData.session.refresh_token,
+    expires_in: signInData.session.expires_in,
+    token_type: signInData.session.token_type,
+    user: signInData.user
+  };
+}
+
 async function ensureGoTrueUserAndSignIn(params: {
   email: string;
   password: string;
@@ -189,6 +213,53 @@ async function ensureGoTrueUserAndSignIn(params: {
   const cleanEmail = params.email.trim().toLowerCase();
   const authClient = createIsolatedAuthClient();
 
+  // Fast non-destructive path: sign in directly first so we NEVER call
+  // admin.updateUserById({ password }) unnecessarily. GoTrue revokes ALL
+  // existing sessions & refresh tokens across every device whenever a
+  // password field is sent to updateUserById.
+  const { data: directSignIn, error: directErr } = await authClient.auth.signInWithPassword({
+    email: cleanEmail,
+    password: params.password
+  });
+
+  if (!directErr && directSignIn?.session) {
+    const directUid = directSignIn.user?.id || params.existingAuthUserId || null;
+
+    if (appMetadataMatches(directSignIn.user?.app_metadata, params.appMetadata)) {
+      return {
+        userId: directUid,
+        session: formatAuthSession(directSignIn),
+        error: null
+      };
+    }
+
+    // Claims need syncing — update ONLY metadata (no password/email) so active sessions stay intact
+    if (directUid) {
+      await supabaseAdmin.auth.admin.updateUserById(directUid, {
+        app_metadata: params.appMetadata,
+        ...(params.userMetadata ? { user_metadata: params.userMetadata } : {})
+      });
+      const { data: refreshedSignIn } = await authClient.auth.signInWithPassword({
+        email: cleanEmail,
+        password: params.password
+      });
+      if (refreshedSignIn?.session) {
+        return {
+          userId: directUid,
+          session: formatAuthSession(refreshedSignIn),
+          error: null
+        };
+      }
+    }
+
+    return {
+      userId: directUid,
+      session: formatAuthSession(directSignIn),
+      error: null
+    };
+  }
+
+  // Fallback path: user does not exist in GoTrue yet OR GoTrue password is out of sync with bcrypt vault
   let uid = await resolveAuthUserIdByEmail(cleanEmail, params.existingAuthUserId);
 
   if (uid) {
@@ -236,13 +307,7 @@ async function ensureGoTrueUserAndSignIn(params: {
 
   return {
     userId: uid || signInData.user?.id || null,
-    session: {
-      access_token: signInData.session.access_token,
-      refresh_token: signInData.session.refresh_token,
-      expires_in: signInData.session.expires_in,
-      token_type: signInData.session.token_type,
-      user: signInData.user
-    },
+    session: formatAuthSession(signInData),
     error: null
   };
 }
@@ -787,9 +852,19 @@ serve(async (req: Request) => {
       let authUid: string | null = await resolveAuthUserIdByEmail(cleanHotelEmail, existingAuthId || null);
 
       if (authUid) {
+        let shouldUpdatePassword = false;
+        if (rawPassword.length >= 6) {
+          const { data: existingSecretCheck } = await supabaseAdmin.rpc("sec_verify_hotel_secret", {
+            p_hotel_id: safeHotelRow.id,
+            p_password: rawPassword
+          });
+          // Only pass password to GoTrue if it actually changed; passing an unchanged password
+          // revokes all active hotel admin sessions across devices.
+          shouldUpdatePassword = !existingSecretCheck?.valid;
+        }
         await supabaseAdmin.auth.admin.updateUserById(authUid, {
           email: cleanHotelEmail,
-          ...(rawPassword.length >= 6 ? { password: rawPassword } : {}),
+          ...(shouldUpdatePassword ? { password: rawPassword } : {}),
           email_confirm: true,
           app_metadata: {
             role: "hotel_admin",

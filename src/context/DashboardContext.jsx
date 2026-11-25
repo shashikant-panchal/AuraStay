@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import aavasaLogo from '../assets/aavasa-logo.webp';
 import { initialMockData } from '../data/mockData';
 import { mockRooms, mockReservations, mockFnbOrders, mockStaffUsers, mockOtaChannels } from '../data/suiteData';
-import { supabase, isSupabaseConfigured, supabaseAnonKey } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, supabaseAnonKey, isTransientAuthError } from '../lib/supabase';
 import { cachedQuery, invalidateCache, invalidateAllCache } from '../lib/queryCache';
 import { PMS_API_URL, broadcastCrossDeviceSync, pushHotelInventoryViaBackend } from '../services/aiosellService';
 import { compareCategoryNames, compareRoomsByCategoryAndNumber } from '../utils/roomSort';
@@ -120,8 +120,10 @@ export function DashboardProvider({ children }) {
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
     let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
       if (!mounted) return;
+      // Preserve session on transient network/offline/5xx errors; GoTrue retains the valid refresh token in storage
+      if (isTransientAuthError(error)) return;
       const role = data?.session?.user?.app_metadata?.role;
       const hasValidSession = Boolean(data?.session?.access_token && (!role || ['hotel_admin', 'staff', 'super_admin'].includes(role)));
       if (isLoggedIn && !hasValidSession) {
@@ -140,8 +142,16 @@ export function DashboardProvider({ children }) {
       }
     });
 
+    // Silently refresh token if the browser returns from offline (0 calls during normal online use)
+    const handleOnline = () => {
+      if (!mounted) return;
+      supabase.auth.getSession().catch(() => {});
+    };
+    window.addEventListener('online', handleOnline);
+
     return () => {
       mounted = false;
+      window.removeEventListener('online', handleOnline);
       authListener?.subscription?.unsubscribe();
     };
   }, []);
@@ -949,10 +959,17 @@ export function DashboardProvider({ children }) {
       const result = await res.json().catch(() => ({}));
       if (res.ok && result?.success && result?.hotel) {
         if (result.session?.access_token && result.session?.refresh_token && supabase) {
-          await supabase.auth.setSession({
+          const { error: setSessionErr } = await supabase.auth.setSession({
             access_token: result.session.access_token,
             refresh_token: result.session.refresh_token
           });
+          if (setSessionErr) {
+            console.warn('Supabase setSession error:', setSessionErr);
+            return {
+              success: false,
+              message: 'Could not initialize secure session. Please try signing in again.'
+            };
+          }
         }
         invalidateAllCache();
         return completeLoginSession(result.hotel);
@@ -971,7 +988,8 @@ export function DashboardProvider({ children }) {
   const logout = () => {
     invalidateAllCache();
     if (supabase) {
-      supabase.auth.signOut().catch(() => {});
+      // Scope 'local' revokes only this browser/device session server-side without logging out other devices
+      supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     }
     setIsLoggedIn(false);
     setHasMoreReservations(false);

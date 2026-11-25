@@ -14,6 +14,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: false,
   },
   realtime: {
     params: {
@@ -21,6 +22,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
   },
 });
+
+export function isTransientAuthError(error) {
+  if (!error) return false;
+  const name = String(error.name || '');
+  const msg = String(error.message || '');
+  const status = Number(error.status);
+  if (name === 'AuthRetryableFetchError' || name === 'AuthRefreshDiscardedError') return true;
+  if (Number.isFinite(status) && (status === 0 || status >= 500 || status === 429)) return true;
+  return /network|fetch|timeout|failed to fetch|load failed|offline|abort/i.test(msg);
+}
 
 
 export async function getAuthHeaders(extra = {}) {
