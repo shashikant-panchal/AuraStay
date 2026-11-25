@@ -1137,6 +1137,35 @@ serve(async (req: Request) => {
       return jsonResponse({ success: true, reservation: updatedRes }, 200);
     }
 
+    if (action === "shift_room") {
+      const targetHotelId = String(payload.hotelId || payload.hotel_id || "").trim();
+      const sourceRoomNumber = String(payload.sourceRoomNumber || payload.source_room_number || "").trim();
+      const targetRoomNumber = String(payload.targetRoomNumber || payload.target_room_number || "").trim();
+      const reservationId = payload.reservationId || payload.reservation_id || null;
+      const reason = String(payload.reason || "Guest Request").trim();
+
+      if (!targetHotelId || !sourceRoomNumber || !targetRoomNumber) {
+        return jsonResponse({ success: false, message: "hotelId, sourceRoomNumber, and targetRoomNumber are required." }, 400);
+      }
+      if (!canAccessHotel(caller, targetHotelId)) {
+        return jsonResponse({ success: false, message: "Forbidden: Invalid tenant credentials." }, 403);
+      }
+
+      const { data: shiftResult, error: rpcErr } = await supabaseAdmin.rpc("admin_shift_room", {
+        p_hotel_id: targetHotelId,
+        p_source_room_number: sourceRoomNumber,
+        p_target_room_number: targetRoomNumber,
+        p_reservation_id: reservationId ? String(reservationId).trim() : null,
+        p_reason: reason
+      });
+
+      if (rpcErr) {
+        return jsonResponse({ success: false, message: rpcErr.message || "Failed to shift room." }, 400);
+      }
+
+      return jsonResponse({ success: true, ...(shiftResult || {}) }, 200);
+    }
+
     if (action === "pms_mutation") {
       const { table, operation, data, match } = payload;
       if (!table || !operation || !ALLOWED_MUTATION_TABLES.has(String(table))) {

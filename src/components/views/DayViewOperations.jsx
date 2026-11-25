@@ -32,6 +32,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { compareCategoryNames, compareRoomsByCategoryAndNumber } from '../../utils/roomSort';
+import { getLocalTodayStr, resolveRoomTodayState } from '../../utils/roomState';
 
 export default function DayViewOperations() {
   const {
@@ -80,41 +81,28 @@ export default function DayViewOperations() {
       }
     };
 
+    const todayStr = getLocalTodayStr();
     return contextRooms.map(r => {
-      const isOccupied = r.status === 'OCCUPIED';
-      const isReserved = r.status === 'RESERVED';
-      const rCleanNum = String(r.roomNumber || r.room_number || '').replace(/\D/g, '') || String(r.roomNumber || r.room_number || '');
-      const roomBookingId = r.bookingId || r.booking_id || null;
-      const matchingBookings = reservations.filter(b => {
-        const st = String(b.status || '').toUpperCase();
-        if (['CANCELLED', 'CHECKED_OUT', 'CHECKEDOUT', 'NO_SHOW'].includes(st)) return false;
-        if (roomBookingId && String(b.id) === String(roomBookingId)) return true;
-        const bCleanNum = String(b.room_number || '').replace(/\D/g, '') || String(b.room_number || '');
-        return (
-          bCleanNum === rCleanNum ||
-          b.room === r.roomNumber ||
-          String(b.room || '').includes(`Room ${r.roomNumber}`)
-        );
-      });
-      const booking =
-        (roomBookingId && matchingBookings.find(b => String(b.id) === String(roomBookingId))) ||
-        matchingBookings.find(b => ['CHECKED_IN', 'CHECKEDIN', 'OCCUPIED'].includes(String(b.status || '').toUpperCase())) ||
-        matchingBookings[0];
+      const state = resolveRoomTodayState(r, reservations, todayStr);
+      const isOccupied = state.isOccupied;
+      const isReserved = state.isReserved;
+      const effectiveDbStatus = state.stayViewStatus;
+      const booking = state.activeReservation;
       return {
         id: `R-${r.roomNumber}`,
         roomNumber: String(r.roomNumber),
         type: r.type || 'Standard Room',
         floor: r.floor || '1st Floor',
         floorVal: '1',
-        status: r.status || 'VACANT_READY',
-        statusLabel: (r.status || 'VACANT_READY').replace(/_/g, ' '),
+        status: effectiveDbStatus,
+        statusLabel: effectiveDbStatus.replace(/_/g, ' '),
         statusColor: isOccupied ? 'red' : isReserved ? 'violet' : 'green',
-        readyTag: isReserved ? 'Awaiting Check-In' : 'Room Ready',
+        readyTag: isReserved ? 'Awaiting Check-In' : (state.upcomingReservation ? `Upcoming: ${state.upcomingReservation.check_in || state.upcomingReservation.checkIn}` : 'Room Ready'),
         occupied: isOccupied,
         reserved: isReserved,
         bookingId: booking?.id ? `AST-B-${booking.id}` : null,
-        guest: booking?.guest || r.guest || null,
-        checkInTime: formatArrivalTs(booking?.actualCheckInTime || booking?.actual_check_in_time, booking?.checkIn || booking?.check_in),
+        guest: (isOccupied || isReserved) ? (booking?.guest || r.guest || null) : null,
+        checkInTime: booking ? formatArrivalTs(booking?.actualCheckInTime || booking?.actual_check_in_time, booking?.checkIn || booking?.check_in) : 'Available',
         stayDuration: `${booking?.nights || 1} night(s)`,
         adults: booking?.adults || 1,
         children: booking?.children || 0,
@@ -190,8 +178,8 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">TOTAL ROOMS</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">{contextRooms.length}</div>
-            <div className="text-[11px] font-medium text-slate-500 mt-0.5">{contextRooms.filter(r => r.status === 'OCCUPIED' || r.status === 'RESERVED').length} Booked ({contextRooms.filter(r => r.status === 'RESERVED').length} Res)</div>
+            <div className="text-2xl font-black text-slate-900">{dayRooms.length}</div>
+            <div className="text-[11px] font-medium text-slate-500 mt-0.5">{dayRooms.filter(r => r.status === 'OCCUPIED' || r.status === 'RESERVED').length} Booked ({dayRooms.filter(r => r.status === 'RESERVED').length} Res)</div>
           </div>
         </div>
 
@@ -204,7 +192,7 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">AVAILABLE</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">{contextRooms.filter(r => r.status === 'VACANT_READY').length}</div>
+            <div className="text-2xl font-black text-slate-900">{dayRooms.filter(r => r.status === 'VACANT_READY').length}</div>
             <div className="text-[11px] font-medium text-slate-500 mt-0.5">Ready to Assign</div>
           </div>
         </div>
@@ -218,7 +206,7 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ON-HOLD</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">{contextRooms.filter(r => r.status === 'MAINTENANCE').length}</div>
+            <div className="text-2xl font-black text-slate-900">{dayRooms.filter(r => r.status === 'MAINTENANCE').length}</div>
             <div className="text-[11px] font-medium text-slate-500 mt-0.5">Blocked Rooms</div>
           </div>
         </div>
@@ -260,8 +248,8 @@ export default function DayViewOperations() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">GUEST IN-HOUSE</span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">{contextRooms.filter(r => r.status === 'OCCUPIED').length}</div>
-            <div className="text-[11px] font-medium text-slate-500 mt-0.5">{contextRooms.filter(r => r.status === 'RESERVED').length} Reserved · Stays</div>
+            <div className="text-2xl font-black text-slate-900">{dayRooms.filter(r => r.status === 'OCCUPIED').length}</div>
+            <div className="text-[11px] font-medium text-slate-500 mt-0.5">{dayRooms.filter(r => r.status === 'RESERVED').length} Reserved · Stays</div>
           </div>
         </div>
 

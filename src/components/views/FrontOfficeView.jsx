@@ -8,6 +8,7 @@ import FolioBillingModal from '../modals/FolioBillingModal';
 import CheckInModal from '../modals/CheckInModal';
 import CollectPaymentModal from '../modals/CollectPaymentModal';
 import { compareCategoryNames } from '../../utils/roomSort';
+import { getLocalTodayStr, resolveRoomTodayState } from '../../utils/roomState';
 import {
   Building2,
   Home,
@@ -73,9 +74,10 @@ export default function FrontOfficeView() {
   const [checkInTargetRes, setCheckInTargetRes] = useState(null);
   const [collectPaymentTargetRes, setCollectPaymentTargetRes] = useState(null);
 
-  // Dynamic Room Availability & BAR derived from active rooms
+  // Dynamic Room Availability & BAR derived from today's effective room state (future bookings do not occupy today)
   const roomAvailabilityData = useMemo(() => {
     if (!rooms || rooms.length === 0) return [];
+    const todayStr = getLocalTodayStr();
     const catMap = {};
     rooms.forEach(r => {
       const type = r.type || 'Standard Room';
@@ -83,9 +85,10 @@ export default function FrontOfficeView() {
         catMap[type] = { category: type, bar: Number(r.price) || 2000, toSell: 0, sold: 0, available: 0, occupancy: 0 };
       }
       catMap[type].toSell += 1;
-      if (r.status === 'OCCUPIED' || r.status === 'RESERVED') {
+      const state = resolveRoomTodayState(r, reservations, todayStr);
+      if (state.isOccupied || state.isReserved) {
         catMap[type].sold += 1;
-      } else if (r.status === 'VACANT_READY' || !r.status) {
+      } else if (state.isVacant) {
         catMap[type].available += 1;
       }
     });
@@ -95,7 +98,7 @@ export default function FrontOfficeView() {
         occupancy: c.toSell > 0 ? Math.round((c.sold / c.toSell) * 100) : 0
       }))
       .sort((a, b) => compareCategoryNames(a.category, b.category));
-  }, [rooms]);
+  }, [rooms, reservations]);
 
   // Dynamic Recent Check-ins & Reservations derived from live reservations
   const formatShortArrival = (ts, fallbackDate) => {

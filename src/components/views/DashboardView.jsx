@@ -43,6 +43,7 @@ import RoomActionsModal from '../modals/RoomActionsModal';
 import CheckInModal from '../modals/CheckInModal';
 import TodayGlanceRevenueCard from '../dashboard/TodayGlanceRevenueCard';
 import { compareCategoryNames, compareRoomNumbers } from '../../utils/roomSort';
+import { getLocalTodayStr, resolveRoomTodayState } from '../../utils/roomState';
 
 export default function DashboardView() {
   const {
@@ -87,8 +88,7 @@ export default function DashboardView() {
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
 
-  const nowLocal = new Date();
-  const todayStr = new Date(nowLocal.getTime() - nowLocal.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+  const todayStr = getLocalTodayStr();
 
   const formatRoomTimestamp = (ts) => {
     if (!ts) return '';
@@ -104,65 +104,12 @@ export default function DashboardView() {
     }
   };
 
-
-
-  // Helper to find active reservation for a room (prioritizes linked booking_id, then CHECKED_IN, then today's CONFIRMED)
-  const getActiveReservation = (room) => {
-    const rNumRaw = String(room.room_number || room.roomNumber || room.number || room.id || '');
-    const rNum = rNumRaw.replace(/\D/g, '') || rNumRaw;
-    const roomBookingId = room.booking_id || room.bookingId || null;
-
-    const candidates = reservations.filter(r => {
-      const st = String(r.status || '').toUpperCase();
-      if (['CANCELLED', 'CHECKED_OUT', 'CHECKEDOUT', 'NO_SHOW'].includes(st)) return false;
-      if (roomBookingId && String(r.id) === String(roomBookingId)) return true;
-      const resNumDigits = String(r.room_number || '').replace(/\D/g, '') || String(r.room_number || '');
-      if (r.room_number && resNumDigits === rNum) return true;
-      const matchNum = String(r.room || '').match(/\b(\d+)\b/);
-      if (matchNum && matchNum[1] === rNum) return true;
-      return false;
-    });
-
-    if (candidates.length === 0) return undefined;
-    if (roomBookingId) {
-      const exactLinked = candidates.find(r => String(r.id) === String(roomBookingId));
-      if (exactLinked) return exactLinked;
-    }
-    const checkedInMatch = candidates.find(r =>
-      ['CHECKED_IN', 'CHECKEDIN', 'OCCUPIED'].includes(String(r.status || '').toUpperCase())
-    );
-    if (checkedInMatch) return checkedInMatch;
-    const currentOrPastMatch = candidates.find(r => {
-      const ci = String(r.check_in || r.checkIn || '').slice(0, 10);
-      return !ci || ci <= todayStr;
-    });
-    return currentOrPastMatch || candidates[0];
-  };
-
-  // Enriched rooms list (distinguishes RESERVED awaiting check-in vs OCCUPIED in-house)
+  // Enriched rooms list: single source of truth via resolveRoomTodayState.
+  // Future upcoming bookings (check_in > todayStr) NEVER mark a room OCCUPIED or RESERVED today!
   const enrichedRooms = useMemo(() => {
     return rooms.map(r => {
-      const activeRes = getActiveReservation(r);
-      const stUpper = String(r.status || 'VACANT_READY').toUpperCase();
-      const resStatusUpper = String(activeRes?.status || '').toUpperCase();
-      const resCheckInDate = String(activeRes?.check_in || activeRes?.checkIn || '').slice(0, 10);
-
-      const isBlocked = ['MAINTENANCE', 'OUT_OF_ORDER', 'BLOCKED'].includes(stUpper);
-      const isCheckedInRes = ['CHECKED_IN', 'CHECKEDIN', 'OCCUPIED'].includes(resStatusUpper);
-      const isReservedRes = ['CONFIRMED', 'PENDING', 'RESERVED'].includes(resStatusUpper);
-      const rawDirty = stUpper === 'DIRTY' || r.housekeeping === 'Dirty';
-      const hasLinkedBooking = Boolean(r.booking_id || r.bookingId);
-
-      const isOccupied = !isBlocked && (stUpper === 'OCCUPIED' || isCheckedInRes);
-      const isReserved = !isBlocked && !isOccupied && !(rawDirty && !hasLinkedBooking) && (stUpper === 'RESERVED' || (isReservedRes && (!resCheckInDate || resCheckInDate <= todayStr)));
-      const upcomingReservation = !isBlocked && !isOccupied && !isReserved && isReservedRes && resCheckInDate > todayStr ? activeRes : null;
-      const isDirty = !isBlocked && !isOccupied && !isReserved && rawDirty;
-
-      let effectiveStatus = 'VACANT';
-      if (isBlocked) effectiveStatus = 'BLOCKED';
-      else if (isOccupied) effectiveStatus = 'OCCUPIED';
-      else if (isReserved) effectiveStatus = 'RESERVED';
-      else if (isDirty) effectiveStatus = 'DIRTY';
+      const state = resolveRoomTodayState(r, reservations, todayStr);
+      const { effectiveStatus, isOccupied, isReserved, activeReservation: activeRes, upcomingReservation } = state;
 
       const roomNum = String(r.room_number || r.roomNumber || r.id);
       const rawFloor = String(r.floor || '').trim();

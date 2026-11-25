@@ -28,6 +28,7 @@ import FolioBillingModal from '../modals/FolioBillingModal';
 import CheckInModal from '../modals/CheckInModal';
 import CollectPaymentModal from '../modals/CollectPaymentModal';
 import { compareCategoryNames, compareRoomNumbers } from '../../utils/roomSort';
+import { resolveRoomTodayState } from '../../utils/roomState';
 
 function toLocalIsoDate(dateObj = new Date()) {
   const yyyy = dateObj.getFullYear();
@@ -47,44 +48,8 @@ function parseLocalDate(isoStr) {
 }
 
 function getEffectiveRoomStatus(room, reservations = [], todayStr = '') {
-  const dbStatus = String(room.status || 'VACANT_READY').toUpperCase();
-  const rNumRaw = String(room.room_number || room.roomNumber || room.id || '').trim();
-  const rNumDigits = rNumRaw.replace(/\D/g, '') || rNumRaw;
-  const roomBookingId = room.booking_id || room.bookingId || null;
-
-  const activeBookings = (reservations || []).filter(res => {
-    const st = String(res.status || '').toUpperCase();
-    if (['CANCELLED', 'CHECKED_OUT', 'CHECKEDOUT', 'NO_SHOW'].includes(st)) return false;
-    if (roomBookingId && String(res.id) === String(roomBookingId)) return true;
-    const resNumDigits = String(res.room_number || '').replace(/\D/g, '') || String(res.room_number || '');
-    if (res.room_number && (resNumDigits === rNumDigits || String(res.room_number).trim() === rNumRaw)) return true;
-    return res.room === `Room ${rNumRaw}` || String(res.room || '').trim() === rNumRaw;
-  });
-
-  const checkedInRes = activeBookings.find(res =>
-    ['CHECKED_IN', 'CHECKEDIN', 'OCCUPIED'].includes(String(res.status || '').toUpperCase())
-  );
-  const todaysReserved = activeBookings.find(res => {
-    const st = String(res.status || '').toUpperCase();
-    if (!['CONFIRMED', 'PENDING', 'RESERVED'].includes(st)) return false;
-    const cIn = String(res.check_in || res.checkIn || '').slice(0, 10);
-    const cOut = String(res.check_out || res.checkOut || '').slice(0, 10);
-    return !cIn || !cOut || (cIn <= todayStr && cOut >= todayStr);
-  });
-
-  if (dbStatus === 'MAINTENANCE' || dbStatus === 'OUT_OF_ORDER' || dbStatus === 'BLOCKED') {
-    return { status: 'MAINTENANCE', activeRes: checkedInRes || todaysReserved || null };
-  }
-  if (checkedInRes || dbStatus === 'OCCUPIED') {
-    return { status: 'OCCUPIED', activeRes: checkedInRes || activeBookings[0] || null };
-  }
-  if (dbStatus === 'RESERVED' || todaysReserved) {
-    return { status: 'RESERVED', activeRes: todaysReserved || activeBookings[0] || null };
-  }
-  if (dbStatus === 'DIRTY') {
-    return { status: 'DIRTY', activeRes: null };
-  }
-  return { status: 'VACANT_READY', activeRes: null };
+  const state = resolveRoomTodayState(room, reservations, todayStr);
+  return { status: state.stayViewStatus, activeRes: state.activeReservation };
 }
 
 export default function StayViewCalendar() {

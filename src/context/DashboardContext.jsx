@@ -7,6 +7,7 @@ import { cachedQuery, invalidateCache, invalidateAllCache } from '../lib/queryCa
 import { PMS_API_URL, broadcastCrossDeviceSync, pushHotelInventoryViaBackend } from '../services/aiosellService';
 import { compareCategoryNames, compareRoomsByCategoryAndNumber } from '../utils/roomSort';
 import { playBookingBellSound } from '../utils/audioAlert';
+import { getLocalTodayStr, normalizeRoomNum, resolveRoomTodayState } from '../utils/roomState';
 
 const RESERVATION_PAGE_SIZE = 200;
 const FOLIO_PAGE_SIZE = 200;
@@ -234,6 +235,7 @@ export function DashboardProvider({ children }) {
   const [isLiveConnected, setIsLiveConnected] = useState(false);
   const syncDebounceRef = useRef(null);
   const recentLocalGuestEditRef = useRef({ id: null, until: 0 });
+  const recentLocalShiftRef = useRef({ resId: null, rooms: [], until: 0 });
 
   // Cab Bookings & Travel Desk State - driven by Supabase
   const [cabBookings, setCabBookings] = useState([]);
@@ -787,13 +789,29 @@ export function DashboardProvider({ children }) {
       if (!recent?.id || Date.now() > recent.until) return false;
       return String(payload?.new?.[matchKey] || '') === String(recent.id);
     };
+    const isSelfShiftEcho = (payload, kind) => {
+      if (payload?.eventType !== 'UPDATE') return false;
+      const recent = recentLocalShiftRef.current;
+      if (!recent || Date.now() > recent.until) return false;
+      if (kind === 'room') {
+        const rn = normalizeRoomNum(payload?.new?.room_number);
+        return Boolean(rn && recent.rooms.includes(rn));
+      }
+      if (kind === 'reservation') {
+        return Boolean(recent.resId && String(payload?.new?.id || '') === String(recent.resId));
+      }
+      if (kind === 'invoice') {
+        return Boolean(recent.resId && String(payload?.new?.reservation_id || '') === String(recent.resId));
+      }
+      return false;
+    };
 
     const channel = supabase.channel(`aurastay-realtime-${hotelId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'hotels', filter: `id=eq.${hotelId}` }, () => {
         scheduleRealtimeRefresh();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: hotelFilter }, payload => {
-        if (!isSelfGuestEditEcho(payload, 'booking_id')) {
+        if (!isSelfGuestEditEcho(payload, 'booking_id') && !isSelfShiftEcho(payload, 'room')) {
           scheduleRealtimeRefresh();
         }
       })
@@ -805,7 +823,7 @@ export function DashboardProvider({ children }) {
         } else if (payload.eventType === 'UPDATE' && payload.new && payload.new.status === 'CANCELLED') {
           showNotification(`Reservation #${payload.new.id} for ${payload.new.guest || 'Guest'} was CANCELLED.`);
           scheduleRealtimeRefresh();
-        } else if (!isSelfGuestEditEcho(payload, 'id')) {
+        } else if (!isSelfGuestEditEcho(payload, 'id') && !isSelfShiftEcho(payload, 'reservation')) {
           scheduleRealtimeRefresh();
         }
       })
@@ -825,7 +843,7 @@ export function DashboardProvider({ children }) {
         scheduleRealtimeRefresh();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_invoices', filter: hotelFilter }, payload => {
-        if (!isSelfGuestEditEcho(payload, 'reservation_id')) {
+        if (!isSelfGuestEditEcho(payload, 'reservation_id') && !isSelfShiftEcho(payload, 'invoice')) {
           scheduleRealtimeRefresh();
         }
       })
@@ -2538,15 +2556,21 @@ export function DashboardProvider({ children }) {
     showNotification(`Reservation ${resId} confirmed for ${reservation.guest}`);
     setIsCreateReservationModalOpen(false);
 
-    // If check-in is today or ongoing, mark physical room status as RESERVED (until checked in -> OCCUPIED)
-    const nowLocal = new Date();
-    const todayStr = new Date(nowLocal.getTime() - nowLocal.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-    const targetRoomStatus = reservation.status === 'CHECKED_IN' ? 'OCCUPIED' : 'RESERVED';
-    const checkInTimeIfCheckedIn = reservation.status === 'CHECKED_IN' ? new Date().toISOString() : null;
+    // ONLY update physical room status if booking covers TODAY (future bookings must stay VACANT until arrival day!)
+    const todayStr = getLocalTodayStr();
+    const resCheckIn = String(reservation.check_in || '').slice(0, 10);
+    const resCheckOut = String(reservation.check_out || '').slice(0, 10);
+    const coversToday = Boolean(resCheckIn && resCheckIn <= todayStr && (!resCheckOut || resCheckOut > todayStr));
+    const targetRoomStatus = reservation.status === 'CHECKED_IN' && coversToday ? 'OCCUPIED' : 'RESERVED';
+    const checkInTimeIfCheckedIn = reservation.status === 'CHECKED_IN' && coversToday ? new Date().toISOString() : null;
 
-    if (cleanRoomNum && reservation.check_in <= todayStr && reservation.check_out >= todayStr) {
+    if (cleanRoomNum && coversToday) {
       setRooms(prev => prev.map(r => {
-        if (String(r.room_number || r.roomNumber) === cleanRoomNum) {
+        if (normalizeRoomNum(r.room_number || r.roomNumber) === normalizeRoomNum(cleanRoomNum)) {
+          // Do not overwrite an actively OCCUPIED room unless explicitly checking in
+          if (String(r.status || '').toUpperCase() === 'OCCUPIED' && targetRoomStatus !== 'OCCUPIED') {
+            return r;
+          }
           return {
             ...r,
             status: targetRoomStatus,
@@ -2614,13 +2638,13 @@ export function DashboardProvider({ children }) {
           });
         }
 
-        if (cleanRoomNum && currentHotel?.id && reservation.check_in <= todayStr && reservation.check_out >= todayStr) {
+        if (cleanRoomNum && currentHotel?.id && coversToday) {
           await supabase.from('rooms').update({
             status: targetRoomStatus,
             guest: reservation.guest,
             booking_id: resId,
             check_out: reservation.check_out
-          }).eq('hotel_id', currentHotel.id).eq('room_number', cleanRoomNum);
+          }).eq('hotel_id', currentHotel.id).eq('room_number', cleanRoomNum).neq('status', 'OCCUPIED');
         }
         await broadcastCrossDeviceSync({
           action: 'book',
@@ -2680,66 +2704,246 @@ export function DashboardProvider({ children }) {
     showNotification('Task removed.');
   };
 
-  // 1. Shift Room (Transfer guest to another room)
-  const shiftRoom = async (sourceRoomNumber, targetRoomNumber, reason = 'Guest Request') => {
-    const src = String(sourceRoomNumber).trim();
-    const tgt = String(targetRoomNumber).trim();
+  // 1. Shift Room (Atomic 1-call transfer: marks old room VACANT_READY, updates room_number + folio)
+  const shiftRoom = async (sourceRoomNumber, targetRoomNumber, reason = 'Guest Request', explicitReservationId = null) => {
+    const srcRaw = String(sourceRoomNumber || '').trim();
+    const tgtRaw = String(targetRoomNumber || '').trim();
+    const srcNorm = normalizeRoomNum(srcRaw);
+    const tgtNorm = normalizeRoomNum(tgtRaw);
 
-    // Check if target is available
-    const targetRoom = rooms.find(r => String(r.room_number || r.roomNumber) === tgt);
-    if (!targetRoom) {
-      showNotification(`Target room ${tgt} does not exist.`, 'error');
+    if (!srcNorm || !tgtNorm) {
+      showNotification('Source and target room numbers are required.', 'error');
+      return false;
+    }
+    if (srcNorm === tgtNorm) {
+      showNotification('Target room must be different from the current room.', 'error');
       return false;
     }
 
-    // Find active reservation for source room
-    const activeRes = reservations.find(r => {
-      const matchNum = String(r.room).match(/\b(\d+)\b/);
-      return matchNum && matchNum[1] === src && r.status !== 'CANCELLED' && r.status !== 'CHECKED_OUT';
-    });
+    const sourceRoomObj = rooms.find(r => normalizeRoomNum(r.room_number || r.roomNumber) === srcNorm);
+    const targetRoomObj = rooms.find(r => normalizeRoomNum(r.room_number || r.roomNumber) === tgtNorm);
 
-    // Update rooms status
-    setRooms(prev => prev.map(r => {
-      const rNum = String(r.room_number || r.roomNumber);
-      if (rNum === src) {
-        return { ...r, status: 'DIRTY', guest: null, booking_id: null };
-      }
-      if (rNum === tgt) {
-        return {
-          ...r,
-          status: 'OCCUPIED',
-          guest: activeRes?.guest || r.guest,
-          booking_id: activeRes?.id || r.booking_id,
-          check_out: activeRes?.check_out || activeRes?.checkOut || r.check_out
-        };
-      }
-      return r;
-    }));
+    if (!targetRoomObj) {
+      showNotification(`Target room ${tgtRaw} does not exist.`, 'error');
+      return false;
+    }
 
-    // Update reservation room name
-    if (activeRes) {
-      setReservations(prev => prev.map(r => {
-        if (r.id === activeRes.id) {
-          return { ...r, room: `Room ${tgt} - ${targetRoom.type || 'Standard'}` };
+    const todayStr = getLocalTodayStr();
+    const srcExactNum = String(sourceRoomObj?.room_number || sourceRoomObj?.roomNumber || srcRaw).trim();
+    const tgtExactNum = String(targetRoomObj.room_number || targetRoomObj.roomNumber || tgtRaw).trim();
+
+    // Resolve exact active reservation to shift (explicit ID -> room's today active stay -> linked booking_id)
+    const srcState = sourceRoomObj ? resolveRoomTodayState(sourceRoomObj, reservations, todayStr) : null;
+    const activeRes =
+      (explicitReservationId && reservations.find(r => String(r.id) === String(explicitReservationId))) ||
+      srcState?.activeReservation ||
+      (sourceRoomObj?.booking_id || sourceRoomObj?.bookingId
+        ? reservations.find(r => String(r.id) === String(sourceRoomObj.booking_id || sourceRoomObj.bookingId))
+        : null) ||
+      null;
+
+    // Validate target room isn't already occupied/reserved for today (unless shifting a non-overlapping future stay)
+    const tgtState = resolveRoomTodayState(targetRoomObj, reservations, todayStr);
+    if (tgtState.isBlocked) {
+      showNotification(`Target Room #${tgtExactNum} is currently blocked for maintenance.`, 'error');
+      return false;
+    }
+
+    const resStatusUpper = String(activeRes?.status || '').toUpperCase();
+    const resCi = String(activeRes?.check_in || activeRes?.checkIn || '').slice(0, 10);
+    const resCo = String(activeRes?.check_out || activeRes?.checkOut || '').slice(0, 10);
+    const resCoversToday = Boolean(!resCi || (resCi <= todayStr && (!resCo || resCo > todayStr)));
+
+    if (resCoversToday && (tgtState.isOccupied || tgtState.isReserved)) {
+      showNotification(`Target Room #${tgtExactNum} is already ${tgtState.effectiveStatus}. Please choose a vacant room.`, 'error');
+      return false;
+    }
+
+    let resolvedSourceStatus = 'VACANT_READY';
+    let resolvedTargetStatus =
+      activeRes
+        ? (['CHECKED_IN', 'CHECKEDIN', 'OCCUPIED'].includes(resStatusUpper) && (!resCi || resCi <= todayStr)
+            ? 'OCCUPIED'
+            : (['CONFIRMED', 'PENDING', 'RESERVED'].includes(resStatusUpper) && resCoversToday
+                ? 'RESERVED'
+                : String(targetRoomObj.status || 'VACANT_READY')))
+        : (String(sourceRoomObj?.status || '').toUpperCase() === 'RESERVED' ? 'RESERVED' : 'OCCUPIED');
+    let resolvedResId = activeRes?.id || sourceRoomObj?.booking_id || sourceRoomObj?.bookingId || null;
+    let resolvedGuest = activeRes?.guest || sourceRoomObj?.guest || null;
+    let resolvedCheckOut = activeRes?.check_out || activeRes?.checkOut || sourceRoomObj?.check_out || sourceRoomObj?.checkOut || null;
+    let resolvedTargetType = targetRoomObj.type || targetRoomObj.category || 'Standard Room';
+
+    // Persist atomically in 1 single RPC call (Free-Tier Nano optimized)
+    if (isSupabaseConfigured && currentHotel?.id) {
+      recentLocalShiftRef.current = {
+        resId: resolvedResId,
+        rooms: [srcNorm, tgtNorm],
+        until: Date.now() + 4000
+      };
+
+      try {
+        const { data: rpcResult, error: rpcErr } = await supabase.rpc('admin_shift_room', {
+          p_hotel_id: currentHotel.id,
+          p_source_room_number: srcExactNum,
+          p_target_room_number: tgtExactNum,
+          p_reservation_id: resolvedResId ? String(resolvedResId) : null,
+          p_reason: reason || 'Guest Request'
+        });
+
+        if (rpcErr) {
+          const isMissingRpc =
+            /admin_shift_room/i.test(rpcErr.message || '') &&
+            /(could not find|does not exist|schema cache)/i.test(rpcErr.message || '');
+
+          if (!isMissingRpc) {
+            recentLocalShiftRef.current = { resId: null, rooms: [], until: 0 };
+            showNotification(rpcErr.message || 'Failed to shift room.', 'error');
+            return false;
+          }
+
+          // Graceful fallback if RPC isn't yet installed: update reservation room_number + clear old room to VACANT_READY
+          const nowIso = new Date().toISOString();
+          if (resolvedResId) {
+            const { error: resErr } = await supabase
+              .from('reservations')
+              .update({
+                room: `Room ${tgtExactNum} - ${resolvedTargetType}`,
+                room_number: tgtExactNum,
+                room_type: resolvedTargetType,
+                updated_at: nowIso
+              })
+              .eq('hotel_id', currentHotel.id)
+              .eq('id', resolvedResId);
+            if (resErr) throw resErr;
+          }
+
+          await supabase
+            .from('rooms')
+            .update({
+              status: 'VACANT_READY',
+              housekeeping: 'Clean',
+              guest: null,
+              booking_id: null,
+              check_out: null,
+              is_ota_locked: false,
+              ota_channel: null,
+              updated_at: nowIso
+            })
+            .eq('hotel_id', currentHotel.id)
+            .eq('room_number', srcExactNum);
+
+          if (resolvedTargetStatus === 'OCCUPIED' || resolvedTargetStatus === 'RESERVED') {
+            await supabase
+              .from('rooms')
+              .update({
+                status: resolvedTargetStatus,
+                housekeeping: 'Clean',
+                guest: resolvedGuest,
+                booking_id: resolvedResId,
+                check_out: resolvedCheckOut,
+                updated_at: nowIso
+              })
+              .eq('hotel_id', currentHotel.id)
+              .eq('room_number', tgtExactNum);
+          }
+
+          if (resolvedResId && folios[resolvedResId]) {
+            await supabase
+              .from('financial_invoices')
+              .update({ room_number: tgtExactNum, updated_at: nowIso })
+              .eq('hotel_id', currentHotel.id)
+              .eq('reservation_id', resolvedResId);
+          }
+        } else if (rpcResult) {
+          resolvedSourceStatus = rpcResult.sourceStatus || 'VACANT_READY';
+          resolvedTargetStatus = rpcResult.targetStatus || resolvedTargetStatus;
+          resolvedResId = rpcResult.reservationId ?? resolvedResId;
+          resolvedGuest = rpcResult.guest ?? resolvedGuest;
+          resolvedCheckOut = rpcResult.checkOut ?? resolvedCheckOut;
+          resolvedTargetType = rpcResult.targetType || resolvedTargetType;
+        }
+
+        invalidateCache(`pms:dashboard:${currentHotel.id}`);
+      } catch (err) {
+        recentLocalShiftRef.current = { resId: null, rooms: [], until: 0 };
+        console.warn('Supabase shift room sync:', err);
+        showNotification(err?.message || 'Failed to shift room.', 'error');
+        return false;
+      }
+    }
+
+    // Update local React state synchronously (0 extra SELECT queries!)
+    setRooms(prev =>
+      prev.map(r => {
+        const rNorm = normalizeRoomNum(r.room_number || r.roomNumber);
+        if (rNorm === srcNorm) {
+          return {
+            ...r,
+            status: resolvedSourceStatus,
+            housekeeping: 'Clean',
+            guest: null,
+            bookingId: null,
+            booking_id: null,
+            checkOut: null,
+            check_out: null,
+            isOtaLocked: false,
+            is_ota_locked: false,
+            otaChannel: ''
+          };
+        }
+        if (rNorm === tgtNorm && (resolvedTargetStatus === 'OCCUPIED' || resolvedTargetStatus === 'RESERVED')) {
+          return {
+            ...r,
+            status: resolvedTargetStatus,
+            housekeeping: 'Clean',
+            guest: resolvedGuest || r.guest,
+            bookingId: resolvedResId || r.bookingId,
+            booking_id: resolvedResId || r.booking_id,
+            checkOut: resolvedCheckOut || r.checkOut,
+            check_out: resolvedCheckOut || r.check_out,
+            isOtaLocked: Boolean(sourceRoomObj?.isOtaLocked || sourceRoomObj?.is_ota_locked),
+            is_ota_locked: Boolean(sourceRoomObj?.isOtaLocked || sourceRoomObj?.is_ota_locked),
+            otaChannel: sourceRoomObj?.otaChannel || sourceRoomObj?.ota_channel || ''
+          };
         }
         return r;
-      }));
-    }
+      })
+    );
 
-    showNotification(`Room shifted from #${src} to #${tgt} (${reason}).`);
+    if (resolvedResId) {
+      setReservations(prev =>
+        prev.map(r =>
+          String(r.id) === String(resolvedResId)
+            ? {
+                ...r,
+                room: `Room ${tgtExactNum} - ${resolvedTargetType}`,
+                room_number: tgtExactNum,
+                room_type: resolvedTargetType
+              }
+            : r
+        )
+      );
 
-    // Sync to Supabase
-    if (isSupabaseConfigured && currentHotel?.id) {
-      try {
-        await supabase.from('rooms').update({ status: 'DIRTY' }).eq('hotel_id', currentHotel.id).eq('room_number', src);
-        await supabase.from('rooms').update({ status: 'OCCUPIED' }).eq('hotel_id', currentHotel.id).eq('room_number', tgt);
-        if (activeRes) {
-          await supabase.from('reservations').update({ room: `Room ${tgt}` }).eq('hotel_id', currentHotel.id).eq('id', activeRes.id);
+      setFolios(prev => {
+        const next = { ...prev };
+        let changed = false;
+        Object.keys(next).forEach(k => {
+          const f = next[k];
+          if (f && (String(k) === String(resolvedResId) || String(f.reservationId || '') === String(resolvedResId))) {
+            next[k] = { ...f, roomNumber: tgtExactNum };
+            changed = true;
+          }
+        });
+        if (next[srcExactNum] && (!resolvedResId || String(next[srcExactNum].reservationId || '') === String(resolvedResId))) {
+          next[tgtExactNum] = { ...next[srcExactNum], roomNumber: tgtExactNum };
+          delete next[srcExactNum];
+          changed = true;
         }
-      } catch (err) {
-        console.warn('Supabase shift room sync:', err);
-      }
+        return changed ? next : prev;
+      });
     }
+
+    showNotification(`Room shifted from #${srcExactNum} to #${tgtExactNum} (${reason}). Room #${srcExactNum} is now Vacant.`);
     return true;
   };
 

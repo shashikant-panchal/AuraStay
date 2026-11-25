@@ -1,24 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, ArrowRight, BedDouble, AlertTriangle, ShieldCheck, Check } from 'lucide-react';
 import { useDashboard } from '../../context/DashboardContext';
+import { getLocalTodayStr, normalizeRoomNum, resolveRoomTodayState } from '../../utils/roomState';
+import { compareRoomsByCategoryAndNumber } from '../../utils/roomSort';
 
 export default function ShiftRoomModal({ isOpen, onClose, sourceRoom }) {
-  const { rooms = [], shiftRoom, showNotification } = useDashboard();
+  const { rooms = [], reservations = [], shiftRoom, showNotification } = useDashboard();
 
   const [targetRoomNumber, setTargetRoomNumber] = useState('');
   const [reason, setReason] = useState('Guest Requested Higher Floor');
   const [customReason, setCustomReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const srcNum = sourceRoom ? String(sourceRoom.room_number || sourceRoom.roomNumber || sourceRoom.number) : '';
+
+  useEffect(() => {
+    if (isOpen) {
+      setTargetRoomNumber('');
+      setReason('Guest Requested Higher Floor');
+      setCustomReason('');
+    }
+  }, [isOpen, srcNum]);
+
+  const todayStr = getLocalTodayStr();
+
+  // Truly vacant rooms today (excludes occupied, today's reserved, dirty, and blocked rooms)
+  const availableTargetRooms = useMemo(() => {
+    if (!isOpen || !sourceRoom) return [];
+    const srcNorm = normalizeRoomNum(srcNum);
+    return rooms
+      .filter(r => {
+        const rNum = normalizeRoomNum(r.room_number || r.roomNumber);
+        if (!rNum || rNum === srcNorm) return false;
+        const state = resolveRoomTodayState(r, reservations, todayStr);
+        return state.isVacant;
+      })
+      .sort(compareRoomsByCategoryAndNumber);
+  }, [isOpen, sourceRoom, srcNum, rooms, reservations, todayStr]);
+
   if (!isOpen || !sourceRoom) return null;
 
-  const srcNum = String(sourceRoom.room_number || sourceRoom.roomNumber || sourceRoom.number);
-
-  // Available vacant rooms
-  const availableTargetRooms = rooms.filter(r => {
-    const num = String(r.room_number || r.roomNumber);
-    return num !== srcNum && (r.status === 'VACANT_READY' || r.status === 'Available');
-  });
+  const displayGuest =
+    sourceRoom.guestName ||
+    sourceRoom.activeReservation?.guest ||
+    sourceRoom.guest ||
+    'In-House Guest';
+  const activeResId =
+    sourceRoom.activeReservation?.id ||
+    sourceRoom.booking_id ||
+    sourceRoom.bookingId ||
+    null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,7 +62,7 @@ export default function ShiftRoomModal({ isOpen, onClose, sourceRoom }) {
 
     setIsSubmitting(true);
     try {
-      const success = await shiftRoom(srcNum, targetRoomNumber, finalReason);
+      const success = await shiftRoom(srcNum, targetRoomNumber, finalReason, activeResId);
       if (success) {
         onClose();
       }
@@ -81,7 +112,7 @@ export default function ShiftRoomModal({ isOpen, onClose, sourceRoom }) {
                 </span>
               </div>
               <div className="text-xs text-slate-600 mt-1">
-                Guest: <strong className="text-slate-800">{sourceRoom.guest || 'In-House Guest'}</strong>
+                Guest: <strong className="text-slate-800">{displayGuest}</strong>
               </div>
             </div>
 
@@ -152,7 +183,7 @@ export default function ShiftRoomModal({ isOpen, onClose, sourceRoom }) {
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 leading-relaxed flex items-start gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <span>
-              Moving the room will automatically update the guest's folio, transfer active room billing, and mark Room #{srcNum} as <strong>DIRTY</strong> for housekeeping inspection.
+              Moving the room will automatically transfer the guest's reservation &amp; folio to the new room and mark Room #{srcNum} as <strong className="text-emerald-700">VACANT &amp; READY</strong> immediately.
             </span>
           </div>
 

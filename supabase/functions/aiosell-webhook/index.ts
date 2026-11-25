@@ -288,8 +288,10 @@ serve(async (req: Request) => {
     const rawRoomCode = String(firstRoom.roomCode || "Standard Room").trim();
     const pmsRoomType = normalizeCategory(rawRoomCode);
 
-    const todayStr = new Date().toISOString().split("T")[0];
-    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+    // Use IST (Asia/Kolkata) hotel business date so upcoming future OTA bookings never lock rooms early
+    const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const todayStr = istNow.toISOString().split("T")[0];
+    const tomorrowStr = new Date(istNow.getTime() + 86400000).toISOString().split("T")[0];
     const checkIn = String(payload.checkin || payload.checkIn || todayStr).slice(0, 10);
     const checkOut = String(payload.checkout || payload.checkOut || tomorrowStr).slice(0, 10);
     const coversToday = checkIn <= todayStr && checkOut > todayStr;

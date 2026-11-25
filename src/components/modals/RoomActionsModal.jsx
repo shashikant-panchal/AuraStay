@@ -378,6 +378,27 @@ export default function RoomActionsModal({ isOpen, onClose, room, onAction }) {
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 transition" />
                 </button>
+
+                {/* Shift / Move Pre-Allocated Room */}
+                <button
+                  onClick={() => handleSelectAction('shift')}
+                  className="sm:col-span-2 group p-3 rounded-2xl border border-violet-100 hover:border-violet-300 bg-violet-50/40 hover:bg-violet-50/80 transition-all text-left flex items-center justify-between shadow-2xs"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-9 h-9 rounded-xl bg-violet-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+                      <ArrowRight className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-violet-900">
+                        Shift / Reassign Room
+                      </h4>
+                      <p className="text-[10px] text-slate-500">
+                        Move reservation to another vacant room &amp; free Room #{room.roomNumber}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-violet-600 transition" />
+                </button>
               </div>
             ) : isVacant ? (
               <button
